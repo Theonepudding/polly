@@ -33,16 +33,11 @@ export default function SettingsPage() {
       const [cfgRes, chRes, rlRes] = await Promise.all([
         fetch(`/api/guilds/${guildId}`),
         fetch(`/api/guilds/${guildId}/channels`),
-        fetch(`https://discord.com/api/guilds/${guildId}/roles`, {
-          headers: { Authorization: `Bot` }, // via API route
-        }),
+        fetch(`/api/guilds/${guildId}/channels?type=roles`),
       ])
       if (cfgRes.ok) setConfig(await cfgRes.json())
       if (chRes.ok)  setChannels((await chRes.json()).filter((c: Channel) => c.type === 0))
-
-      // Fetch roles via our own API to avoid CORS
-      const rlRes2 = await fetch(`/api/guilds/${guildId}/channels?type=roles`)
-      if (rlRes2.ok) setRoles(await rlRes2.json())
+      if (rlRes.ok)  setRoles(await rlRes.json())
     } catch { setError('Failed to load settings') }
     setLoading(false)
   }, [guildId])

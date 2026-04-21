@@ -11,8 +11,7 @@ export default function AuthErrorBanner() {
       <div className="flex items-center gap-3 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
         <AlertTriangle size={16} className="shrink-0" />
         <span>
-          Discord login failed. Make sure you are a member of the FC Discord server and try again.
-          If the problem persists, contact an admin.
+          Discord login failed. Please try again. If the problem persists, try signing out and back in.
         </span>
       </div>
     </div>

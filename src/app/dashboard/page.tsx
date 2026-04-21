@@ -48,11 +48,10 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/?auth_error=unauthenticated')
+  if (!session) redirect('/api/auth/signin?callbackUrl=/dashboard')
 
-  const accessToken = (session as { discordAccessToken?: string }).discordAccessToken
+  const accessToken = (session.user as { discordAccessToken?: string }).discordAccessToken
   if (!accessToken) {
-    // Token missing — user signed in before guilds scope was added, force re-auth
     redirect('/api/auth/signin?callbackUrl=/dashboard')
   }
 
@@ -76,6 +75,9 @@ export default async function DashboardPage() {
     createdAt:     '',
     updatedAt:     '',
   }))
+
+  // Auto-redirect when the user only has access to one server
+  if (guildsWithMeta.length === 1) redirect(`/dashboard/${guildsWithMeta[0].guildId}`)
 
   // Guilds user is in but bot is not yet — show invite prompt
   const invitableGuilds = userGuilds.filter(g =>
