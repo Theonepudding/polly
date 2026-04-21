@@ -54,6 +54,19 @@ export async function deletePoll(id: string): Promise<boolean> {
   return true
 }
 
+export async function getVotesByPoll(guildId: string): Promise<Record<string, Vote[]>> {
+  const data = await readData()
+  const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
+  const out: Record<string, Vote[]> = {}
+  for (const v of data.votes) {
+    if (ids.has(v.pollId)) {
+      if (!out[v.pollId]) out[v.pollId] = []
+      out[v.pollId].push(v)
+    }
+  }
+  return out
+}
+
 export async function getVotes(pollId: string): Promise<Vote[]> {
   const data = await readData()
   return data.votes.filter(v => v.pollId === pollId)

@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
-import { getPolls } from '@/lib/polls'
+import { getPolls, getVotesByPoll } from '@/lib/polls'
 import { getGuild, upsertGuild } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
@@ -53,7 +53,10 @@ export default async function GuildDashboardPage({ params }: Props) {
     sendWelcomeMessage(guildId, discordGuild.system_channel_id ?? null, session.user.id, discordGuild.name)
   }
 
-  const allPolls = await getPolls(guildId)
+  const [allPolls, votesByPoll] = await Promise.all([
+    getPolls(guildId),
+    getVotesByPoll(guildId),
+  ])
   const active   = allPolls.filter(p => !p.isClosed)
   const closed   = allPolls.filter(p => p.isClosed).slice(0, 5)
   const scheduled = allPolls.filter(p => !p.isClosed && p.closesAt && new Date(p.closesAt) > new Date())
@@ -135,7 +138,7 @@ export default async function GuildDashboardPage({ params }: Props) {
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
             {active.map(poll => (
-              <PollCard key={poll.id} poll={poll} guildId={guildId} />
+              <PollCard key={poll.id} poll={poll} votes={votesByPoll[poll.id] ?? []} guildId={guildId} />
             ))}
           </div>
         )}
