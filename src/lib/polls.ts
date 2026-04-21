@@ -81,7 +81,7 @@ export async function getPollsAndVotes(guildId: string): Promise<{ polls: Poll[]
     .filter(p => p.guildId === guildId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const votesByPoll: Record<string, Vote[]> = {}
-  await Promise.all(polls.map(async p => { votesByPoll[p.id] = await getVotes(p.id) }))
+  await Promise.all(polls.map(async p => { votesByPoll[p.id] = await getVotes(p.id, data) }))
   return { polls, votesByPoll }
 }
 
@@ -89,21 +89,22 @@ export async function getVotesByPoll(guildId: string): Promise<Record<string, Vo
   const data = await readData()
   const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
   const out: Record<string, Vote[]> = {}
-  await Promise.all([...ids].map(async id => { out[id] = await getVotes(id) }))
+  await Promise.all([...ids].map(async id => { out[id] = await getVotes(id, data) }))
   return out
 }
 
-export async function getVotes(pollId: string): Promise<Vote[]> {
-  const kv = await getKV()
-  if (kv) {
-    const list = await kv.list({ prefix: `vote:${pollId}:` })
-    if (list.keys.length > 0) {
-      const raws = await Promise.all(list.keys.map(k => kv.get(k.name)))
-      return raws.filter((r): r is string => r !== null).map(r => JSON.parse(r) as Vote)
-    }
-  }
-  const data = await readData()
-  return data.votes.filter(v => v.pollId === pollId)
+export async function getVotes(pollId: string, cachedData?: PollsData): Promise<Vote[]> {
+  const kv   = await getKV()
+  const data = cachedData ?? await readData()
+  const blobVotes = data.votes.filter(v => v.pollId === pollId)
+  if (!kv) return blobVotes
+  const list = await kv.list({ prefix: `vote:${pollId}:` })
+  if (list.keys.length === 0) return blobVotes
+  const raws = await Promise.all(list.keys.map(k => kv.get(k.name)))
+  const indivVotes = raws.filter((r): r is string => r !== null).map(r => JSON.parse(r) as Vote)
+  // Merge: individual key votes override blob for the same user (migration-safe)
+  const migratedUsers = new Set(indivVotes.map(v => v.userId))
+  return [...indivVotes, ...blobVotes.filter(v => !migratedUsers.has(v.userId))]
 }
 
 export async function getUserVotes(pollId: string, userId: string): Promise<Vote[]> {
@@ -176,10 +177,6 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
     const existingRaw = await kv.get(key)
     if (existingRaw) {
       voteChanged = (JSON.parse(existingRaw) as Vote).optionId !== vote.optionId
-    } else {
-      const data     = await readData()
-      const blobVote = data.votes.find(v => v.pollId === vote.pollId && v.userId === vote.userId)
-      if (blobVote) voteChanged = blobVote.optionId !== vote.optionId
     }
     await kv.put(key, JSON.stringify(vote))
   } else {
