@@ -1,22 +1,37 @@
 import { Poll, Vote, PollsData } from '@/types'
 import { getKV } from './kv'
 
-const KEY      = 'polls'
-const POLL_KEY = (id: string) => `poll:${id}`
+const KEY       = 'polls'
+const VOTES_KEY = 'votes'
+const POLL_KEY  = (id: string) => `poll:${id}`
 
 const emptyData = (): PollsData => ({ polls: [], votes: [] })
+
+// ── Polls blob (polls only, no votes) ────────────────────────────────────────
 
 export async function readData(): Promise<PollsData> {
   const kv = await getKV()
   if (!kv) return emptyData()
-  const raw = await kv.get(KEY)
-  return raw ? (JSON.parse(raw) as PollsData) : emptyData()
+  const [pollsRaw, votesRaw] = await Promise.all([kv.get(KEY), kv.get(VOTES_KEY)])
+  const polls = pollsRaw ? ((JSON.parse(pollsRaw) as PollsData).polls ?? []) : []
+  if (votesRaw) {
+    return { polls, votes: (JSON.parse(votesRaw) as { votes: Vote[] }).votes }
+  }
+  // Migration: old combined blob still has votes
+  if (pollsRaw) {
+    const old = JSON.parse(pollsRaw) as PollsData
+    if (old.votes?.length) return { polls, votes: old.votes }
+  }
+  return { polls, votes: [] }
 }
 
 export async function writeData(data: PollsData): Promise<void> {
   const kv = await getKV()
   if (!kv) throw new Error('KV not available')
-  await kv.put(KEY, JSON.stringify(data))
+  await Promise.all([
+    kv.put(KEY,       JSON.stringify({ polls: data.polls })),
+    kv.put(VOTES_KEY, JSON.stringify({ votes: data.votes })),
+  ])
 }
 
 export async function getPolls(guildId?: string): Promise<Poll[]> {
@@ -137,25 +152,45 @@ export async function getPollsNeedingReminder(): Promise<Poll[]> {
   )
 }
 
+// ── castVote: touches ONLY the votes key, never the polls key ────────────────
+// This prevents castVote from clobbering poll records when they race with
+// createPoll — e.g. when the polls blob hasn't propagated to this edge yet
+// but the user already clicked a vote button.
 export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ voteChanged: boolean; votes: Vote[] }> {
-  const data = await readData()
+  const kv = await getKV()
+  if (!kv) throw new Error('KV not available')
+
+  // Read votes ONLY from the dedicated votes key
+  const votesRaw = await kv.get(VOTES_KEY)
+  let allVotes: Vote[]
+  if (votesRaw) {
+    allVotes = (JSON.parse(votesRaw) as { votes: Vote[] }).votes
+  } else {
+    // Migration: read votes from old combined blob on first deploy
+    const oldRaw = await kv.get(KEY)
+    const old    = oldRaw ? (JSON.parse(oldRaw) as PollsData) : emptyData()
+    allVotes     = old.votes ?? []
+  }
+
   let voteChanged = false
   if (allowMultiple) {
-    const idx = data.votes.findIndex(
+    const idx = allVotes.findIndex(
       v => v.pollId === vote.pollId && v.userId === vote.userId && v.optionId === vote.optionId
     )
-    if (idx !== -1) data.votes[idx] = vote
-    else data.votes.push(vote)
+    if (idx !== -1) allVotes[idx] = vote
+    else allVotes.push(vote)
   } else {
-    const idx = data.votes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
+    const idx = allVotes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
     if (idx !== -1) {
-      voteChanged = data.votes[idx].optionId !== vote.optionId
-      data.votes[idx] = vote
+      voteChanged = allVotes[idx].optionId !== vote.optionId
+      allVotes[idx] = vote
     } else {
-      data.votes.push(vote)
+      allVotes.push(vote)
     }
   }
-  await writeData(data)
-  const votes = data.votes.filter(v => v.pollId === vote.pollId)
-  return { voteChanged, votes }
+
+  // Write ONLY the votes key — polls key is never touched here
+  await kv.put(VOTES_KEY, JSON.stringify({ votes: allVotes }))
+  const pollVotes = allVotes.filter(v => v.pollId === vote.pollId)
+  return { voteChanged, votes: pollVotes }
 }
