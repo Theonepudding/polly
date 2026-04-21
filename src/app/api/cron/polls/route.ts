@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { processDueTemplates } from '@/lib/poll-templates'
 import { closeExpiredPolls, getPollsNeedingReminder, getVotes, updatePoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
-import { updatePollInDiscord, postPollResults, sendReminderPing, postAuditLog } from '@/lib/discord-bot'
+import { updatePollInDiscord, postPollResults, sendReminderPing, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   // 2. Close expired polls
   const expiredPolls = await closeExpiredPolls()
   const closedIds: string[] = []
+  const guildIdsToRefresh = new Set<string>()
   for (const poll of expiredPolls) {
     try {
       const [votes, guild] = await Promise.all([
@@ -33,10 +34,13 @@ export async function POST(req: Request) {
         await postAuditLog(guild, 'Poll auto-closed', `**${poll.title}** — ${votes.length} vote${votes.length !== 1 ? 's' : ''}`).catch(() => {})
       }
       closedIds.push(poll.id)
+      guildIdsToRefresh.add(poll.guildId)
     } catch (e) {
       console.error(`Failed to process expired poll ${poll.id}:`, e)
     }
   }
+  // Refresh Polly Status embed for every guild that had polls close
+  await Promise.allSettled([...guildIdsToRefresh].map(id => refreshDashboard(id)))
 
   // 3. Send 24h reminders
   const pollsForReminder = await getPollsNeedingReminder()

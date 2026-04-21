@@ -660,7 +660,7 @@ export async function POST(req: NextRequest) {
         if (savedPoll && savedVotes) {
           const poll = savedPoll; const votes = savedVotes; const changed = voteChanged
           bg((async () => {
-            updatePollInDiscord(poll, votes).catch(() => {})
+            await updatePollInDiscord(poll, votes).catch(() => {})
             if (changed) {
               await sleep(5_000)
               await deleteMessage(appId, token)
