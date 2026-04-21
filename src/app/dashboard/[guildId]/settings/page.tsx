@@ -10,11 +10,11 @@ interface Role    { id: string; name: string; color: number; permissions?: strin
 interface GuildConfig {
   guildName: string
   ownerId: string
-  announceChannelId?: string
-  pollyChannelId?: string
+  announceChannelId?: string | null
+  pollyChannelId?: string | null
   guideMessage?: string
-  dashboardChannelId?: string
-  auditLogChannelId?: string
+  dashboardChannelId?: string | null
+  auditLogChannelId?: string | null
   adminRoleIds: string[]
   creatorRoleIds: string[]
   voterRoleIds: string[]
@@ -268,7 +268,7 @@ export default function SettingsPage() {
             </div>
             <select
               value={config.announceChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, announceChannelId: e.target.value || undefined })}
+              onChange={e => updateConfig({ ...config, announceChannelId: e.target.value || null })}
               className="input">
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
@@ -306,7 +306,7 @@ export default function SettingsPage() {
             </div>
             <select
               value={config.pollyChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, pollyChannelId: e.target.value || undefined })}
+              onChange={e => updateConfig({ ...config, pollyChannelId: e.target.value || null })}
               className="input mb-3">
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
@@ -383,7 +383,7 @@ export default function SettingsPage() {
             </div>
             <select
               value={config.dashboardChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, dashboardChannelId: e.target.value || undefined })}
+              onChange={e => updateConfig({ ...config, dashboardChannelId: e.target.value || null })}
               className="input mb-4">
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
@@ -407,7 +407,7 @@ export default function SettingsPage() {
             </p>
             <select
               value={config.auditLogChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, auditLogChannelId: e.target.value || undefined })}
+              onChange={e => updateConfig({ ...config, auditLogChannelId: e.target.value || null })}
               className="input">
               <option value="">— None (disabled) —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
