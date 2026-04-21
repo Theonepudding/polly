@@ -1,0 +1,24 @@
+name = "polly"
+main = ".open-next/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Update pattern + zone_name to match your domain before deploying
+routes = [
+  { pattern = "polly.pudding.vip", custom_domain = true, zone_name = "pudding.vip" }
+]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Create a new KV namespace in Cloudflare dashboard and paste the ID below
+[[kv_namespaces]]
+binding = "POLLY_KV"
+id = "342a355a3dac4535afd7c20f1452b3a9"

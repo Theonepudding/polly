@@ -1,0 +1,117 @@
+// ─── Guild ──────────────────────────────────────────────────────────────────
+
+export interface Guild {
+  guildId: string
+  guildName: string
+  guildIcon?: string       // Discord icon hash
+  ownerId: string          // Discord user ID who set up the bot for this server
+  adminRoleIds: string[]   // roles that can create/manage polls
+  voterRoleIds: string[]   // roles that can vote (empty = everyone)
+  announceChannelId?: string
+  dashboardChannelId?: string
+  dashboardMessageId?: string  // persistent dashboard embed message ID
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GuildWithMeta extends Guild {
+  memberCount?: number
+  activePollCount?: number
+  userIsAdmin: boolean
+}
+
+// ─── Poll ────────────────────────────────────────────────────────────────────
+
+export interface PollOption {
+  id: string
+  text: string
+}
+
+export interface Poll {
+  id: string
+  guildId: string
+  title: string
+  description?: string
+  options: PollOption[]
+  includeTimeSlots: boolean
+  timeSlots: string[]       // "HH:MM"
+  isAnonymous: boolean
+  allowMultiple: boolean
+  createdBy: string         // Discord user ID
+  createdByName: string
+  createdAt: string         // ISO
+  closesAt?: string         // ISO — undefined = manual close only
+  isClosed: boolean
+  discordMessageId?: string | null
+  discordChannelId?: string | null
+}
+
+export interface Vote {
+  pollId: string
+  userId: string
+  username: string
+  optionId: string
+  timeSlot?: string
+  votedAt: string
+}
+
+export interface PollsData {
+  polls: Poll[]
+  votes: Vote[]
+}
+
+// ─── Poll Template (scheduled) ───────────────────────────────────────────────
+
+export interface PollTemplate {
+  id: string
+  guildId: string
+  title: string
+  description?: string
+  options: PollOption[]
+  includeTimeSlots: boolean
+  timeSlots: string[]
+  isAnonymous: boolean
+  allowMultiple: boolean
+  daysOpen: number
+  createdBy: string
+  createdByName: string
+  createdAt: string
+  intervalDays: number
+  atHour: number            // UTC 0–23
+  nextRunAt: string         // ISO
+  lastRunAt: string | null
+  active: boolean
+  postToDiscord: boolean
+}
+
+// ─── Bot Admin ───────────────────────────────────────────────────────────────
+
+export interface BotAdmin {
+  discordId: string
+  addedAt: string
+}
+
+// ─── Discord API ─────────────────────────────────────────────────────────────
+
+export interface DiscordUser {
+  id: string
+  username: string
+  discriminator: string
+  avatar?: string
+  global_name?: string
+}
+
+export interface DiscordGuildMember {
+  user: DiscordUser
+  nick?: string
+  roles: string[]
+  joined_at: string
+}
+
+export interface DiscordGuild {
+  id: string
+  name: string
+  icon?: string
+  owner: boolean
+  permissions: string
+}

@@ -1,0 +1,17 @@
+name: Poll Scheduler
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # runs every hour — adjust as needed
+  workflow_dispatch:        # allows manual trigger from GitHub Actions tab
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger poll cron
+        run: |
+          curl -X POST https://polly.pudding.vip/api/cron/polls \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail

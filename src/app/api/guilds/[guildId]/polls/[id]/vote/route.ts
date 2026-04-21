@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getPoll, getVotes, castVote } from '@/lib/polls'
+import { updatePollInDiscord } from '@/lib/discord-bot'
+import type { Vote } from '@/types'
+
+interface Params { params: { guildId: string; id: string } }
+
+export async function POST(req: NextRequest, { params }: Params) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const poll = await getPoll(params.id)
+  if (!poll || poll.guildId !== params.guildId) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+  if (poll.isClosed) return NextResponse.json({ error: 'Poll is closed' }, { status: 400 })
+
+  const body      = await req.json()
+  const optionIds: string[] = poll.allowMultiple
+    ? (Array.isArray(body.optionIds) ? body.optionIds : [body.optionId])
+    : [body.optionId ?? body.optionIds?.[0]]
+
+  if (!optionIds.every(id => poll.options.some(o => o.id === id))) {
+    return NextResponse.json({ error: 'Invalid option' }, { status: 400 })
+  }
+
+  const now = new Date().toISOString()
+  if (poll.allowMultiple) {
+    for (const optionId of optionIds) {
+      const vote: Vote = {
+        pollId:   params.id,
+        userId:   session.user.id,
+        username: session.user.name ?? 'Unknown',
+        optionId,
+        timeSlot: body.timeSlot,
+        votedAt:  now,
+      }
+      await castVote(vote, true)
+    }
+  } else {
+    const vote: Vote = {
+      pollId:   params.id,
+      userId:   session.user.id,
+      username: session.user.name ?? 'Unknown',
+      optionId: optionIds[0],
+      timeSlot: body.timeSlot,
+      votedAt:  now,
+    }
+    await castVote(vote, false)
+  }
+
+  const votes = await getVotes(params.id)
+
+  // Update Discord embed in background (non-blocking)
+  updatePollInDiscord(poll, votes).catch(() => {})
+
+  return NextResponse.json({ votes })
+}

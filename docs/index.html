@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Too Tired [T_T] — Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Nunito:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold:     #C9A84C;
+      --gold-dim: rgba(201,168,76,0.25);
+      --teal:     #2DD4BF;
+      --teal-dim: rgba(45,212,191,0.15);
+      --bg:       #0a0a1a;
+      --bg-mid:   #111128;
+      --bg-card:  #16162a;
+      --text:     #e8e4d8;
+      --muted:    #7a7890;
+      --border:   rgba(255,255,255,0.07);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 15px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+    nav { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--bg-mid); border-right: 1px solid var(--border); padding: 32px 0; }
+    .nav-brand { padding: 0 24px 28px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .nav-brand h1 { font-family: 'Cinzel', serif; font-size: 16px; color: var(--gold); letter-spacing: 0.05em; }
+    .nav-brand p { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    nav a { display: block; padding: 7px 24px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-left-color: var(--gold-dim); background: rgba(255,255,255,0.03); }
+    nav a.active { color: var(--gold); border-left-color: var(--gold); }
+    .nav-section { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 16px 24px 6px; font-family: 'Cinzel', serif; }
+
+    main { max-width: 860px; padding: 56px 64px; }
+    h1 { font-family: 'Cinzel', serif; font-size: 32px; color: var(--gold); letter-spacing: 0.03em; margin-bottom: 8px; }
+    h2 { font-family: 'Cinzel', serif; font-size: 20px; color: var(--text); margin: 52px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); letter-spacing: 0.03em; }
+    h3 { font-size: 15px; font-weight: 700; color: var(--gold); margin: 28px 0 10px; }
+    h4 { font-size: 12px; font-weight: 700; color: var(--teal); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+    p { margin-bottom: 12px; color: rgba(232,228,216,0.85); }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { color: var(--text); font-weight: 600; }
+    .lead { font-size: 16px; color: var(--muted); margin-bottom: 28px; }
+
+    .hero { padding: 0 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--teal-dim); border: 1px solid rgba(45,212,191,0.3); border-radius: 999px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .card-gold { border-color: var(--gold-dim); background: rgba(201,168,76,0.04); }
+    .card-teal { border-color: rgba(45,212,191,0.2); background: rgba(45,212,191,0.04); }
+    .card-red  { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.05); }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13.5px; }
+    th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: rgba(232,228,216,0.85); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--teal); }
+    pre { background: #0d0d1f; border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; margin: 16px 0; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; }
+    pre code { background: none; border: none; padding: 0; color: #c9d1d9; }
+    .kw  { color: #ff7b72; }
+    .str { color: #a5d6ff; }
+    .cmt { color: #8b949e; }
+    .var { color: #2DD4BF; }
+    .num { color: #f2cc60; }
+
+    ul, ol { padding-left: 22px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; color: rgba(232,228,216,0.85); }
+    li::marker { color: var(--gold); }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .badge-green { background: rgba(74,222,128,0.15);  color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+    .badge-red   { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+    .badge-gold  { background: rgba(201,168,76,0.15);  color: var(--gold); border: 1px solid var(--gold-dim); }
+    .badge-teal  { background: var(--teal-dim);         color: var(--teal); border: 1px solid rgba(45,212,191,0.3); }
+    .badge-muted { background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--border); }
+
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist .file { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--teal); white-space: nowrap; flex-shrink: 0; padding-top: 2px; min-width: 150px; }
+    .checklist .desc { font-size: 13.5px; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    section { scroll-margin-top: 24px; }
+
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: static; height: auto; }
+      main { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+<!-- Sidebar -->
+<nav>
+  <div class="nav-brand">
+    <h1>Too Tired [T_T]</h1>
+    <p>FC Website Documentation</p>
+  </div>
+  <div class="nav-section">Overview</div>
+  <a href="#intro">Introduction</a>
+  <a href="#tech">Tech Stack</a>
+  <div class="nav-section">Features</div>
+  <a href="#members">Member Roster</a>
+  <a href="#profiles">Member Profiles</a>
+  <a href="#polls">Community Polls</a>
+  <a href="#scheduled">Scheduled Polls</a>
+  <a href="#discord">Discord Integration</a>
+  <a href="#images">Text-to-Image Cards</a>
+  <a href="#og">Site OG Image</a>
+  <a href="#admin">Admin Panels</a>
+  <div class="nav-section">Reference</div>
+  <a href="#permissions">Permissions</a>
+  <a href="#env">Environment Variables</a>
+  <a href="#kv">KV Data Layout</a>
+  <a href="#cron">Cron Setup</a>
+  <div class="nav-section">Operations</div>
+  <a href="#dev">Local Development</a>
+  <a href="#deploy">Deployment</a>
+  <a href="#domain">Changing the Domain</a>
+</nav>
+
+<!-- Main -->
+<main>
+
+  <div class="hero" id="intro">
+    <div class="hero-badge">&#9670; Live at tired.pudding.vip</div>
+    <h1>Too Tired [T_T]</h1>
+    <p class="lead">
+      Member portal and Discord bot for the <strong>Too Tired [T_T]</strong>
+      Free Company on <strong>Spriggan [Chaos]</strong>, EU.
+      Built on Next.js 15, deployed on Cloudflare Workers.
+    </p>
+  </div>
+
+  <!-- Tech Stack -->
+  <section id="tech">
+    <h2>Tech Stack</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Next.js 15 (App Router, React 19)</td></tr>
+        <tr><td>Runtime</td><td>Cloudflare Workers via <code>@opennextjs/cloudflare</code></td></tr>
+        <tr><td>Storage</td><td>Cloudflare KV &mdash; <code>FC_KV</code> binding (JSON blobs per key, no SQL)</td></tr>
+        <tr><td>Auth</td><td>NextAuth v4 &mdash; Discord OAuth2, JWT sessions with 5-min rank refresh</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS v3 &mdash; dark navy / gold / teal custom theme</td></tr>
+        <tr><td>Discord</td><td>REST API v10, no library &mdash; interactions endpoint for buttons &amp; commands</td></tr>
+        <tr><td>Image generation</td><td><code>next/og</code> (satori) &mdash; server-rendered JSX &rarr; PNG at request time</td></tr>
+        <tr><td>Deploy</td><td>Cloudflare Pages + <code>wrangler</code>, auto-deploys on push to <code>main</code></td></tr>
+        <tr><td>Fonts</td><td>Cinzel (display), Nunito (body) &mdash; loaded from Google Fonts</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Members -->
+  <section id="members">
+    <h2>Member Roster</h2>
+
+    <h3>Lodestone Sync</h3>
+    <p>Member data (name, rank, level, join date, portrait URL) is scraped directly from the FC's Lodestone page. Syncs run automatically every 30 minutes in the background via <code>AutoSync</code>, or can be triggered manually from the Members page or Admin panel.</p>
+    <p><strong>Join history</strong> is preserved in KV so returning members keep their original join date. A <code>join-history</code> map (<code>lodestoneId &rarr; isoDate</code>) is maintained alongside the main member list and checked before any date is overwritten.</p>
+
+    <h3>New Member Detection</h3>
+    <p>Members who joined within the last <strong>30 days</strong> automatically receive a teal <span class="badge badge-teal">&#10022; NEW</span> ribbon and a glowing animated card border.</p>
+    <p><strong>Admin override</strong> &mdash; if automatic detection is wrong (bad join date, returning player, etc.), admins can hover any member card and toggle its new status with the pill button that appears. Stored as <code>manualNew: true | false | null</code> on the member. <code>null</code> means use the automatic 30-day rule.</p>
+
+    <h3>Portrait Images</h3>
+    <p>Portraits are fetched from Lodestone and served via <code>/api/portrait/[lodestoneId]</code>. Falls back to an initials avatar in the member's rank colour. A bulk refresh can be triggered from the Admin panel.</p>
+
+    <h3>Filters &amp; Sorting</h3>
+    <p>Search by name, filter by rank, sort by join date / name / level. A "New only" toggle narrows to recently joined members. The default view groups members by rank with a count per group.</p>
+  </section>
+
+  <!-- Member Profiles -->
+  <section id="profiles">
+    <h2>Member Profiles</h2>
+    <p>Each member has a dedicated profile page at <code>/members/[id]</code> that aggregates data from multiple external sources in parallel.</p>
+
+    <h3>Character Data</h3>
+    <p>Pulled from Lodestone via <code>getCharacterData(lodestoneId)</code> and cached in KV under <code>xivapi-char-{lodestoneId}</code> for 1 hour. On member profile pages the cache is <strong>warm-only</strong> &mdash; stale data is shown instantly while a background refresh runs, rather than blocking the page.</p>
+    <ul>
+      <li><strong>Job Levels</strong> &mdash; all combat, crafting and gathering jobs scraped from the character's Lodestone page, grouped by role (Tank, Healer, DPS, Crafter, Gatherer). Jobs at level 100 are highlighted in gold with a glow effect.</li>
+      <li><strong>Mount &amp; Minion counts</strong> &mdash; total counts shown in the Collections header.</li>
+    </ul>
+
+    <h3>Collections (Mounts &amp; Minions)</h3>
+    <p>Fetched from the character's Lodestone mount/minion pages. Each item requires a separate tooltip fetch to resolve its name &mdash; tooltips are stored permanently in KV as a single JSON map (<code>lod-tooltip-map</code>), keyed internally by the 40-character content hash from the Lodestone tooltip URL. Each unique mount or minion is only ever fetched once across <em>all</em> characters, and the entire map is written in a single KV put per scrape.</p>
+    <p>Items are then enriched with data from the <strong>FFXIV Collect API</strong> (large render image, global ownership %, acquisition sources). The full mount/minion catalog is cached in KV as <code>ffxiv-collect-catalog-{type}</code> for 24 hours.</p>
+    <p>Clicking an item opens a modal with the large render, rarity percentage, acquisition sources, and a link to FFXIV Collect.</p>
+
+    <h3>Notable Feats</h3>
+    <p>Scraped from <code>ffxivcollect.com/characters/{id}/stats/rarity</code> &mdash; the top 10 rarest <strong>achievements</strong> and top 10 rarest <strong>titles</strong> owned by the character. Cached under <code>ffxiv-feats5-{lodestoneId}</code> for 6 hours.</p>
+    <ul>
+      <li>Achievement entries show: icon, name, global ownership %, and on click &mdash; how to obtain and any title reward.</li>
+      <li>Title entries show: title text in quotes, the achievement that grants it, and on click &mdash; the full "how to obtain" description.</li>
+    </ul>
+    <p>HTML entities in scraped names (e.g. <code>&amp;#39;</code> &rarr; <code>'</code>) are decoded before display or caching.</p>
+
+    <h3>Poll Activity</h3>
+    <p>The last 30 polls are scanned for votes by the member (matched by username). Each found vote shows the poll title, chosen option, and active/closed status &mdash; linking through to the full poll.</p>
+  </section>
+
+  <!-- Polls -->
+  <section id="polls">
+    <h2>Community Polls</h2>
+
+    <h3>Creating a Poll</h3>
+    <p>Admins (Dreamscaper+) open the "New Poll" modal and set:</p>
+    <ul>
+      <li>Title and optional description</li>
+      <li>Up to 6 options</li>
+      <li><strong>Time-slot voting</strong> &mdash; voters also pick a preferred time after choosing their option. Presets are 17:00&ndash;21:00 UTC, or any custom time. Stored in UTC, displayed in each voter's local timezone.</li>
+      <li>Poll duration: 1, 3, 7 or 14 days</li>
+    </ul>
+    <p>After creation, a prompt asks whether to post to Discord immediately.</p>
+
+    <h3>Voting</h3>
+    <p>One vote per member. Requires login via Discord OAuth. Results update live with bar charts. Members with <span class="badge badge-muted">Sleep Paralysis</span> rank cannot vote.</p>
+
+    <h3>Permissions</h3>
+    <div class="card card-gold">
+      <table>
+        <thead><tr><th>Action</th><th>Who</th></tr></thead>
+        <tbody>
+          <tr><td>Create poll</td><td>Admins &mdash; Dreamscaper, Moonwarden, The Oversleeper</td></tr>
+          <tr><td>Vote</td><td>All members except Sleep Paralysis</td></tr>
+          <tr><td>Close a poll</td><td>Admins <strong>and</strong> the poll creator</td></tr>
+          <tr><td>Delete a poll</td><td>Admins only &mdash; prompts a custom confirmation modal</td></tr>
+          <tr><td>Send / resend to Discord</td><td>Admins only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>All destructive actions use a styled <strong>custom confirmation modal</strong> with the item name in the message. No native browser <code>confirm()</code> dialogs anywhere in the site.</p>
+  </section>
+
+  <!-- Scheduled -->
+  <section id="scheduled">
+    <h2>Scheduled / Recurring Polls</h2>
+    <p>Admins create <strong>poll templates</strong> that automatically post a fresh poll on a repeating schedule. Managed under the <strong>Scheduled</strong> tab on the Polls page (admin-only tab).</p>
+
+    <h3>Template Configuration</h3>
+    <ul>
+      <li><strong>Title, description, options</strong> &mdash; same as a one-off poll</li>
+      <li><strong>Time-slot voting</strong> &mdash; optional, identical setup to one-off polls</li>
+      <li><strong>Repeat interval</strong> &mdash; Daily / Weekly / Bi-weekly / Monthly presets, or any custom number of days (1&ndash;365)</li>
+      <li><strong>First poll date</strong> &mdash; a date picker lets you choose the exact start. For weekly schedules, the chosen weekday becomes the recurring day (pick a Monday &rarr; fires every Monday)</li>
+      <li><strong>Post time</strong> &mdash; quick preset chips shown in your local time, plus a full custom time input. Stored internally as UTC hour.</li>
+      <li><strong>Poll duration</strong> &mdash; how many days each generated poll stays open</li>
+      <li><strong>Post to Discord</strong> &mdash; whether each new poll is auto-announced</li>
+    </ul>
+
+    <h3>Template Actions</h3>
+    <ul>
+      <li><strong>&#9654; Run now</strong> &mdash; fires the template immediately, ignoring the schedule</li>
+      <li><strong>&#9646;&#9646; Pause / Resume</strong> &mdash; suspends or re-activates without deleting</li>
+      <li><strong>&#128465; Delete</strong> &mdash; removes the schedule permanently. Polls already created are kept.</li>
+    </ul>
+
+    <h3>Drift-free Scheduling</h3>
+    <p>Next run time is always computed from the <em>previous scheduled time</em>, not wall-clock time. If a cron fires 30 minutes late, the next slot is still exactly <code>intervalDays</code> after the original intended time &mdash; no slow drift over weeks.</p>
+  </section>
+
+  <!-- Discord -->
+  <section id="discord">
+    <h2>Discord Integration</h2>
+
+    <h3>Bot Setup (one-time)</h3>
+    <p>Visit <strong>/bot-admin</strong>. Only users whose Discord IDs are in the <code>bot-admins</code> KV key can access this panel.</p>
+    <ol>
+      <li>Click <strong>Invite Bot</strong> &mdash; opens the OAuth invite URL for the bot</li>
+      <li>Select the server from the dropdown (lists servers the bot is already in)</li>
+      <li>Select the announcement channel where polls will be posted</li>
+      <li>Click <strong>Save Setup</strong></li>
+    </ol>
+
+    <h3>Poll Embeds</h3>
+    <p>Polls posted to Discord appear as rich embeds with:</p>
+    <ul>
+      <li>Title and description</li>
+      <li>Vote count and closing date</li>
+      <li>A <strong>dynamically generated image card</strong> showing live results (see <a href="#images">Text-to-Image Cards</a>)</li>
+      <li>Vote buttons, one per option (up to 5), in Discord <strong>Blurple / Primary</strong> style</li>
+    </ul>
+
+    <h3>Smart Resend</h3>
+    <p>The "Send to Discord" admin button first tries to <strong>update</strong> the existing Discord message. If it gets a 404 (message deleted or in a different channel), it automatically <strong>creates a new post</strong> and saves the new message ID. No manual intervention needed.</p>
+
+    <h3>Closed Poll Embeds</h3>
+    <p>When a poll closes (manually or by expiry), the Discord embed updates: buttons are removed, the card image switches to teal <span class="badge badge-teal">CLOSED</span> styling, and bars show the final tallies.</p>
+  </section>
+
+  <!-- Images -->
+  <section id="images">
+    <h2>Text-to-Image Cards</h2>
+    <p>Poll results are shown in Discord as a <strong>dynamically generated PNG image</strong>. There is no static screenshot &mdash; the image is rendered fresh on every request using server-side JSX processed by <strong>satori</strong> (the engine inside <code>next/og</code>). The text, bars and voter names are all drawn into the image at render time.</p>
+
+    <h3>What the card contains</h3>
+    <ul>
+      <li>Poll title with a mini bar-chart icon (gold when open, teal when closed)</li>
+      <li><span class="badge badge-gold">OPEN</span> or <span class="badge badge-teal">CLOSED</span> status badge</li>
+      <li>Each option with a percentage fill bar</li>
+      <li>Vote count per option</li>
+      <li>Voter names below each bar &mdash; up to 6, then "+N more"</li>
+      <li>Total vote count and closing date in the footer</li>
+    </ul>
+
+    <h3>Resolution &amp; sharpness</h3>
+    <p>Cards are generated at <strong>1200 &times; (dynamic height) px</strong> &mdash; 2&times; the display size. Discord scales embed images down to roughly 600 px wide, so the 2&times; source stays sharp at any display density. All measurements in the satori template are doubled to match.</p>
+
+    <h3>Cache busting</h3>
+    <p>The image URL in each Discord message includes <code>?t=&lt;timestamp&gt;</code>, updated every time the embed refreshes. Discord uses the full URL as its image cache key, so it always re-fetches the latest result image rather than showing stale bars.</p>
+
+    <div class="card card-teal">
+      <h4>Image route</h4>
+      <p style="margin-bottom:6px"><code>GET /api/poll-image/[pollId]?t=&lt;timestamp&gt;</code></p>
+      <p style="margin-bottom:0">Returns a PNG. Paste any poll's image URL in a browser to preview the card. Intentionally public and unauthenticated &mdash; Discord must fetch it without credentials.</p>
+    </div>
+  </section>
+
+  <!-- OG image -->
+  <section id="og">
+    <h2>Site OG Image (Link Previews)</h2>
+    <p>When the site URL is shared on Discord, Twitter/X, Slack, iMessage, etc., a custom-generated <strong>1200 &times; 630 px</strong> preview card appears instead of a generic screenshot. Rendered on demand by <code>next/og</code> &mdash; not a static file.</p>
+
+    <h3>Design</h3>
+    <ul>
+      <li>Dark navy gradient background matching the site's colour scheme</li>
+      <li>Scattered stars in white, gold and teal</li>
+      <li>Gold top edge line + teal bottom edge line spanning the full width</li>
+      <li>Inner panel with a gold border &mdash; matching the site's <code>glass-gold</code> card style</li>
+      <li>Bar-chart icon ornament (same icon used on poll cards)</li>
+      <li>"<strong>Too Tired</strong>" in large white Cinzel bold + "<strong>[T_T]</strong>" in site gold</li>
+      <li>FINAL FANTASY XIV FREE COMPANY in gold caps</li>
+      <li>SPRIGGAN &middot; CHAOS &middot; EU in dim white</li>
+    </ul>
+    <p>Cinzel font is fetched from Google Fonts at request time. If unavailable, falls back to <code>next/og</code>'s bundled Noto Sans.</p>
+
+    <h3>Busting Discord's cache</h3>
+    <p>Discord caches OG image data per URL for <strong>up to 24 hours</strong>. To force an immediate refresh, share the URL with any query string &mdash; Discord treats it as a new URL and fetches fresh metadata:</p>
+    <pre><code>https://tired.pudding.vip/?v=2</code></pre>
+    <p>After a design update to the OG image, bump the version number in <code>src/app/layout.tsx</code> to permanently bust the cache for all future shares:</p>
+    <pre><code>images: [{ <span class="kw">url</span>: <span class="str">'/opengraph-image?v=3'</span>, <span class="kw">width</span>: <span class="num">1200</span>, <span class="kw">height</span>: <span class="num">630</span> }]</code></pre>
+    <div class="card">
+      <h4>Preview without sharing</h4>
+      <p style="margin-bottom:0">Open <code>/opengraph-image</code> directly in a browser to see the current card without posting a link anywhere.</p>
+    </div>
+  </section>
+
+  <!-- Admin -->
+  <section id="admin">
+    <h2>Admin Panels</h2>
+
+    <h3>/admin</h3>
+    <p>Accessible to bot admins and Dreamscaper+ ranks.</p>
+    <ul>
+      <li>FC stats &mdash; member count, active poll count, last Lodestone sync age</li>
+      <li>Force Lodestone sync &mdash; triggers an immediate fresh scrape</li>
+      <li>Full poll list (active + closed) with per-poll controls: Post to Discord, Refresh Discord embed, Close, Delete</li>
+    </ul>
+
+    <h3>/bot-admin</h3>
+    <p>Discord bot one-time setup (server picker + channel picker). Access restricted to Discord user IDs in the <code>bot-admins</code> KV key. Can also be reached without a Discord session via a local password at <code>/bot-admin/login</code>.</p>
+  </section>
+
+  <hr />
+
+  <!-- Permissions -->
+  <section id="permissions">
+    <h2>Permissions</h2>
+    <table>
+      <thead>
+        <tr><th>Rank</th><th>Level</th><th>Create polls</th><th>Vote</th><th>Close own poll</th><th>Admin actions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-gold">The Oversleeper</span></td><td>owner</td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td></tr>
+        <tr><td><span class="badge badge-gold">Dreamscaper</span></td><td>admin</td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td></tr>
+        <tr><td><span class="badge badge-gold">Moonwarden</span></td><td>admin</td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-green">&#10003;</span></td></tr>
+        <tr><td><span class="badge badge-muted">Astral Luminary</span></td><td>member</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+        <tr><td><span class="badge badge-muted">Bedroom Bouncer</span></td><td>member</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+        <tr><td><span class="badge badge-muted">Slumber Smith</span></td><td>member</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+        <tr><td><span class="badge badge-muted">Lucid Dreamer</span></td><td>member</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+        <tr><td><span class="badge badge-muted">Night Owl</span></td><td>member</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-green">&#10003;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+        <tr><td><span class="badge badge-red">Sleep Paralysis</span></td><td>restricted</td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td><td><span class="badge badge-red">&#10007;</span></td></tr>
+      </tbody>
+    </table>
+    <p>Bot admins (stored in <code>bot-admins</code> KV) bypass all rank checks and have full access.</p>
+  </section>
+
+  <!-- Env -->
+  <section id="env">
+    <h2>Environment Variables</h2>
+    <p>Set in the <strong>Cloudflare Pages dashboard</strong> under Settings &rarr; Environment Variables for production, or in <code>.env.local</code> for local development.</p>
+    <pre><code><span class="cmt"># NextAuth</span>
+<span class="var">NEXTAUTH_URL</span>=<span class="str">https://your-domain.com</span>
+<span class="var">NEXTAUTH_SECRET</span>=<span class="str">&lt;random 32+ char secret&gt;</span>
+
+<span class="cmt"># Discord OAuth app (member login)</span>
+<span class="var">DISCORD_CLIENT_ID</span>=<span class="str">&lt;your app client id&gt;</span>
+<span class="var">DISCORD_CLIENT_SECRET</span>=<span class="str">&lt;your app client secret&gt;</span>
+
+<span class="cmt"># Discord Bot (posting polls, reading servers/channels)</span>
+<span class="var">DISCORD_BOT_TOKEN</span>=<span class="str">&lt;your bot token&gt;</span>
+
+<span class="cmt"># Cron protection (recommended)</span>
+<span class="var">CRON_SECRET</span>=<span class="str">&lt;random secret&gt;</span></code></pre>
+    <p>The Cloudflare KV namespace is declared in <code>wrangler.toml</code> as binding <code>FC_KV</code>. No connection string needed &mdash; the Worker accesses it natively.</p>
+  </section>
+
+  <!-- KV -->
+  <section id="kv">
+    <h2>KV Data Layout</h2>
+    <p>All persistent data lives in the <code>FC_KV</code> namespace. Each key stores a single JSON blob (or plain string) &mdash; there is no relational database.</p>
+
+    <h3>Core data</h3>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>members</code></td><td><code>Member[]</code></td><td>Full roster &mdash; name, rank, level, joinDate, portrait, manualNew, notes, lodestoneId</td></tr>
+        <tr><td><code>member-join-history</code></td><td><code>Record&lt;lodestoneId, isoDate&gt;</code></td><td>Original join dates keyed by Lodestone ID &mdash; survives re-joins and rank changes</td></tr>
+        <tr><td><code>sync-state</code></td><td><code>SyncState</code></td><td>Last sync timestamp and member count seen on Lodestone</td></tr>
+        <tr><td><code>polls</code></td><td><code>{ polls, votes }</code></td><td>All polls and all votes in one blob</td></tr>
+        <tr><td><code>poll-templates</code></td><td><code>PollTemplate[]</code></td><td>Recurring schedules &mdash; interval, nextRunAt, lastRunAt, atHour, active flag</td></tr>
+        <tr><td><code>discord-links</code></td><td><code>{ discordId, memberId }[]</code></td><td>Manual Discord ID &rarr; member ID links set via the profile page</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Configuration</h3>
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>bot-config</code></td><td><code>BotConfig</code></td><td>guildId, announceChannelId, setupComplete</td></tr>
+        <tr><td><code>bot-admins</code></td><td><code>string[]</code></td><td>Discord user IDs with full bot/site admin access regardless of in-game rank</td></tr>
+        <tr><td><code>site-admins</code></td><td><code>string[]</code></td><td>Discord user IDs with site-only admin access (can manage polls, not bot settings)</td></tr>
+        <tr><td><code>admin-panel-ranks</code></td><td><code>string[]</code></td><td>Which FC ranks can access the admin panel (configurable from /admin)</td></tr>
+        <tr><td><code>lodestone-session</code></td><td><code>string</code></td><td>Lodestone <code>ldst_sess</code> cookie for authenticated scraping (set via /bot-admin)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Character &amp; collection caches</h3>
+    <p>These keys are populated on demand and expire by TTL check (not KV expiry), so stale entries are overwritten on next fetch.</p>
+    <table>
+      <thead><tr><th>Key pattern</th><th>TTL</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>xivapi-char-{lodestoneId}</code></td><td>1 hour</td><td>Character snapshot &mdash; job levels, mount/minion counts, and scraped mount/minion name lists</td></tr>
+        <tr><td><code>lod-tooltip-map</code></td><td>permanent</td><td>JSON map of <code>{hash: name}</code> for all resolved mount/minion tooltips. Hash is the 40-char content hash from the Lodestone tooltip URL. Written as a single key (one KV put per scrape) instead of one key per item.</td></tr>
+        <tr><td><code>ffxiv-collect-catalog-{type}</code></td><td>24 hours</td><td>Full FFXIV Collect mount or minion catalog &mdash; image URLs, ownership %, acquisition sources. <code>type</code> is <code>mounts</code> or <code>minions</code>.</td></tr>
+        <tr><td><code>ffxiv-feats5-{lodestoneId}</code></td><td>6 hours</td><td>Top-10 rarest achievements and titles for a character, scraped from FFXIV Collect rarity page. Includes achievement descriptions and title reward names.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Cron -->
+  <section id="cron">
+    <h2>Cron Setup</h2>
+    <p>The scheduled poll runner is a single HTTP endpoint. Call it on any schedule &mdash; once per hour is enough since templates manage their own <code>nextRunAt</code>.</p>
+    <pre><code><span class="kw">POST</span> https://your-domain.com/api/cron/polls
+<span class="kw">Authorization</span>: <span class="str">Bearer YOUR_CRON_SECRET</span></code></pre>
+
+    <h3>Cloudflare Cron Triggers (recommended)</h3>
+    <ol>
+      <li>Cloudflare Dashboard &rarr; Workers &amp; Pages &rarr; your worker</li>
+      <li>Settings &rarr; Triggers &rarr; Cron Triggers &rarr; Add</li>
+      <li>Expression: <code>0 * * * *</code> &mdash; top of every hour</li>
+    </ol>
+
+    <h3>External schedulers</h3>
+    <ul>
+      <li><a href="https://cron-job.org" target="_blank">cron-job.org</a> &mdash; free tier is sufficient</li>
+      <li>GitHub Actions with a <code>schedule:</code> trigger</li>
+      <li>Uptime Robot with monitor type HTTP</li>
+    </ul>
+    <div class="card card-gold">
+      <strong>Security:</strong> if <code>CRON_SECRET</code> is not set, the endpoint is unprotected. Always set it in production.
+    </div>
+  </section>
+
+  <hr />
+
+  <!-- Dev -->
+  <section id="dev">
+    <h2>Local Development</h2>
+    <pre><code>npm install
+npm run dev        <span class="cmt"># next dev — Node.js, KV falls back to in-memory</span></code></pre>
+    <p>For full Cloudflare Workers emulation with real KV:</p>
+    <pre><code>npm run build:cf   <span class="cmt"># builds the OpenNext Cloudflare bundle</span>
+npx wrangler dev   <span class="cmt"># worker at localhost:8787 with local KV</span></code></pre>
+  </section>
+
+  <!-- Deploy -->
+  <section id="deploy">
+    <h2>Deployment</h2>
+    <p>Deploys automatically via <strong>Cloudflare Pages</strong> on every push to <code>main</code>.</p>
+    <table>
+      <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Build command</td><td><code>npm run build:cf</code></td></tr>
+        <tr><td>Output directory</td><td><code>.open-next/assets</code></td></tr>
+        <tr><td>Node.js version</td><td>22</td></tr>
+      </tbody>
+    </table>
+    <pre><code>npm run deploy   <span class="cmt"># manual: runs build:cf then wrangler deploy</span></code></pre>
+  </section>
+
+  <!-- Domain -->
+  <section id="domain">
+    <h2>Changing the Domain</h2>
+
+    <div class="card card-red" style="margin-bottom:24px">
+      <strong>Do this first &mdash; before deploying.</strong> Add the new callback URI to your Discord app in the
+      <a href="https://discord.com/developers/applications" target="_blank">Discord Developer Portal</a>
+      under OAuth2 &rarr; Redirects:
+      <code>https://NEW-DOMAIN/api/auth/callback/discord</code>.
+      Without this, all logins will fail the moment traffic moves to the new domain.
+    </div>
+
+    <p>The domain is referenced in <strong>5 places</strong>. All must be updated before deploying.</p>
+
+    <ul class="checklist">
+      <li>
+        <span class="file">wrangler.toml</span>
+        <div class="desc">
+          <p>Update the <code>routes</code> array. The new zone must already exist in your Cloudflare account.</p>
+          <pre><code>routes = [
+  { <span class="kw">pattern</span> = <span class="str">"new-domain.com"</span>, <span class="kw">custom_domain</span> = <span class="kw">true</span>, <span class="kw">zone_name</span> = <span class="str">"new-domain.com"</span> }
+]</code></pre>
+        </div>
+      </li>
+      <li>
+        <span class="file">src/app/layout.tsx</span>
+        <div class="desc">
+          <p>Update <code>metadataBase</code> (controls all absolute OG / canonical URLs). Also bump the <code>v=</code> number on the OG image to bust Discord's embed cache.</p>
+          <pre><code><span class="var">metadataBase</span>: <span class="kw">new</span> URL(<span class="str">'https://new-domain.com'</span>),
+
+<span class="cmt">// inside openGraph.images — increment v= to bust Discord cache</span>
+{ <span class="kw">url</span>: <span class="str">'/opengraph-image?v=3'</span>, <span class="kw">width</span>: <span class="num">1200</span>, <span class="kw">height</span>: <span class="num">630</span> }</code></pre>
+        </div>
+      </li>
+      <li>
+        <span class="file">Cloudflare Pages<br/>NEXTAUTH_URL env var</span>
+        <div class="desc">
+          <p>Cloudflare Pages dashboard &rarr; Settings &rarr; Environment Variables. Set <code>NEXTAUTH_URL</code> to <code>https://new-domain.com</code>. NextAuth uses this to construct OAuth callback URLs. <strong>Without this, OAuth logins redirect to the old domain and fail.</strong></p>
+        </div>
+      </li>
+      <li>
+        <span class="file">.env.local</span>
+        <div class="desc">
+          <p>Update <code>NEXTAUTH_URL</code> if you point local dev at a real domain. Usually kept as <code>http://localhost:3000</code> for development, so this may not need changing.</p>
+        </div>
+      </li>
+      <li>
+        <span class="file">Discord Developer Portal<br/>OAuth2 Redirects</span>
+        <div class="desc">
+          <p>Add <code>https://new-domain.com/api/auth/callback/discord</code> to the redirect URIs list. You can keep the old entry during the transition period and remove it once the switch is confirmed working.</p>
+        </div>
+      </li>
+    </ul>
+
+    <h3>After the switch</h3>
+    <ul>
+      <li>Test Discord OAuth login end-to-end on the new domain</li>
+      <li>Re-run Bot Admin setup at <code>/bot-admin</code> if the Discord app's interactions endpoint URL needs updating for slash commands</li>
+      <li>Share <code>https://new-domain.com/?v=1</code> on Discord to verify the new OG image card loads correctly</li>
+      <li>Update the live URL badge at the top of <code>docs/index.html</code></li>
+    </ul>
+  </section>
+
+</main>
+</div>
+
+<script>
+  const sections = document.querySelectorAll('section[id], .hero[id]')
+  const links    = document.querySelectorAll('nav a[href^="#"]')
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'))
+        const a = document.querySelector('nav a[href="#' + e.target.id + '"]')
+        if (a) a.classList.add('active')
+      }
+    })
+  }, { rootMargin: '-15% 0px -70% 0px' })
+  sections.forEach(s => obs.observe(s))
+</script>
+</body>
+</html>
