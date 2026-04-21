@@ -38,6 +38,7 @@ export default function SettingsPage() {
   const [cmdStatus,      setCmdStatus]      = useState<'idle' | 'registering' | 'ok' | 'fail'>('idle')
   const [removeConfirm,    setRemoveConfirm]    = useState(false)
   const [removing,         setRemoving]         = useState(false)
+  const [cleanupDiscord,   setCleanupDiscord]   = useState(false)
   const [detectingAdmins,    setDetectingAdmins]    = useState(false)
   const [discordAdminIds,    setDiscordAdminIds]    = useState<string[]>([])
   const [originalConfig,     setOriginalConfig]     = useState<GuildConfig | null>(null)
@@ -168,7 +169,7 @@ export default function SettingsPage() {
     const res = await fetch(`/api/guilds/${guildId}/dashboard`, { method: 'POST' })
     setSaving(false)
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
-    else setError('Failed to set up dashboard embed')
+    else setError('Failed to set up Polly Status embed')
   }
 
   async function detectAdminRoles() {
@@ -193,7 +194,11 @@ export default function SettingsPage() {
 
   async function removeBot() {
     setRemoving(true)
-    const res = await fetch(`/api/guilds/${guildId}`, { method: 'DELETE' })
+    const res = await fetch(`/api/guilds/${guildId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cleanupDiscord }),
+    })
     setRemoving(false)
     if (res.ok) { router.push('/dashboard') }
     else { setError('Failed to remove bot. Try again or kick it manually from Discord.'); setRemoveConfirm(false) }
@@ -346,11 +351,11 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Dashboard Embed Channel */}
+          {/* Polly Status */}
           <div className="card p-6">
             <div className="flex items-center gap-2 mb-1">
               <Zap size={16} className="text-p-accent" />
-              <h2 className="font-display font-semibold text-p-text">Dashboard Embed Channel</h2>
+              <h2 className="font-display font-semibold text-p-text">Polly Status</h2>
             </div>
             <p className="text-[#c8ccd4] text-sm mb-4">
               Polly keeps a single live message here that lists all active polls. Members can see what&apos;s open, create new polls, or open the dashboard — all from one place.
@@ -388,7 +393,7 @@ export default function SettingsPage() {
             {config.dashboardChannelId && (
               <button type="button" onClick={setupDashboard} className="btn-accent text-sm" disabled={saving}>
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                Post / Refresh Dashboard Embed
+                Post / Refresh Polly Status
               </button>
             )}
           </div>
@@ -556,7 +561,7 @@ export default function SettingsPage() {
           Permanently removes Polly from this server and deletes all poll data. This cannot be undone.
         </p>
         {!removeConfirm ? (
-          <button type="button" onClick={() => setRemoveConfirm(true)}
+          <button type="button" onClick={() => { setRemoveConfirm(true); setCleanupDiscord(false) }}
             className="btn-secondary text-sm border-p-danger/40 text-p-danger hover:bg-p-danger/10">
             <Trash2 size={14} />
             Remove Polly from this server
@@ -566,6 +571,17 @@ export default function SettingsPage() {
             <p className="text-p-danger text-sm font-semibold">
               Are you sure? This will delete all polls, votes, and settings for <strong>{config?.guildName}</strong> and kick Polly from the server.
             </p>
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={cleanupDiscord}
+                onChange={e => setCleanupDiscord(e.target.checked)}
+                className="mt-0.5 accent-p-danger"
+              />
+              <span className="text-sm text-p-muted">
+                Also delete all Discord messages posted by Polly (poll messages and Polly Status embed)
+              </span>
+            </label>
             <div className="flex gap-3">
               <button type="button" onClick={() => setRemoveConfirm(false)} className="btn-secondary text-sm">Cancel</button>
               <button type="button" onClick={removeBot} disabled={removing}

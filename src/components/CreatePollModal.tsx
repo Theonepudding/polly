@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown, Smile } from 'lucide-react'
 import Link from 'next/link'
 import { Poll, PollTemplate } from '@/types'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
+import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
 const HOUR_OPTIONS  = [1, 2, 4, 6, 12, 24]
@@ -34,20 +35,6 @@ interface Props {
   canManage?: boolean
 }
 
-function EmojiPreview({ text }: { text: string }) {
-  if (!/<a?:\w+:\d+>/.test(text)) return null
-  const parts = text.split(/(<a?:\w+:\d+>)/g)
-  return (
-    <div className="flex items-center flex-wrap gap-1 px-0.5 pt-1.5">
-      <span className="text-[10px] text-p-subtle mr-0.5">preview:</span>
-      {parts.map((part, i) => {
-        const m = part.match(/^<(a?):(\w+):(\d+)>$/)
-        if (m) return <img key={i} src={`https://cdn.discordapp.com/emojis/${m[3]}.${m[1]==='a'?'gif':'png'}?size=32`} alt={m[2]} className="w-4 h-4 object-contain inline-block" />
-        return part ? <span key={i} className="text-xs text-p-muted">{part}</span> : null
-      })}
-    </div>
-  )
-}
 
 export default function CreatePollModal({ guildId, userId, userName, canManage = false }: Props) {
   const router = useRouter()
@@ -81,6 +68,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [emojiPickerFor,   setEmojiPickerFor]   = useState<number | null>(null)
   const [emojiPickerPos,   setEmojiPickerPos]   = useState<{ top: number; left: number } | null>(null)
   const [emojiTab,         setEmojiTab]         = useState<string>('server')
+  const [syncKey,          setSyncKey]          = useState(0)
+  const titleRef      = useRef<EmojiInputHandle>(null)
+  const optionRefsMap = useRef<Record<number, EmojiInputHandle | null>>({})
 
   useEffect(() => {
     if (!open) return
@@ -120,6 +110,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
     setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
+    setSyncKey(k => k + 1)
   }
 
   function loadTemplate(t: PollTemplate) {
@@ -132,10 +123,16 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     if (t.includeTimeSlots) setTimes(t.timeSlots)
     setDurUnit('days')
     setDaysOpen(t.daysOpen)
+    setSyncKey(k => k + 1)
   }
 
   function addOption()  { if (options.length < 12) setOptions(o => [...o, '']) }
-  function removeOption(i: number) { if (options.length > 2) setOptions(o => o.filter((_, idx) => idx !== i)) }
+  function removeOption(i: number) {
+    if (options.length > 2) {
+      setOptions(o => o.filter((_, idx) => idx !== i))
+      setSyncKey(k => k + 1)
+    }
+  }
   function setOption(i: number, val: string) { setOptions(o => o.map((v, idx) => idx === i ? val : v)) }
 
   function toggleTime(t: string) {
@@ -300,8 +297,16 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           <div>
             <label className="label">Question *</label>
             <div className="flex items-center gap-2 group">
-              <input className="input flex-1" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. Raid night: Friday or Saturday?" maxLength={120} />
+              <EmojiInput
+                ref={titleRef}
+                key={`title-${syncKey}`}
+                initialValue={title}
+                onChange={setTitle}
+                placeholder="e.g. Raid night: Friday or Saturday?"
+                maxLength={120}
+                className="flex-1"
+                inputClass="py-2"
+              />
               <button
                 type="button"
                 data-emoji-btn=""
@@ -315,7 +320,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 <Smile size={14} />
               </button>
             </div>
-            <EmojiPreview text={title} />
           </div>
 
           {/* Options */}
@@ -326,34 +330,38 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             </div>
             <div className="space-y-2">
               {options.map((opt, i) => (
-                <div key={i}>
-                  <div className="flex items-center gap-2 group">
-                    <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
-                      {i + 1}
-                    </span>
-                    <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
-                      placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
-                      maxLength={80} />
-                    <button
-                      type="button"
-                      data-emoji-btn=""
-                      onClick={e => openEmojiPicker(i, e)}
-                      title="Insert emoji"
-                      className={`p-1.5 rounded-md transition-all shrink-0 ${
-                        emojiPickerFor === i
-                          ? 'text-p-primary bg-p-primary-b opacity-100'
-                          : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
-                      }`}>
-                      <Smile size={14} />
+                <div key={`${i}-${syncKey}`} className="flex items-center gap-2 group">
+                  <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
+                    {i + 1}
+                  </span>
+                  <EmojiInput
+                    ref={el => { optionRefsMap.current[i] = el }}
+                    key={`opt-${i}-${syncKey}`}
+                    initialValue={opt}
+                    onChange={val => setOption(i, val)}
+                    placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
+                    maxLength={80}
+                    className="flex-1"
+                    inputClass="py-2"
+                  />
+                  <button
+                    type="button"
+                    data-emoji-btn=""
+                    onClick={e => openEmojiPicker(i, e)}
+                    title="Insert emoji"
+                    className={`p-1.5 rounded-md transition-all shrink-0 ${
+                      emojiPickerFor === i
+                        ? 'text-p-primary bg-p-primary-b opacity-100'
+                        : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                    }`}>
+                    <Smile size={14} />
+                  </button>
+                  {options.length > 2 && (
+                    <button type="button" onClick={() => removeOption(i)}
+                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
+                      <Trash2 size={14} />
                     </button>
-                    {options.length > 2 && (
-                      <button type="button" onClick={() => removeOption(i)}
-                        className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <EmojiPreview text={opt} />
+                  )}
                 </div>
               ))}
               {options.length < 12 && (
@@ -562,13 +570,13 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           onTabChange={setEmojiTab}
           onPickGuild={e => {
             const s = `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`
-            if (emojiPickerFor === -1) setTitle(prev => prev + s)
-            else setOption(emojiPickerFor, options[emojiPickerFor] + s)
+            if (emojiPickerFor === -1) titleRef.current?.insertEmoji(s)
+            else optionRefsMap.current[emojiPickerFor]?.insertEmoji(s)
             setEmojiPickerFor(null); setEmojiPickerPos(null)
           }}
           onPickStd={em => {
-            if (emojiPickerFor === -1) setTitle(prev => prev + em)
-            else setOption(emojiPickerFor, options[emojiPickerFor] + em)
+            if (emojiPickerFor === -1) titleRef.current?.insertEmoji(em)
+            else optionRefsMap.current[emojiPickerFor]?.insertEmoji(em)
             setEmojiPickerFor(null); setEmojiPickerPos(null)
           }}
         />

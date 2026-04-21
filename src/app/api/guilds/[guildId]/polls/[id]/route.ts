@@ -79,6 +79,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   await deletePollFromDiscord(poll).catch(() => {})
+  await deletePoll(id)
 
   if (guild) {
     postAuditLog(
@@ -90,6 +91,5 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     refreshDashboard(guildId).catch(() => {})
   }
 
-  await deletePoll(id)
   return NextResponse.json({ ok: true })
 }

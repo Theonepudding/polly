@@ -83,21 +83,29 @@ export async function GET(
     ? (footerTotal !== 1 ? 'voters' : 'voter')
     : (footerTotal !== 1 ? 'votes' : 'vote')
 
-  const n = pageOpts.length
+  // Fixed font sizes — same on every page so both embeds look identical in density
+  const optFSize = 22
+  const stFSize  = 17
+  const barH_px  = 9
+  const nameFSz  = 13
+  const optGap   = 8
 
-  const perOptH  = n <= 2 ? 96  : n <= 4 ? 82 : 68
-  const optFSize = n <= 2 ? 26  : n <= 4 ? 23 : 20
-  const stFSize  = n <= 2 ? 21  : n <= 4 ? 18 : 15
-  const barH_px  = n <= 2 ? 11  : n <= 4 ? 9  : 8
-  const nameFSz  = n <= 2 ? 15  : n <= 4 ? 13 : 12
-  const optGap   = n <= 2 ? 10  : n <= 4 ? 8  : 6
+  // Dynamic height: measure each option row rather than using a fixed perOptH estimate.
+  // This eliminates empty whitespace when some rows are short (e.g. emoji-only options).
+  const isAnon = poll.isAnonymous
+  function optRowH(opt: (typeof pageOpts)[0]): number {
+    const voterCount = isAnon ? 0 : votes.filter(v => v.optionId === opt.id).length
+    // name row (emoji img or text) + gap-below-name + bar + optional voter names
+    return (optFSize + 4) + 7 + barH_px + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
+  }
+  const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
 
   const HEADER_H  = 88
   const FOOTER_H  = 50
   const slotRows  = hasTimeSlots ? Math.ceil(shownSlots.length / 5) : 0
   const TS_H      = hasTimeSlots ? 22 + 10 + slotRows * 36 + 8 : 0
   const TS_SEP_H  = hasTimeSlots ? 16 : 0
-  const H = PAD_V * 2 + HEADER_H + perOptH * n + TS_SEP_H + TS_H + FOOTER_H
+  const H = PAD_V * 2 + HEADER_H + optsAreaH + TS_SEP_H + TS_H + FOOTER_H
 
   const closesLabel = poll.closesAt
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
