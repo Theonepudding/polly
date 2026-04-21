@@ -602,9 +602,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        let savedPoll: Poll | null = null
-        let freshVote: Vote | null = null
-        let voteChanged            = false
+        let savedPoll:  Poll   | null = null
+        let savedVotes: Vote[] | null = null
+        let voteChanged               = false
 
         try {
           // If KV hasn't propagated discordMessageId yet, recover it from the interaction body.
@@ -622,8 +622,8 @@ export async function POST(req: NextRequest) {
             const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
             const result = await castVote(vote, poll.allowMultiple)
             voteChanged  = result.voteChanged
+            savedVotes   = result.votes
             savedPoll    = poll
-            freshVote    = vote
           }
         } catch (e) { console.error('Vote error:', e) }
 
@@ -640,16 +640,9 @@ export async function POST(req: NextRequest) {
           }})
         }
 
-        if (savedPoll && freshVote) {
-          const p = savedPoll; const fv = freshVote; const changed = voteChanged
+        if (savedPoll && savedVotes) {
+          const p = savedPoll; const votes = savedVotes; const changed = voteChanged
           bg((async () => {
-            const listed = await getVotes(p.id)
-            // kv.list may lag behind kv.put — ensure freshVote is represented.
-            // For single-choice: replace any existing vote by this user.
-            // For multi-choice: add if not already present.
-            const votes = p.allowMultiple
-              ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
-              : [...listed.filter(v => v.userId !== fv.userId), fv]
             await updatePollInDiscord(p, votes).catch(() => {})
             if (changed) {
               await sleep(5_000)
@@ -674,23 +667,19 @@ export async function POST(req: NextRequest) {
         const timeSlot = tparts.join(':')
         if (!userId) return Response.json({ type: 6 })
 
-        let savedPoll: Poll | null = null; let freshVote: Vote | null = null
+        let savedPoll: Poll | null = null; let savedVotes: Vote[] | null = null
         try {
           const poll = await getPoll(pollId)
           if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) return Response.json({ type: 6 })
           const vote: Vote = { pollId, userId, username, optionId, timeSlot, votedAt: new Date().toISOString() }
-          await castVote(vote, poll.allowMultiple)
-          savedPoll = poll; freshVote = vote
+          const result = await castVote(vote, poll.allowMultiple)
+          savedPoll = poll; savedVotes = result.votes
         } catch (e) { console.error('Time slot error:', e) }
 
-        if (savedPoll && freshVote) {
-          const p = savedPoll; const fv = freshVote
+        if (savedPoll && savedVotes) {
+          const p = savedPoll; const v = savedVotes
           bg((async () => {
-            const listed = await getVotes(p.id)
-            const votes = p.allowMultiple
-              ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
-              : [...listed.filter(v => v.userId !== fv.userId), fv]
-            await updatePollInDiscord(p, votes).catch(() => {})
+            await updatePollInDiscord(p, v).catch(() => {})
             await patchMessage(appId, token, { content: '✅ Time preference saved!', components: [] })
             await sleep(5_000); await deleteMessage(appId, token)
           })())
@@ -708,15 +697,9 @@ export async function POST(req: NextRequest) {
             const poll = await getPoll(skipPollId)
             if (poll && !poll.isClosed) {
               const vote: Vote = { pollId: skipPollId, userId, username, optionId: skipOptId, votedAt: new Date().toISOString() }
-              await castVote(vote, poll.allowMultiple)
-              const p = poll; const fv = vote
-              bg((async () => {
-                const listed = await getVotes(p.id)
-                const votes = p.allowMultiple
-                  ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
-                  : [...listed.filter(v => v.userId !== fv.userId), fv]
-                updatePollInDiscord(p, votes).catch(() => {})
-              })())
+              const result = await castVote(vote, poll.allowMultiple)
+              const p = poll; const votes = result.votes
+              bg((async () => { updatePollInDiscord(p, votes).catch(() => {}) })())
             }
           } catch (e) { console.error('Skip time vote error:', e) }
         }
