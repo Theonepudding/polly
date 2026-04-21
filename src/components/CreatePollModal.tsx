@@ -23,7 +23,7 @@ function utcToLocal(hhMM: string): string {
 }
 
 interface Channel { id: string; name: string }
-interface Role    { id: string; name: string }
+interface Role    { id: string; name: string; mentionable?: boolean }
 interface DiscordEmoji { id: string; name: string; animated: boolean; available?: boolean }
 
 interface Props {
@@ -280,8 +280,22 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           {/* Title */}
           <div>
             <label className="label">Question *</label>
-            <input className="input" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Raid night: Friday or Saturday?" maxLength={120} />
+            <div className="flex items-center gap-2 group">
+              <input className="input flex-1" value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Raid night: Friday or Saturday?" maxLength={120} />
+              <button
+                type="button"
+                data-emoji-btn=""
+                onClick={e => openEmojiPicker(-1, e)}
+                title="Insert emoji"
+                className={`p-1.5 rounded-md transition-all shrink-0 ${
+                  emojiPickerFor === -1
+                    ? 'text-p-primary bg-p-primary-b opacity-100'
+                    : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                }`}>
+                <Smile size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Options */}
@@ -461,16 +475,16 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                   placeholder="Any extra context for voters…" maxLength={400} />
               </div>
 
-              {/* Notify roles */}
-              {roles.length > 0 && (
+              {/* Notify roles — only mentionable ones */}
+              {roles.some(r => r.mentionable) && (
                 <div>
                   <label className="label flex items-center gap-1.5">
                     <Bell size={12} className="text-p-muted" />
                     Notify roles when posting
                   </label>
-                  <p className="text-p-muted text-xs mb-2">These roles will be @mentioned when the poll is posted to Discord.</p>
+                  <p className="text-p-muted text-xs mb-2">@mentions sent when the poll is posted. Only roles set as mentionable in Discord are shown.</p>
                   <div className="flex flex-wrap gap-2">
-                    {roles.map(role => (
+                    {roles.filter(r => r.mentionable).map(role => (
                       <button key={role.id} type="button"
                         onClick={() => togglePingRole(role.id)}
                         className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
@@ -518,29 +532,38 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
       {emojiPickerFor !== null && emojiPickerPos && (
         <div
           data-emoji-picker=""
-          style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
-          className="w-60 p-2 bg-p-surface border border-p-border rounded-xl shadow-2xl"
+          style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999, background: '#252538', border: '1px solid #4a4a62', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', width: '240px' }}
         >
-          <p className="text-[10px] text-p-muted font-semibold uppercase tracking-wider px-1 mb-2">
-            Server emojis — option {emojiPickerFor + 1}
-          </p>
+          <div className="px-3 py-2 border-b" style={{ borderColor: '#3a3a52' }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#9898b8' }}>
+              Server emojis — {emojiPickerFor === -1 ? 'title' : `option ${emojiPickerFor + 1}`}
+            </p>
+          </div>
           {emojis.length === 0 ? (
-            <p className="text-p-muted text-xs px-1 py-2 leading-relaxed">
-              This server has no custom emojis. Type standard Unicode emoji directly into the option text.
+            <p className="text-sm px-3 py-3 leading-relaxed" style={{ color: '#c0c0d8' }}>
+              This server has no custom emojis. Type Unicode emoji directly into the text field.
             </p>
           ) : (
-            <div className="grid grid-cols-8 gap-0.5 max-h-44 overflow-y-auto">
+            <div className="grid grid-cols-8 gap-0.5 p-2 max-h-44 overflow-y-auto">
               {emojis.map(e => (
                 <button
                   key={e.id}
                   type="button"
                   title={`:${e.name}:`}
                   onClick={() => {
-                    setOption(emojiPickerFor, options[emojiPickerFor] + `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`)
+                    const emojiStr = `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`
+                    if (emojiPickerFor === -1) {
+                      setTitle(prev => prev + emojiStr)
+                    } else {
+                      setOption(emojiPickerFor, options[emojiPickerFor] + emojiStr)
+                    }
                     setEmojiPickerFor(null)
                     setEmojiPickerPos(null)
                   }}
-                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-p-surface-2 transition-colors p-0.5">
+                  className="w-8 h-8 flex items-center justify-center rounded p-0.5 transition-colors"
+                  onMouseEnter={e => (e.currentTarget.style.background = '#3a3a52')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
                   <img
                     src={`https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? 'gif' : 'png'}?size=32`}
                     alt={e.name}
