@@ -72,8 +72,8 @@ export default async function PollDetailPage({ params }: Props) {
         userName={session.user.name ?? 'Anonymous'}
       />
 
-      {canManage && !poll.isClosed && (
-        <PollManageBar guildId={guildId} pollId={id} />
+      {canManage && (
+        <PollManageBar guildId={guildId} pollId={id} isClosed={poll.isClosed} />
       )}
     </div>
   )

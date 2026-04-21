@@ -613,6 +613,16 @@ export async function POST(req: NextRequest) {
           })())
         }
 
+        if (savedPoll?.allowMultiple && savedVotes) {
+          const userOptIds   = [...new Set(savedVotes.filter(v => v.userId === userId).map(v => v.optionId))]
+          const userOptTexts = userOptIds.map(oid => savedPoll!.options.find(o => o.id === oid)?.text ?? oid)
+          const listed       = userOptTexts.map(t => `**${t}**`).join(', ')
+          const siteUrl      = process.env.NEXTAUTH_URL ?? ''
+          return Response.json({ type: 4, data: {
+            content: `☑️ Your selections: ${listed}\n*Click more options to add them, or [manage on the website](${siteUrl}/p/${pollId}) to deselect.*`,
+            flags: 64,
+          }})
+        }
         const optTxt  = savedPoll?.options.find(o => o.id === optionId)?.text ?? optionId
         const voteMsg = voteChanged ? `🔄 Vote changed to **${optTxt}**!` : `✅ Voted for **${optTxt}**!`
         return Response.json({ type: 4, data: { content: voteMsg, flags: 64 } })

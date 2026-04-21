@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation'
 import { XCircle, Send, CheckCircle2, AlertCircle, Loader2, Trash2 } from 'lucide-react'
 
 interface Props {
-  guildId: string
-  pollId: string
+  guildId:  string
+  pollId:   string
+  isClosed?: boolean
 }
 
-export default function PollManageBar({ guildId, pollId }: Props) {
+export default function PollManageBar({ guildId, pollId, isClosed = false }: Props) {
   const router = useRouter()
   const [closing,      setClosing]      = useState(false)
   const [resending,    setResending]    = useState(false)
@@ -50,15 +51,19 @@ export default function PollManageBar({ guildId, pollId }: Props) {
     <div className="mt-6 p-4 rounded-xl border border-p-border bg-p-surface">
       <p className="text-xs text-p-muted font-semibold uppercase tracking-wider mb-3">Poll Management</p>
       <div className="flex flex-wrap gap-3 items-center">
-        <button onClick={closePoll} disabled={closing} className="btn-secondary text-sm">
-          <XCircle size={14} />
-          {closing ? 'Closing…' : 'Close Poll'}
-        </button>
+        {!isClosed && (
+          <button onClick={closePoll} disabled={closing} className="btn-secondary text-sm">
+            <XCircle size={14} />
+            {closing ? 'Closing…' : 'Close Poll'}
+          </button>
+        )}
 
-        <button onClick={resendToDiscord} disabled={resending} className="btn-secondary text-sm">
-          {resending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          {resending ? 'Posting…' : 'Resend to Discord'}
-        </button>
+        {!isClosed && (
+          <button onClick={resendToDiscord} disabled={resending} className="btn-secondary text-sm">
+            {resending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            {resending ? 'Posting…' : 'Resend to Discord'}
+          </button>
+        )}
 
         {!confirmDelete ? (
           <button onClick={() => setConfirmDelete(true)} className="btn-danger text-sm ml-auto">

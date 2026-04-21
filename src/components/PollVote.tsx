@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useSession, signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Poll, Vote } from '@/types'
 import { Check, Clock, LogIn, Users, ChevronDown, EyeOff, CheckSquare, Lock } from 'lucide-react'
 import clsx from 'clsx'
@@ -23,6 +24,7 @@ interface Props {
 
 export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVotes, userId, userName }: Props) {
   const { data: session } = useSession()
+  const router = useRouter()
   const [votes,     setVotes]     = useState<Vote[]>(initialVotes)
   const [myVotes,   setMyVotes]   = useState<Vote[]>(initMyVotes)
   const [step,      setStep]      = useState<'vote' | 'time' | 'done'>(initMyVotes.length > 0 ? 'done' : 'vote')
@@ -54,11 +56,12 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
       }
       es.onmessage = (e: MessageEvent) => {
         try {
-          const { votes: fresh } = JSON.parse(e.data) as { votes: Vote[] }
+          const { votes: fresh, closed } = JSON.parse(e.data) as { votes: Vote[]; closed?: boolean }
           setVotes(fresh)
           if (effectiveUserId) {
             setMyVotes(fresh.filter(v => v.userId === effectiveUserId))
           }
+          if (closed) router.refresh()
         } catch { /* ignore */ }
       }
     }
@@ -70,6 +73,15 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
       setLive(false)
     }
   }, [isClosed, poll.id, effectiveUserId])
+
+  // When SSE delivers votes that include ours (e.g. voted via Discord), auto-advance to done
+  useEffect(() => {
+    if (myVotes.length > 0 && step === 'vote' && selected.length === 0) {
+      setSelected(myVotes.map(v => v.optionId))
+      setStep('done')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myVotes.length])
 
   async function submitVote(finalTimeSlot?: string) {
     if (!effectiveUserId || !userName || selected.length === 0) return
@@ -282,7 +294,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           {myVotes[0]?.timeSlot && <span className="text-p-muted ml-1">({utcToLocal(myVotes[0].timeSlot)})</span>}
         </div>
         <Results />
-        <button onClick={() => { setStep('vote'); setSelected([]); setTimeSlot('') }}
+        <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setTimeSlot('') }}
           className="btn-ghost text-xs mt-4">
           Change my vote
         </button>
