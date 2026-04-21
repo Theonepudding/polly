@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPolls, createPoll } from '@/lib/polls'
+import { getPolls, createPoll, updatePoll } from '@/lib/polls'
+import { getGuild } from '@/lib/guilds'
+import { postPollToDiscord } from '@/lib/discord-bot'
 import type { Poll } from '@/types'
 
 type Params = { params: Promise<{ guildId: string }> }
@@ -45,5 +47,18 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   await createPoll(poll)
-  return NextResponse.json({ poll }, { status: 201 })
+
+  // Auto-post to Discord if an announce channel is configured
+  const guild = await getGuild(guildId)
+  const hasChannel = !!guild?.announceChannelId
+  let posted = false
+  if (hasChannel) {
+    const messageId = await postPollToDiscord(poll)
+    if (messageId) {
+      await updatePoll(poll.id, { discordMessageId: messageId })
+      posted = true
+    }
+  }
+
+  return NextResponse.json({ poll, posted, hasChannel }, { status: 201 })
 }

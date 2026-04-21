@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { X, Plus, Trash2, Send, CheckCircle2, AlertCircle, Vote } from 'lucide-react'
+import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings } from 'lucide-react'
+import Link from 'next/link'
 import SelectInput from './SelectInput'
 import { Poll } from '@/types'
 
@@ -51,13 +52,13 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
   const [createdPoll, setCreatedPoll] = useState<Poll | null>(null)
-  const [posting,     setPosting]     = useState(false)
-  const [postStatus,  setPostStatus]  = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [posted,      setPosted]      = useState(false)
+  const [hasChannel,  setHasChannel]  = useState(false)
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
     setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDaysOpen(7); setIsAnonymous(false)
-    setAllowMultiple(false); setError(''); setCreatedPoll(null); setPostStatus('idle')
+    setAllowMultiple(false); setError(''); setCreatedPoll(null); setPosted(false); setHasChannel(false)
   }
 
   function addOption() { if (options.length < 10) setOptions(o => [...o, '']) }
@@ -101,21 +102,13 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create poll')
-      const { poll } = await res.json()
-      setCreatedPoll(poll)
+      const data = await res.json()
+      setCreatedPoll(data.poll)
+      setPosted(data.posted ?? false)
+      setHasChannel(data.hasChannel ?? false)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
     } finally { setLoading(false) }
-  }
-
-  async function postToDiscord() {
-    if (!createdPoll) return
-    setPosting(true)
-    try {
-      const res = await fetch(`/api/guilds/${guildId}/polls/${createdPoll.id}/discord`, { method: 'POST' })
-      setPostStatus(res.ok ? 'ok' : 'fail')
-    } catch { setPostStatus('fail') }
-    finally { setPosting(false) }
   }
 
   if (!open) {
@@ -127,7 +120,7 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     )
   }
 
-  // Step 2 — Discord prompt
+  // Step 2 — success screen
   if (createdPoll) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -139,29 +132,32 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
               <X size={18} />
             </button>
           </div>
-          <p className="text-p-muted text-sm mb-6">
-            <span className="text-p-text font-semibold">{createdPoll.title}</span> is live. Post it to your Discord announcement channel?
+          <p className="text-p-muted text-sm mb-5">
+            <span className="text-p-text font-semibold">{createdPoll.title}</span> is now live.
           </p>
-          {postStatus === 'idle' && (
-            <div className="flex gap-3">
-              <button onClick={postToDiscord} disabled={posting} className="btn-primary flex-1 justify-center">
-                <Send size={14} />{posting ? 'Posting…' : 'Post to Discord'}
-              </button>
-              <button onClick={() => { setOpen(false); reset() }} className="btn-secondary flex-1 justify-center">Skip</button>
+
+          {posted && (
+            <div className="flex items-center gap-2 text-p-success text-sm mb-5">
+              <CheckCircle2 size={16} />
+              Posted to your Discord announcement channel.
             </div>
           )}
-          {postStatus === 'ok' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-p-success text-sm"><CheckCircle2 size={16} />Posted!</div>
-              <button onClick={() => { setOpen(false); reset() }} className="btn-primary w-full justify-center">Done</button>
+
+          {!posted && hasChannel && (
+            <div className="flex items-center gap-2 text-p-warning text-sm mb-5">
+              <AlertCircle size={16} />
+              Couldn&apos;t post to Discord — make sure the bot has <strong>Send Messages</strong> and <strong>Embed Links</strong> permission in your announcement channel.
             </div>
           )}
-          {postStatus === 'fail' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-p-warning text-sm"><AlertCircle size={16} />Couldn&apos;t post — check your announce channel in Settings.</div>
-              <button onClick={() => { setOpen(false); reset() }} className="btn-ghost w-full justify-center">Close</button>
+
+          {!hasChannel && (
+            <div className="flex items-center gap-2 text-p-muted text-sm mb-5">
+              <Settings size={15} className="shrink-0" />
+              <span>No announcement channel set. <Link href={`/dashboard/${guildId}/settings`} onClick={() => { setOpen(false); reset() }} className="text-p-primary hover:underline">Open Settings</Link> to pick one and polls will post automatically.</span>
             </div>
           )}
+
+          <button onClick={() => { setOpen(false); reset() }} className="btn-primary w-full justify-center">Done</button>
         </div>
       </div>
     )
