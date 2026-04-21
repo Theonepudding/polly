@@ -13,7 +13,7 @@ async function getUserGuilds(accessToken: string): Promise<{ id: string; name: s
   try {
     const res = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${accessToken}` },
-      next:    { revalidate: 60 },
+      cache:   'no-store',
     })
     if (!res.ok) return []
     return res.json()
@@ -24,7 +24,7 @@ async function getBotGuilds(): Promise<string[]> {
   try {
     const res = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-      next:    { revalidate: 60 },
+      cache:   'no-store',
     })
     if (!res.ok) return []
     const guilds: { id: string }[] = await res.json()

@@ -44,7 +44,12 @@ export default function SettingsPage() {
     setLoading(false)
   }, [guildId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [load])
 
   async function save(e: React.FormEvent) {
     e.preventDefault()

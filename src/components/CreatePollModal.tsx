@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings } from 'lucide-react'
 import Link from 'next/link'
 import SelectInput from './SelectInput'
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export default function CreatePollModal({ guildId, userId, userName }: Props) {
+  const router = useRouter()
   const [open,        setOpen]        = useState(false)
   const [title,       setTitle]       = useState('')
   const [description, setDescription] = useState('')
@@ -106,6 +108,7 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
       setCreatedPoll(data.poll)
       setPosted(data.posted ?? false)
       setHasChannel(data.hasChannel ?? false)
+      router.refresh()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
     } finally { setLoading(false) }

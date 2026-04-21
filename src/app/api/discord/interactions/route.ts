@@ -111,7 +111,10 @@ export async function POST(req: NextRequest) {
         try {
           const data = await readData()
           const poll = data.polls.find(p => p.id === pollId)
-          if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
+          if (!poll) {
+            return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
+          }
+          if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
             return Response.json({ type: 4, data: { content: '❌ This poll is no longer open.', flags: 64 } })
           }
 

@@ -209,33 +209,12 @@ export async function postPollToDiscord(poll: Poll): Promise<string | null> {
   const channelId = await getGuildAnnounceChannel(poll.guildId)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId) return null
 
-  let imageBytes: ArrayBuffer | null = null
   try {
-    const r = await fetch(pollImageUrl(poll.id))
-    if (r.ok) imageBytes = await r.arrayBuffer()
-  } catch { /* fall back to URL embed */ }
-
-  try {
-    let res: Response
-
-    if (imageBytes) {
-      const embed = { ...buildPollEmbed(poll, []), image: { url: 'attachment://poll.png' } }
-      const form  = new FormData()
-      form.append('payload_json', JSON.stringify({ embeds: [embed], components: buildPollComponents(poll) }))
-      form.append('files[0]', new Blob([imageBytes], { type: 'image/png' }), 'poll.png')
-      res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-        method:  'POST',
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-        body:    form,
-      })
-    } else {
-      res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-        method:  'POST',
-        headers: botHeaders(),
-        body:    JSON.stringify({ embeds: [buildPollEmbed(poll, [])], components: buildPollComponents(poll) }),
-      })
-    }
-
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({ embeds: [buildPollEmbed(poll, [])], components: buildPollComponents(poll) }),
+    })
     if (!res.ok) { console.error('Discord post failed:', await res.text()); return null }
     return ((await res.json()) as { id: string }).id
   } catch (e) {
@@ -258,38 +237,15 @@ export async function updatePollInDiscord(poll: Poll, votes: Vote[]): Promise<bo
   const channelId = poll.discordChannelId ?? await getGuildAnnounceChannel(poll.guildId)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId || !poll.discordMessageId) return false
 
+  const embed      = poll.isClosed ? buildClosedEmbed(poll, votes) : buildPollEmbed(poll, votes)
   const components = poll.isClosed ? buildClosedPollComponents(poll) : buildPollComponents(poll)
 
-  let imageBytes: ArrayBuffer | null = null
   try {
-    const r = await fetch(pollImageUrl(poll.id))
-    if (r.ok) imageBytes = await r.arrayBuffer()
-  } catch { /* fall back to URL embed */ }
-
-  try {
-    let res: Response
-
-    if (imageBytes) {
-      const embed = {
-        ...(poll.isClosed ? buildClosedEmbed(poll, votes) : buildPollEmbed(poll, votes)),
-        image: { url: 'attachment://poll.png' },
-      }
-      const form = new FormData()
-      form.append('payload_json', JSON.stringify({ embeds: [embed], components, attachments: [] }))
-      form.append('files[0]', new Blob([imageBytes], { type: 'image/png' }), 'poll.png')
-      res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-        body:    form,
-      })
-    } else {
-      const embed = poll.isClosed ? buildClosedEmbed(poll, votes) : buildPollEmbed(poll, votes)
-      res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
-        method: 'PATCH', headers: botHeaders(),
-        body: JSON.stringify({ embeds: [embed], components }),
-      })
-    }
-
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
+      method:  'PATCH',
+      headers: botHeaders(),
+      body:    JSON.stringify({ embeds: [embed], components }),
+    })
     if (res.status === 404) return false
     return res.ok
   } catch (e) {
