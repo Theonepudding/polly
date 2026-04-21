@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { readData, writeData, createPoll, updatePoll, getPoll } from '@/lib/polls'
+import { createPoll, updatePoll, getPoll, getPolls, castVote, getVotes } from '@/lib/polls'
 import { getGuild, upsertGuild, userCanCreate } from '@/lib/guilds'
 import { getKV } from '@/lib/kv'
 import {
@@ -619,28 +619,11 @@ export async function POST(req: NextRequest) {
           if (poll.includeTimeSlots && poll.timeSlots.length > 0) {
             savedPoll = poll
           } else {
-            const data = await readData()
-            // Blob may lag behind the individual poll:{id} key for discordMessageId — always
-            // prefer the individual-key copy (poll) for message routing metadata.
-            const blobPoll  = data.polls.find(p => p.id === pollId)
-            const livePoll  = {
-              ...(blobPoll ?? poll),
-              discordMessageId: poll.discordMessageId,
-              discordChannelId: poll.discordChannelId,
-            }
             const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
-            if (!livePoll.allowMultiple) {
-              const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
-              if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
-              else data.votes.push(vote)
-            } else {
-              const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId && v.optionId === optionId)
-              if (vIdx !== -1) data.votes[vIdx] = vote
-              else data.votes.push(vote)
-            }
-            await writeData(data)
-            savedVotes = data.votes.filter(v => v.pollId === pollId)
-            savedPoll  = livePoll
+            const result = await castVote(vote, poll.allowMultiple)
+            voteChanged  = result.voteChanged
+            savedVotes   = await getVotes(pollId)
+            savedPoll    = poll
           }
         } catch (e) { console.error('Vote error:', e) }
 
@@ -686,24 +669,17 @@ export async function POST(req: NextRequest) {
 
         let savedVotes: Vote[] | null = null; let savedPoll: Poll | null = null
         try {
-          const data = await readData()
-          const poll = data.polls.find(p => p.id === pollId)
+          const poll = await getPoll(pollId)
           if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) return Response.json({ type: 6 })
           const vote: Vote = { pollId, userId, username, optionId, timeSlot, votedAt: new Date().toISOString() }
-          // Multi-choice: match by optionId too so each option gets its own time slot vote
-          const isMulti = poll.allowMultiple
-          const vIdx = data.votes.findIndex(v =>
-            v.pollId === pollId && v.userId === userId && (!isMulti || v.optionId === optionId)
-          )
-          if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
-          await writeData(data)
-          savedVotes = data.votes.filter(v => v.pollId === pollId); savedPoll = poll
+          await castVote(vote, poll.allowMultiple)
+          savedVotes = await getVotes(pollId); savedPoll = poll
         } catch (e) { console.error('Time slot error:', e) }
 
         if (savedPoll && savedVotes) {
           const p = savedPoll; const v = savedVotes
           bg((async () => {
-            updatePollInDiscord(p, v).catch(() => {})
+            await updatePollInDiscord(p, v).catch(() => {})
             await patchMessage(appId, token, { content: '✅ Time preference saved!', components: [] })
             await sleep(5_000); await deleteMessage(appId, token)
           })())
@@ -718,17 +694,11 @@ export async function POST(req: NextRequest) {
         const skipOptId  = parts[2] // present for new-style buttons; absent for legacy
         if (skipOptId && userId) {
           try {
-            const data = await readData()
-            const poll = data.polls.find(p => p.id === skipPollId)
+            const poll = await getPoll(skipPollId)
             if (poll && !poll.isClosed) {
               const vote: Vote = { pollId: skipPollId, userId, username, optionId: skipOptId, votedAt: new Date().toISOString() }
-              const isMulti = poll.allowMultiple
-              const vIdx = data.votes.findIndex(v =>
-                v.pollId === skipPollId && v.userId === userId && (!isMulti || v.optionId === skipOptId)
-              )
-              if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
-              await writeData(data)
-              const votes = data.votes.filter(v => v.pollId === skipPollId)
+              await castVote(vote, poll.allowMultiple)
+              const votes = await getVotes(skipPollId)
               updatePollInDiscord(poll, votes).catch(() => {})
             }
           } catch (e) { console.error('Skip time vote error:', e) }
@@ -745,13 +715,11 @@ export async function POST(req: NextRequest) {
         const [, pollId] = customId.split(':')
         bg((async () => {
           try {
-            const data  = await readData()
-            const idx   = data.polls.findIndex(p => p.id === pollId)
-            if (idx === -1) return
-            data.polls[idx] = { ...data.polls[idx], isClosed: true }
-            await writeData(data)
-            const closedPoll  = data.polls[idx]
-            const closedVotes = data.votes.filter(v => v.pollId === pollId)
+            const ok = await updatePoll(pollId, { isClosed: true })
+            if (!ok) return
+            const closedPoll  = await getPoll(pollId)
+            if (!closedPoll) return
+            const closedVotes = await getVotes(pollId)
             await updatePollInDiscord(closedPoll, closedVotes)
             const guild = await getGuild(closedPoll.guildId)
             if (guild) {
@@ -787,8 +755,7 @@ export async function POST(req: NextRequest) {
           try {
             const guild = await getGuild(dgId)
             if (!guild) return
-            const allData     = await readData()
-            const activePolls = allData.polls.filter(p => p.guildId === dgId && !p.isClosed)
+            const activePolls = (await getPolls(dgId)).filter(p => !p.isClosed)
             await sendFollowup(token, appId, {
               embeds: [buildDashboardEmbed(guild, activePolls)], components: buildDashboardComponents(guild), flags: 64,
             })

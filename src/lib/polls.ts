@@ -3,6 +3,8 @@ import { getKV } from './kv'
 
 const KEY      = 'polls'
 const POLL_KEY = (id: string) => `poll:${id}`
+const VOTE_KEY = (pollId: string, userId: string, optionId?: string) =>
+  optionId ? `vote:${pollId}:${userId}:${optionId}` : `vote:${pollId}:${userId}`
 
 const emptyData = (): PollsData => ({ polls: [], votes: [] })
 
@@ -65,7 +67,11 @@ export async function deletePoll(id: string): Promise<boolean> {
   if (data.polls.length === len) return false
   await writeData(data)
   const kv = await getKV()
-  if (kv) await kv.delete(POLL_KEY(id))
+  if (kv) {
+    await kv.delete(POLL_KEY(id))
+    const voteList = await kv.list({ prefix: `vote:${id}:` })
+    await Promise.all(voteList.keys.map(k => kv.delete(k.name)))
+  }
   return true
 }
 
@@ -74,14 +80,8 @@ export async function getPollsAndVotes(guildId: string): Promise<{ polls: Poll[]
   const polls = data.polls
     .filter(p => p.guildId === guildId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  const ids = new Set(polls.map(p => p.id))
   const votesByPoll: Record<string, Vote[]> = {}
-  for (const v of data.votes) {
-    if (ids.has(v.pollId)) {
-      if (!votesByPoll[v.pollId]) votesByPoll[v.pollId] = []
-      votesByPoll[v.pollId].push(v)
-    }
-  }
+  await Promise.all(polls.map(async p => { votesByPoll[p.id] = await getVotes(p.id) }))
   return { polls, votesByPoll }
 }
 
@@ -89,21 +89,34 @@ export async function getVotesByPoll(guildId: string): Promise<Record<string, Vo
   const data = await readData()
   const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
   const out: Record<string, Vote[]> = {}
-  for (const v of data.votes) {
-    if (ids.has(v.pollId)) {
-      if (!out[v.pollId]) out[v.pollId] = []
-      out[v.pollId].push(v)
-    }
-  }
+  await Promise.all([...ids].map(async id => { out[id] = await getVotes(id) }))
   return out
 }
 
 export async function getVotes(pollId: string): Promise<Vote[]> {
+  const kv = await getKV()
+  if (kv) {
+    const list = await kv.list({ prefix: `vote:${pollId}:` })
+    if (list.keys.length > 0) {
+      const raws = await Promise.all(list.keys.map(k => kv.get(k.name)))
+      return raws.filter((r): r is string => r !== null).map(r => JSON.parse(r) as Vote)
+    }
+  }
   const data = await readData()
   return data.votes.filter(v => v.pollId === pollId)
 }
 
 export async function getUserVotes(pollId: string, userId: string): Promise<Vote[]> {
+  const kv = await getKV()
+  if (kv) {
+    const list = await kv.list({ prefix: `vote:${pollId}:${userId}:` })
+    if (list.keys.length > 0) {
+      const raws = await Promise.all(list.keys.map(k => kv.get(k.name)))
+      return raws.filter((r): r is string => r !== null).map(r => JSON.parse(r) as Vote)
+    }
+    const single = await kv.get(VOTE_KEY(pollId, userId))
+    if (single) return [JSON.parse(single) as Vote]
+  }
   const data = await readData()
   return data.votes.filter(v => v.pollId === pollId && v.userId === userId)
 }
@@ -116,7 +129,13 @@ export async function deleteGuildPolls(guildId: string): Promise<number> {
   data.polls = data.polls.filter(p => p.guildId !== guildId)
   data.votes = data.votes.filter(v => !ids.has(v.pollId))
   await writeData(data)
-  if (kv) await Promise.all([...ids].map(id => kv.delete(POLL_KEY(id))))
+  if (kv) {
+    await Promise.all([...ids].map(id => kv.delete(POLL_KEY(id))))
+    await Promise.all([...ids].map(async id => {
+      const voteList = await kv.list({ prefix: `vote:${id}:` })
+      await Promise.all(voteList.keys.map(k => kv.delete(k.name)))
+    }))
+  }
   return before - data.polls.length
 }
 
@@ -148,18 +167,23 @@ export async function getPollsNeedingReminder(): Promise<Poll[]> {
   )
 }
 
-export async function castVote(vote: Vote, allowMultiple: boolean): Promise<void> {
-  const data = await readData()
-  if (allowMultiple) {
-    const idx = data.votes.findIndex(
-      v => v.pollId === vote.pollId && v.userId === vote.userId && v.optionId === vote.optionId
-    )
-    if (idx !== -1) data.votes[idx] = vote
-    else data.votes.push(vote)
+export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ voteChanged: boolean }> {
+  const kv = await getKV()
+  if (!kv) throw new Error('KV not available')
+  let voteChanged = false
+  if (!allowMultiple) {
+    const key         = VOTE_KEY(vote.pollId, vote.userId)
+    const existingRaw = await kv.get(key)
+    if (existingRaw) {
+      voteChanged = (JSON.parse(existingRaw) as Vote).optionId !== vote.optionId
+    } else {
+      const data     = await readData()
+      const blobVote = data.votes.find(v => v.pollId === vote.pollId && v.userId === vote.userId)
+      if (blobVote) voteChanged = blobVote.optionId !== vote.optionId
+    }
+    await kv.put(key, JSON.stringify(vote))
   } else {
-    const idx = data.votes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
-    if (idx !== -1) data.votes[idx] = vote
-    else data.votes.push(vote)
+    await kv.put(VOTE_KEY(vote.pollId, vote.userId, vote.optionId), JSON.stringify(vote))
   }
-  await writeData(data)
+  return { voteChanged }
 }

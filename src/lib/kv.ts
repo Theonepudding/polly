@@ -1,7 +1,14 @@
+interface KVListResult {
+  keys: { name: string; expiration?: number }[]
+  list_complete: boolean
+  cursor?: string
+}
+
 interface KVStore {
   get(key: string): Promise<string | null>
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
+  list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<KVListResult>
 }
 
 let _kv: KVStore | null = null
