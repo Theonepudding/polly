@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, type FormEvent, type MouseEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown, Smile } from 'lucide-react'
 import Link from 'next/link'
@@ -134,7 +134,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setPingRoleIds(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
   }
 
-  function openEmojiPicker(i: number, e: MouseEvent<HTMLButtonElement>) {
+  function openEmojiPicker(i: number, e: { currentTarget: HTMLButtonElement }) {
     if (emojiPickerFor === i) {
       setEmojiPickerFor(null)
       setEmojiPickerPos(null)
