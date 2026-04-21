@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, CheckCircle2, Trash2 } from 'lucide-react'
+import { Eye, CheckCircle2, Trash2 } from 'lucide-react'
 import PollCard from './PollCard'
+import ConfirmModal from './ConfirmModal'
 import type { Poll, Vote } from '@/types'
 
 interface Props {
@@ -14,8 +15,9 @@ interface Props {
 
 export default function ActivePollCard({ poll, votes, guildId }: Props) {
   const router = useRouter()
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [busy, setBusy] = useState<'close' | 'delete' | null>(null)
+  const [menu,          setMenu]          = useState<{ x: number; y: number } | null>(null)
+  const [busy,          setBusy]          = useState<'close' | 'delete' | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const openMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -50,8 +52,6 @@ export default function ActivePollCard({ poll, votes, guildId }: Props) {
   }
 
   const handleDelete = async () => {
-    setMenu(null)
-    if (!confirm(`Delete "${poll.title}"?\nThis cannot be undone.`)) return
     setBusy('delete')
     try {
       await fetch(`/api/guilds/${guildId}/polls/${poll.id}`, { method: 'DELETE' })
@@ -60,6 +60,17 @@ export default function ActivePollCard({ poll, votes, guildId }: Props) {
   }
 
   return (
+    <>
+    {confirmDelete && (
+      <ConfirmModal
+        title="Delete poll"
+        message={`Delete "${poll.title}"? This cannot be undone.`}
+        confirm="Delete"
+        danger
+        onConfirm={() => { setConfirmDelete(false); handleDelete() }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    )}
     <div onContextMenu={openMenu} className="relative">
       <PollCard poll={poll} votes={votes} guildId={guildId} />
 
@@ -81,8 +92,8 @@ export default function ActivePollCard({ poll, votes, guildId }: Props) {
             onClick={() => { setMenu(null); router.push(`/dashboard/${guildId}/polls/${poll.id}`) }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-p-text hover:bg-p-surface-2 transition-colors text-left"
           >
-            <Pencil size={13} className="text-p-muted" />
-            Edit poll
+            <Eye size={13} className="text-p-muted" />
+            View poll
           </button>
           <button
             onClick={handleClose}
@@ -93,7 +104,7 @@ export default function ActivePollCard({ poll, votes, guildId }: Props) {
           </button>
           <div className="h-px bg-p-border mx-2 my-1" />
           <button
-            onClick={handleDelete}
+            onClick={() => { setMenu(null); setConfirmDelete(true) }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-p-error hover:bg-p-error/10 transition-colors text-left"
           >
             <Trash2 size={13} />
@@ -102,5 +113,6 @@ export default function ActivePollCard({ poll, votes, guildId }: Props) {
         </div>
       )}
     </div>
+    </>
   )
 }

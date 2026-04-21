@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, RefreshCw, ChevronDown, Clock } from 'lucide-react'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
@@ -50,6 +51,7 @@ interface Props {
 
 
 export default function CreateScheduledPollModal({ guildId, userId, userName }: Props) {
+  const router = useRouter()
   const [open,          setOpen]          = useState(false)
   const [title,         setTitle]         = useState('')
   const [description,   setDescription]   = useState('')
@@ -231,7 +233,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
       })
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create schedule')
       setOpen(false); reset()
-      window.location.reload()
+      router.refresh()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
     } finally { setLoading(false) }

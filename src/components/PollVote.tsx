@@ -77,9 +77,11 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
       es.onmessage = (e: MessageEvent) => {
         try {
           const { votes: fresh, closed } = JSON.parse(e.data) as { votes: Vote[]; closed?: boolean }
-          setVotes(fresh)
-          if (effectiveUserId) {
-            setMyVotes(fresh.filter(v => v.userId === effectiveUserId))
+          if (Array.isArray(fresh)) {
+            setVotes(fresh)
+            if (effectiveUserId) {
+              setMyVotes(fresh.filter(v => v.userId === effectiveUserId))
+            }
           }
           if (closed) router.refresh()
         } catch { /* ignore */ }

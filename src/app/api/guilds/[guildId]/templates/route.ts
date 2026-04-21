@@ -19,7 +19,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { guildId } = await params
-  const body = await req.json()
+  let body: Record<string, unknown>
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
   const now  = new Date()
   const nextRun = new Date(now)
   nextRun.setUTCHours(body.atHour ?? 18, 0, 0, 0)
