@@ -8,6 +8,7 @@ export interface Guild {
   adminRoleIds: string[]   // roles that can create/manage polls
   voterRoleIds: string[]   // roles that can vote (empty = everyone)
   announceChannelId?: string
+  pollyChannelId?: string       // channel where Polly posts its guide + commands
   dashboardChannelId?: string
   dashboardMessageId?: string  // persistent dashboard embed message ID
   createdAt: string

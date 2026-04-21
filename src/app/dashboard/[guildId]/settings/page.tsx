@@ -2,13 +2,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Save, Loader2, Zap, Hash, Users, Shield } from 'lucide-react'
+import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface Channel { id: string; name: string; type: number }
 interface Role    { id: string; name: string; color: number }
 interface GuildConfig {
   guildName: string
   announceChannelId?: string
+  pollyChannelId?: string
   dashboardChannelId?: string
   adminRoleIds: string[]
   voterRoleIds: string[]
@@ -22,10 +23,11 @@ export default function SettingsPage() {
   const [config,    setConfig]    = useState<GuildConfig | null>(null)
   const [channels,  setChannels]  = useState<Channel[]>([])
   const [roles,     setRoles]     = useState<Role[]>([])
-  const [saving,    setSaving]    = useState(false)
-  const [saved,     setSaved]     = useState(false)
-  const [error,     setError]     = useState('')
-  const [loading,   setLoading]   = useState(true)
+  const [saving,      setSaving]      = useState(false)
+  const [saved,       setSaved]       = useState(false)
+  const [error,       setError]       = useState('')
+  const [loading,     setLoading]     = useState(true)
+  const [guideStatus, setGuideStatus] = useState<'idle' | 'posting' | 'ok' | 'fail'>('idle')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -66,6 +68,12 @@ export default function SettingsPage() {
       ...config,
       [key]: curr.includes(id) ? curr.filter(r => r !== id) : [...curr, id],
     })
+  }
+
+  async function postGuide() {
+    setGuideStatus('posting')
+    const res = await fetch(`/api/guilds/${guildId}/guide`, { method: 'POST' })
+    setGuideStatus(res.ok ? 'ok' : 'fail')
   }
 
   async function setupDashboard() {
@@ -115,6 +123,43 @@ export default function SettingsPage() {
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
             </select>
+          </div>
+
+          {/* Polly channel */}
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <BookOpen size={16} className="text-p-primary" />
+              <h2 className="font-display font-semibold text-p-text">Polly Channel</h2>
+            </div>
+            <p className="text-p-muted text-sm mb-4">
+              A dedicated channel where Polly posts a pinned guide explaining how to vote and use polls. Great for a <code className="text-p-muted bg-p-surface-2 px-1 rounded">#polly</code> or <code className="text-p-muted bg-p-surface-2 px-1 rounded">#polls</code> channel.
+            </p>
+            <select
+              value={config.pollyChannelId ?? ''}
+              onChange={e => setConfig({ ...config, pollyChannelId: e.target.value || undefined })}
+              className="input mb-4">
+              <option value="">— None —</option>
+              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+            </select>
+            {config.pollyChannelId && (
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={postGuide} disabled={guideStatus === 'posting'}
+                  className="btn-secondary text-sm">
+                  {guideStatus === 'posting' ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
+                  Post / Refresh Guide
+                </button>
+                {guideStatus === 'ok' && (
+                  <span className="flex items-center gap-1.5 text-p-success text-xs">
+                    <CheckCircle2 size={13} /> Guide posted and pinned!
+                  </span>
+                )}
+                {guideStatus === 'fail' && (
+                  <span className="flex items-center gap-1.5 text-p-warning text-xs">
+                    <AlertCircle size={13} /> Failed — check bot has Send Messages &amp; Manage Messages permission.
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Dashboard channel */}

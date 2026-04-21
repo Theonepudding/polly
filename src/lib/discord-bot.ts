@@ -328,6 +328,64 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
   }
 }
 
+// ─── Polly guide message ─────────────────────────────────────────────────────
+
+export async function postPollyGuide(channelId: string, guildId: string): Promise<string | null> {
+  if (!process.env.DISCORD_BOT_TOKEN) return null
+  const siteUrl   = process.env.NEXTAUTH_URL ?? ''
+  const dashboard = `${siteUrl}/dashboard/${guildId}`
+
+  const embed = {
+    title:       '📋 How Polly works',
+    description: 'Polly lets admins create polls that appear right here in Discord. Members vote with the buttons on each poll message.',
+    color:       0x6366F1,
+    fields: [
+      {
+        name:   '🗳️ Voting',
+        value:  'Click the option buttons on a poll message to cast your vote. You can also vote on the website using the **Vote on the website** button.',
+        inline: false,
+      },
+      {
+        name:   '➕ Creating polls',
+        value:  `Admins can create polls from the [web dashboard](${dashboard}). New polls are automatically posted to the announcement channel.`,
+        inline: false,
+      },
+      {
+        name:   '📊 Results',
+        value:  'Results update live on both Discord and the website as votes come in. The poll closes automatically on the set date, or an admin can close it early.',
+        inline: false,
+      },
+      {
+        name:   '⚙️ Settings',
+        value:  `Server admins can configure announcement channels, voter roles, and more from the [dashboard settings](${dashboard}/settings).`,
+        inline: false,
+      },
+    ],
+    footer: { text: 'Polly — Discord poll bot' },
+  }
+
+  try {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({ embeds: [embed] }),
+    })
+    if (!res.ok) return null
+    const msg = await res.json() as { id: string }
+
+    // Pin the guide message
+    await fetch(`${DISCORD_API}/channels/${channelId}/pins/${msg.id}`, {
+      method:  'PUT',
+      headers: botHeaders(),
+    })
+
+    return msg.id
+  } catch (e) {
+    console.error('Guide post error:', e)
+    return null
+  }
+}
+
 // ─── Welcome / setup ─────────────────────────────────────────────────────────
 
 export async function sendWelcomeMessage(

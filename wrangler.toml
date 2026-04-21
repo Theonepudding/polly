@@ -8,6 +8,9 @@ routes = [
   { pattern = "polly.pudding.vip", custom_domain = true, zone_name = "pudding.vip" }
 ]
 
+[vars]
+NEXTAUTH_URL = "https://polly.pudding.vip"
+
 [observability]
 enabled = true
 
