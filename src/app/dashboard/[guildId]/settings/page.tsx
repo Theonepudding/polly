@@ -121,7 +121,7 @@ export default function SettingsPage() {
     if (res.ok) {
       const allRoles: Role[] = await res.json()
       const adminRoleIds = allRoles
-        .filter(r => r.name !== '@everyone' && r.permissions && (BigInt(r.permissions) & 8n) !== 0n)
+        .filter(r => r.name !== '@everyone' && r.permissions && (parseInt(r.permissions, 10) & 8) !== 0)
         .map(r => r.id)
       updateConfig({ ...config, adminRoleIds })
     }

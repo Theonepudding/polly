@@ -60,7 +60,7 @@ export default async function GuildDashboardPage({ params }: Props) {
 
     // Pre-populate admin roles with Discord roles that have ADMINISTRATOR permission
     const adminRoleIds = guildRoles
-      .filter(r => r.name !== '@everyone' && (BigInt(r.permissions || '0') & 8n) !== 0n)
+      .filter(r => r.name !== '@everyone' && (parseInt(r.permissions || '0', 10) & 8) !== 0)
       .map(r => r.id)
 
     const now = new Date().toISOString()
