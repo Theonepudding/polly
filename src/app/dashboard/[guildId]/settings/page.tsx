@@ -23,7 +23,7 @@ interface GuildConfig {
 export default function SettingsPage() {
   const params  = useParams()
   const router  = useRouter()
-  const { data: session, status: authStatus } = useSession()
+  const { status: authStatus } = useSession()
   const guildId = params.guildId as string
 
   const [config,    setConfig]    = useState<GuildConfig | null>(null)
@@ -47,10 +47,11 @@ export default function SettingsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [cfgRes, chRes, rlRes] = await Promise.all([
+      const [cfgRes, chRes, rlRes, meRes] = await Promise.all([
         fetch(`/api/guilds/${guildId}`),
         fetch(`/api/guilds/${guildId}/channels`),
         fetch(`/api/guilds/${guildId}/channels?type=roles`),
+        fetch(`/api/guilds/${guildId}/me`),
       ])
 
       let data: GuildConfig | null = null
@@ -70,6 +71,14 @@ export default function SettingsPage() {
         }
       }
 
+      if (meRes.ok) {
+        const { canManage } = await meRes.json()
+        if (!canManage) {
+          router.replace(`/dashboard/${guildId}`)
+          return
+        }
+      }
+
       if (data) {
         const normalized = { ...data, creatorRoleIds: data.creatorRoleIds ?? [] }
         setConfig(normalized)
@@ -82,17 +91,6 @@ export default function SettingsPage() {
   }, [guildId])
 
   useEffect(() => { load() }, [load])
-
-  // Admin-only guard: redirect if loaded and not an admin
-  useEffect(() => {
-    if (!config || authStatus !== 'authenticated' || !session?.user?.id) return
-    const isOwner    = config.ownerId === session.user.id
-    const noAdmins   = config.adminRoleIds.length === 0
-    const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
-    if (!isOwner && !noAdmins && !isBotAdmin) {
-      router.replace(`/dashboard/${guildId}`)
-    }
-  }, [config, session, authStatus, guildId, router])
 
   function updateConfig(newConfig: GuildConfig) {
     setConfig(newConfig)

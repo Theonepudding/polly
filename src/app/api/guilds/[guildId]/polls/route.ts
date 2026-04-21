@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPolls, createPoll, updatePoll } from '@/lib/polls'
+import { getPolls, createPoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
 import { postPollToDiscord, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 import type { Poll } from '@/types'
@@ -48,21 +48,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     overrideChannelId: body.overrideChannelId || undefined,
   }
 
-  await createPoll(poll)
-
   const guild = await getGuild(guildId)
   const hasChannel = !!(guild?.announceChannelId || poll.overrideChannelId)
   let posted = false
   if (hasChannel) {
     const messageId = await postPollToDiscord(poll)
     if (messageId) {
-      await updatePoll(poll.id, {
-        discordMessageId: messageId,
-        discordChannelId: poll.overrideChannelId ?? guild?.announceChannelId,
-      })
+      poll.discordMessageId = messageId
+      poll.discordChannelId = poll.overrideChannelId ?? guild?.announceChannelId
       posted = true
     }
   }
+
+  await createPoll(poll)
 
   if (guild) {
     await Promise.allSettled([

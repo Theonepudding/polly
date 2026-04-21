@@ -32,6 +32,19 @@ async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?
   } catch { return null }
 }
 
+async function fetchMemberRoles(guildId: string, userId: string): Promise<string[]> {
+  if (!process.env.DISCORD_BOT_TOKEN) return []
+  try {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      cache: 'no-store',
+    })
+    if (!res.ok) return []
+    const member = await res.json()
+    return member.roles ?? []
+  } catch { return [] }
+}
+
 async function fetchGuildRoles(guildId: string): Promise<{ id: string; name: string; permissions: string }[]> {
   if (!process.env.DISCORD_BOT_TOKEN) return []
   try {
@@ -81,9 +94,12 @@ export default async function GuildDashboardPage({ params }: Props) {
     sendWelcomeMessage(guildId, discordGuild.system_channel_id ?? null, session.user.id, discordGuild.name)
   }
 
-  const [{ polls: allPolls, votesByPoll }, templates] = await Promise.all([
+  const userId = session.user?.id ?? ''
+
+  const [{ polls: allPolls, votesByPoll }, templates, memberRoles] = await Promise.all([
     getPollsAndVotes(guildId),
     getTemplates(guildId),
+    fetchMemberRoles(guildId, userId),
   ])
 
   const active        = allPolls.filter(p => !p.isClosed)
@@ -91,8 +107,7 @@ export default async function GuildDashboardPage({ params }: Props) {
   const closedPreview = allClosed.slice(0, 8)
   const activeTemplates = templates.filter(t => t.active)
 
-  const userId   = session.user?.id ?? ''
-  const canManage = userCanManage(guild, userId, []) || !!session.user.isBotAdmin
+  const canManage = userCanManage(guild, userId, memberRoles) || !!session.user.isBotAdmin
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -116,16 +131,18 @@ export default async function GuildDashboardPage({ params }: Props) {
             <Clock size={14} />
             Scheduled Polls
           </Link>
-          <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
-            <Settings size={14} />
-            Settings
-          </Link>
+          {canManage && (
+            <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
+              <Settings size={14} />
+              Settings
+            </Link>
+          )}
           <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />
         </div>
       </div>
 
-      {/* Setup banner */}
-      {!guild.announceChannelId && (
+      {/* Setup banner — only shown to managers who can act on it */}
+      {canManage && !guild.announceChannelId && (
         <div className="mb-8 flex items-start gap-3 p-4 rounded-xl border border-p-warning/30 bg-p-warning/5">
           <AlertTriangle size={16} className="text-p-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
