@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPolls, createPoll, updatePoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
-import { postPollToDiscord, postAuditLog } from '@/lib/discord-bot'
+import { postPollToDiscord, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 import type { Poll } from '@/types'
 
 type Params = { params: Promise<{ guildId: string }> }
@@ -64,7 +64,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
-  // Audit log
   if (guild) {
     postAuditLog(
       guild,
@@ -72,6 +71,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       `**[${poll.title}](${process.env.NEXTAUTH_URL}/p/${poll.id})**\n${poll.options.length} options · ${poll.closesAt ? `closes <t:${Math.floor(new Date(poll.closesAt).getTime() / 1000)}:R>` : 'no close date'}`,
       session.user.name ?? 'Unknown',
     ).catch(() => {})
+    refreshDashboard(guildId).catch(() => {})
   }
 
   return NextResponse.json({ poll, posted, hasChannel }, { status: 201 })

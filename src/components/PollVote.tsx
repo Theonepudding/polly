@@ -31,6 +31,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
   const [expanded,  setExpanded]  = useState<string | null>(null)
+  const [live,      setLive]      = useState(false)
   const effectiveUserId = userId ?? session?.user?.id
 
   const total    = poll.allowMultiple
@@ -40,17 +41,34 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
 
   useEffect(() => {
     if (isClosed) return
-    const es = new EventSource(`/api/polls/${poll.id}/stream`)
-    es.onmessage = (e: MessageEvent) => {
-      try {
-        const { votes: fresh } = JSON.parse(e.data) as { votes: Vote[] }
-        setVotes(fresh)
-        if (effectiveUserId) {
-          setMyVotes(fresh.filter(v => v.userId === effectiveUserId))
-        }
-      } catch { /* ignore */ }
+    let es: EventSource
+    let retryTimer: ReturnType<typeof setTimeout>
+
+    function connect() {
+      es = new EventSource(`/api/polls/${poll.id}/stream`)
+      es.onopen = () => setLive(true)
+      es.onerror = () => {
+        setLive(false)
+        es.close()
+        retryTimer = setTimeout(connect, 5000)
+      }
+      es.onmessage = (e: MessageEvent) => {
+        try {
+          const { votes: fresh } = JSON.parse(e.data) as { votes: Vote[] }
+          setVotes(fresh)
+          if (effectiveUserId) {
+            setMyVotes(fresh.filter(v => v.userId === effectiveUserId))
+          }
+        } catch { /* ignore */ }
+      }
     }
-    return () => es.close()
+
+    connect()
+    return () => {
+      clearTimeout(retryTimer)
+      es?.close()
+      setLive(false)
+    }
   }, [isClosed, poll.id, effectiveUserId])
 
   async function submitVote(finalTimeSlot?: string) {
@@ -94,6 +112,19 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   }
 
   const maxCount  = Math.max(...poll.options.map(o => votes.filter(v => v.optionId === o.id).length), 1)
+
+  function closesIn(iso?: string): string | null {
+    if (!iso) return null
+    const ms = new Date(iso).getTime() - Date.now()
+    if (ms <= 0) return null
+    const d = Math.floor(ms / 86_400_000)
+    const h = Math.floor((ms % 86_400_000) / 3_600_000)
+    const m = Math.floor((ms % 3_600_000) / 60_000)
+    if (d > 0) return `${d}d ${h}h left`
+    if (h > 0) return `${h}h ${m}m left`
+    if (m > 0) return `${m}m left`
+    return 'closing soon'
+  }
 
   function Results({ compact = false }: { compact?: boolean }) {
     return (
@@ -183,16 +214,25 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
 
   // Header info
   function PollHeader() {
+    const timeRemaining = closesIn(poll.closesAt)
     return (
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {isClosed ? (
             <span className="badge badge-muted gap-1"><Lock size={9} />Closed</span>
           ) : (
-            <span className="badge badge-success">Active</span>
+            <span className="badge badge-success gap-1.5">
+              {live && <span className="w-1.5 h-1.5 rounded-full bg-p-success animate-pulse shrink-0" />}
+              Active
+            </span>
           )}
           {poll.isAnonymous   && <span className="badge badge-muted gap-1"><EyeOff size={9} />Anonymous</span>}
           {poll.allowMultiple && <span className="badge badge-muted gap-1"><CheckSquare size={9} />Multi-choice</span>}
+          {!isClosed && timeRemaining && (
+            <span className="badge badge-muted gap-1 ml-auto">
+              <Clock size={9} />{timeRemaining}
+            </span>
+          )}
         </div>
         <h1 className="font-display font-bold text-2xl text-p-text mb-2">{poll.title}</h1>
         {poll.description && <p className="text-p-muted">{poll.description}</p>}
@@ -284,14 +324,12 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           ))}
         </div>
         {error && <p className="text-p-danger text-xs mb-3">{error}</p>}
-        {(poll.allowMultiple || true) && (
-          <button
-            onClick={handleVoteSubmit}
-            disabled={loading || selected.length === 0}
-            className="btn-primary w-full justify-center">
-            {loading ? 'Submitting…' : poll.allowMultiple ? `Vote (${selected.length} selected)` : 'Submit Vote'}
-          </button>
-        )}
+        <button
+          onClick={handleVoteSubmit}
+          disabled={loading || selected.length === 0}
+          className="btn-primary w-full justify-center">
+          {loading ? 'Submitting…' : poll.allowMultiple ? `Vote (${selected.length} selected)` : 'Submit Vote'}
+        </button>
       </div>
     )
   }

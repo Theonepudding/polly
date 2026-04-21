@@ -1,5 +1,6 @@
 import { Poll, Vote, Guild } from '@/types'
-import { getGuild } from './guilds'
+import { getGuild, upsertGuild } from './guilds'
+import { getPolls } from './polls'
 
 const DISCORD_API  = 'https://discord.com/api/v10'
 const COLOR_ACTIVE = 0x6366F1
@@ -20,6 +21,10 @@ function pollImageUrl(pollId: string): string {
 
 function pollPageUrl(pollId: string): string {
   return `${process.env.NEXTAUTH_URL}/p/${pollId}`
+}
+
+function dashboardImageUrl(guildId: string): string {
+  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}?t=${Date.now()}`
 }
 
 function shortDate(iso?: string) {
@@ -182,6 +187,7 @@ export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
     title:       `📊 ${guild.guildName} — Polls`,
     description: lines.join('\n') || '*No polls yet.*',
     color:       0x6366F1,
+    image:       { url: dashboardImageUrl(guild.guildId) },
     footer: {
       text: `${activePolls.length} active poll${activePolls.length !== 1 ? 's' : ''}  ·  Polly`,
     },
@@ -536,6 +542,21 @@ export async function sendWelcomeMessage(
         }),
       })
     } catch (e) { console.error('System channel welcome error:', e) }
+  }
+}
+
+// ─── Dashboard refresh ────────────────────────────────────────────────────────
+
+export async function refreshDashboard(guildId: string): Promise<void> {
+  const guild = await getGuild(guildId)
+  if (!guild?.dashboardChannelId) return
+
+  const allPolls    = await getPolls(guildId)
+  const activePolls = allPolls.filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date()))
+
+  const newMsgId = await postOrUpdateDashboard(guild, activePolls)
+  if (newMsgId && newMsgId !== guild.dashboardMessageId) {
+    await upsertGuild({ ...guild, dashboardMessageId: newMsgId })
   }
 }
 

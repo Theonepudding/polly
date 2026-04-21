@@ -8,9 +8,12 @@ function timeLeft(iso?: string) {
   if (ms <= 0) return 'Closed'
   const d = Math.floor(ms / 86_400_000)
   const h = Math.floor((ms % 86_400_000) / 3_600_000)
+  const m = Math.floor((ms % 3_600_000) / 60_000)
   if (d > 1) return `${d} days left`
-  if (d === 1) return `1 day ${h}h left`
-  return `${h}h left`
+  if (d === 1) return `1d ${h}h left`
+  if (h > 0)  return `${h}h ${m}m left`
+  if (m > 0)  return `${m}m left`
+  return 'closing soon'
 }
 
 interface Props {
@@ -52,7 +55,10 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
         <ChevronRight size={16} className="text-p-subtle group-hover:text-p-muted shrink-0 mt-1 transition-colors" />
       </div>
 
-      {/* Mini results bars */}
+      {/* Mini results bars / empty state */}
+      {total === 0 && !closed && (
+        <p className="text-xs text-p-subtle mb-3">No votes yet — be the first!</p>
+      )}
       {total > 0 && (
         <div className="space-y-2 mb-3">
           {poll.options.slice(0, 4).map((opt, i) => {

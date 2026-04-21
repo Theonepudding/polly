@@ -66,7 +66,7 @@ export default async function GuildDashboardPage({ params }: Props) {
 
   const active        = allPolls.filter(p => !p.isClosed)
   const allClosed     = allPolls.filter(p => p.isClosed)
-  const closedPreview = allClosed.slice(0, 5)
+  const closedPreview = allClosed.slice(0, 8)
   const activeTemplates = templates.filter(t => t.active)
 
   const userId = session.user?.id ?? ''
@@ -136,10 +136,7 @@ export default async function GuildDashboardPage({ params }: Props) {
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-semibold text-xl text-p-text">Active Polls</h2>
-          <Link href={`/dashboard/${guildId}/polls`}
-            className="text-sm text-p-muted hover:text-p-text transition-colors">
-            View all
-          </Link>
+          <span className="text-sm text-p-muted">{active.length} poll{active.length !== 1 ? 's' : ''}</span>
         </div>
         {active.length === 0 ? (
           <div className="card p-8 text-center text-p-muted">
@@ -160,12 +157,7 @@ export default async function GuildDashboardPage({ params }: Props) {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display font-semibold text-xl text-p-text">Recently Closed</h2>
-            {allClosed.length > 5 && (
-              <Link href={`/dashboard/${guildId}/polls`}
-                className="text-sm text-p-muted hover:text-p-text transition-colors">
-                View all {allClosed.length}
-              </Link>
-            )}
+            <span className="text-sm text-p-muted">{allClosed.length} poll{allClosed.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="flex flex-col gap-2">
             {closedPreview.map(poll => (

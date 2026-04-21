@@ -32,18 +32,6 @@ async function getBotGuilds(): Promise<string[]> {
   } catch { return [] }
 }
 
-async function getGuildMemberCount(guildId: string): Promise<number | undefined> {
-  try {
-    const res = await fetch(`https://discord.com/api/guilds/${guildId}?with_counts=true`, {
-      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-      next:    { revalidate: 300 },
-    })
-    if (!res.ok) return undefined
-    const g = await res.json()
-    return g.approximate_member_count
-  } catch { return undefined }
-}
-
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {

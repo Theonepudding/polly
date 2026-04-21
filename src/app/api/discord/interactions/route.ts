@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
-import { readData, writeData, getPoll, getVotes, createPoll, updatePoll } from '@/lib/polls'
+import { readData, writeData, createPoll, updatePoll } from '@/lib/polls'
 import { getGuild, upsertGuild } from '@/lib/guilds'
+import { getKV } from '@/lib/kv'
 import {
   buildTimeSlotComponents,
   buildTimeSlotFollowupContent,
@@ -9,6 +10,9 @@ import {
   buildDashboardComponents,
   buildPollEmbed,
   buildPollComponents,
+  postPollToDiscord,
+  postAuditLog,
+  refreshDashboard,
 } from '@/lib/discord-bot'
 import { Poll, Vote } from '@/types'
 
@@ -59,51 +63,191 @@ async function verifySignature(pubKey: string, sig: string, ts: string, raw: str
   } catch { return false }
 }
 
-// ─── Poll creation helper ─────────────────────────────────────────────────────
+// ─── Poll draft (KV-backed, 30 min TTL) ──────────────────────────────────────
 
-async function createAndPostPoll(guildId: string, title: string, optionLines: string[], description: string, durationDays: number, createdBy: string, createdByName: string): Promise<{ poll: Poll; posted: boolean }> {
-  const options = optionLines
-    .map(l => l.trim()).filter(Boolean)
-    .slice(0, 10)
-    .map((text, i) => ({ id: `opt-${i}`, text }))
+interface PollDraft {
+  guildId:       string
+  userId:        string
+  username:      string
+  pollType:      's' | 'yn' | 'ts'   // standard / yes-no / time-slots
+  title:         string
+  description:   string
+  options:       string[]
+  timeSlots:     string[]
+  isAnonymous:   boolean
+  allowMultiple: boolean
+  daysOpen:      number
+  hoursOpen:     number   // >0 means use hours instead of days
+}
 
+async function saveDraft(id: string, draft: PollDraft): Promise<void> {
+  const kv = await getKV()
+  if (kv) await kv.put(`pdraft:${id}`, JSON.stringify(draft), { expirationTtl: 1800 })
+}
+
+async function getDraft(id: string): Promise<PollDraft | null> {
+  const kv  = await getKV()
+  const raw = kv ? await kv.get(`pdraft:${id}`) : null
+  return raw ? JSON.parse(raw) : null
+}
+
+async function deleteDraft(id: string): Promise<void> {
+  const kv = await getKV()
+  if (kv) await kv.delete(`pdraft:${id}`)
+}
+
+async function saveTok(key: string, token: string): Promise<void> {
+  const kv = await getKV()
+  if (kv) await kv.put(key, token, { expirationTtl: 300 })
+}
+
+async function getTok(key: string): Promise<string | null> {
+  const kv = await getKV()
+  return kv ? kv.get(key) : null
+}
+
+function draftId(): string { return Math.random().toString(36).slice(2, 8) }
+
+// ─── Guided poll UI builders ──────────────────────────────────────────────────
+
+function buildTypeSelectMessage(gId: string): object {
+  return {
+    flags: 64,
+    embeds: [{
+      title:       '📊 Create a Poll',
+      description: 'What kind of poll do you want to make? Pick a type below.',
+      color:       0x6366F1,
+      fields: [
+        { name: '📝 Standard',    value: 'Your own question with 2–10 custom options.',     inline: true },
+        { name: '✅ Yes / No',    value: 'A quick thumbs-up / thumbs-down question.',       inline: true },
+        { name: '🕐 Time Slots',  value: 'Voters pick an option and a preferred time.',     inline: true },
+      ],
+    }],
+    components: [{
+      type: 1,
+      components: [
+        { type: 2, style: 1, label: '📝 Standard',   custom_id: `poll:type:s:${gId}`  },
+        { type: 2, style: 2, label: '✅ Yes / No',   custom_id: `poll:type:yn:${gId}` },
+        { type: 2, style: 2, label: '🕐 Time Slots', custom_id: `poll:type:ts:${gId}` },
+      ],
+    }],
+  }
+}
+
+function buildModal(type: 's' | 'yn' | 'ts', customId: string, draft?: PollDraft): object {
+  const t  = { type: 1, components: [{ type: 4, custom_id: 't', label: 'Question', style: 1, required: true,  max_length: 120, placeholder: 'e.g. Which day for the raid?',          ...(draft ? { value: draft.title }                        : {}) }] }
+  const d  = { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description  (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] }
+  const o  = { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options  (one per line, min 2)', style: 2, required: true, max_length: 800, placeholder: 'Friday\nSaturday\nSunday', ...(draft?.options.length ? { value: draft.options.join('\n') } : {}) }] }
+  const ts = { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots  (HH:MM, comma-separated)', style: 1, required: false, max_length: 120, placeholder: '18:00, 19:00, 20:00, 21:00', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] }
+
+  if (type === 'yn')  return { custom_id: customId, title: 'Quick Yes / No Poll',  components: [t, d] }
+  if (type === 'ts')  return { custom_id: customId, title: 'Time Slot Poll',        components: [t, o, ts, d] }
+  return              { custom_id: customId, title: 'Create a Poll',                components: [t, o, d] }
+}
+
+function buildSettingsMessage(draft: PollDraft, id: string): object {
+  const HOURS = [1, 2, 4, 6, 12]
+  const DURS  = [1, 3, 7, 14, 30]
+  const opts  = draft.options.map((o, i) => `**${i + 1}.** ${o}`).join('\n')
+  const tsRow = draft.timeSlots.length ? `\n**Time slots:** ${draft.timeSlots.join(' · ')}` : ''
+
+  const durLabel = draft.hoursOpen > 0
+    ? `${draft.hoursOpen}h`
+    : `${draft.daysOpen} day${draft.daysOpen !== 1 ? 's' : ''}`
+
+  return {
+    flags: 64,
+    embeds: [{
+      title: '📊 Review & Settings',
+      color: 0x6366F1,
+      fields: [
+        { name: '❓ Question', value: draft.title, inline: false },
+        ...(draft.description ? [{ name: 'ℹ️ Details',  value: draft.description, inline: false }] : []),
+        { name: '🗳️ Options', value: opts + tsRow,  inline: false },
+        { name: '⏱️ Duration', value: durLabel, inline: true },
+        { name: '🔧 Settings', value: `${draft.isAnonymous ? '🔒 Anonymous' : '🔓 Public'}  ·  ${draft.allowMultiple ? '☑️ Multi-choice' : '☐ Single vote'}`, inline: true },
+      ],
+      footer: { text: 'Adjust duration below — expires if not posted within 30 min' },
+    }],
+    components: [
+      {
+        type: 1,
+        components: HOURS.map(h => ({
+          type: 2, style: draft.hoursOpen === h ? 1 : 2,
+          label: `${h}h`,
+          custom_id: `poll:durh:${id}:${h}`,
+        })),
+      },
+      {
+        type: 1,
+        components: DURS.map(d => ({
+          type: 2, style: draft.hoursOpen === 0 && d === draft.daysOpen ? 1 : 2,
+          label: d === 1 ? '1 day' : `${d} days`,
+          custom_id: `poll:dur:${id}:${d}`,
+        })),
+      },
+      {
+        type: 1,
+        components: [
+          { type: 2, style: draft.isAnonymous   ? 1 : 2, label: draft.isAnonymous   ? '🔒 Anonymous: On'    : '🔓 Anonymous: Off',    custom_id: `poll:tog:anon:${id}`  },
+          { type: 2, style: draft.allowMultiple ? 1 : 2, label: draft.allowMultiple ? '☑️ Multi-choice: On' : '☐ Multi-choice: Off',  custom_id: `poll:tog:multi:${id}` },
+        ],
+      },
+      {
+        type: 1,
+        components: [
+          { type: 2, style: 2, label: '✏️ Edit',      custom_id: `poll:edit:${id}`   },
+          { type: 2, style: 4, label: '✕ Cancel',     custom_id: `poll:cancel:${id}` },
+          { type: 2, style: 3, label: '🚀 Post Poll', custom_id: `poll:create:${id}` },
+        ],
+      },
+    ],
+  }
+}
+
+// ─── Create poll from draft ───────────────────────────────────────────────────
+
+async function createFromDraft(draft: PollDraft): Promise<{ poll: Poll; posted: boolean }> {
+  const options  = draft.options.map((text, i) => ({ id: `opt-${i}`, text }))
   const closesAt = new Date()
-  closesAt.setDate(closesAt.getDate() + durationDays)
+  if (draft.hoursOpen > 0) {
+    closesAt.setTime(closesAt.getTime() + draft.hoursOpen * 60 * 60 * 1000)
+  } else {
+    closesAt.setDate(closesAt.getDate() + draft.daysOpen)
+  }
 
   const poll: Poll = {
     id:               `poll-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    guildId,
-    title,
-    description:      description || undefined,
+    guildId:          draft.guildId,
+    title:            draft.title,
+    description:      draft.description || undefined,
     options,
-    includeTimeSlots: false,
-    timeSlots:        [],
-    isAnonymous:      false,
-    allowMultiple:    false,
-    createdBy,
-    createdByName,
+    includeTimeSlots: draft.timeSlots.length > 0,
+    timeSlots:        draft.timeSlots,
+    isAnonymous:      draft.isAnonymous,
+    allowMultiple:    draft.allowMultiple,
+    createdBy:        draft.userId,
+    createdByName:    draft.username,
     createdAt:        new Date().toISOString(),
     closesAt:         closesAt.toISOString(),
     isClosed:         false,
   }
+
   await createPoll(poll)
 
-  // Try to post to announcement channel
-  const guild = await getGuild(guildId)
-  let posted = false
-  if (guild?.announceChannelId && process.env.DISCORD_BOT_TOKEN) {
-    try {
-      const res = await fetch(`${DISCORD_API}/channels/${guild.announceChannelId}/messages`, {
-        method:  'POST',
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ embeds: [buildPollEmbed(poll, [])], components: buildPollComponents(poll) }),
-      })
-      if (res.ok) {
-        const { id: messageId } = await res.json() as { id: string }
-        await updatePoll(poll.id, { discordMessageId: messageId })
-        posted = true
-      }
-    } catch { /* ignore */ }
+  const guild  = await getGuild(draft.guildId)
+  let posted   = false
+  if (guild?.announceChannelId) {
+    const msgId = await postPollToDiscord(poll).catch(() => null)
+    if (msgId) {
+      await updatePoll(poll.id, { discordMessageId: msgId, discordChannelId: guild.announceChannelId })
+      posted = true
+    }
+  }
+
+  if (guild) {
+    postAuditLog(guild, 'Poll created', `**${poll.title}** (via /poll)`, draft.username).catch(() => {})
+    refreshDashboard(draft.guildId).catch(() => {})
   }
 
   return { poll, posted }
@@ -112,7 +256,6 @@ async function createAndPostPoll(guildId: string, title: string, optionLines: st
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // Capture Cloudflare waitUntil early so background tasks survive after response
   let cfWaitUntil: ((p: Promise<unknown>) => void) | undefined
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
@@ -143,12 +286,12 @@ export async function POST(req: NextRequest) {
     // ── PING ────────────────────────────────────────────────────────────────
     if (body.type === 1) return Response.json({ type: 1 })
 
-    const appId   = process.env.DISCORD_CLIENT_ID ?? ''
-    const token   = body.token as string
-    const guildId = body.guild_id as string | undefined
-    const member  = body.member  as Record<string, unknown> | undefined
-    const user    = (member?.user ?? body.user) as Record<string, unknown> | undefined
-    const userId  = user?.id as string
+    const appId    = process.env.DISCORD_CLIENT_ID ?? ''
+    const token    = body.token as string
+    const guildId  = body.guild_id as string | undefined
+    const member   = body.member   as Record<string, unknown> | undefined
+    const user     = (member?.user ?? body.user) as Record<string, unknown> | undefined
+    const userId   = user?.id as string
     const username = (member?.nick ?? user?.username ?? 'Unknown') as string
 
     // ── SLASH COMMANDS (type 2) ──────────────────────────────────────────────
@@ -157,19 +300,7 @@ export async function POST(req: NextRequest) {
       log('slash command', { cmd, guildId })
 
       if (cmd === 'poll') {
-        return Response.json({
-          type: 9, // MODAL
-          data: {
-            custom_id: `create_poll:${guildId ?? ''}`,
-            title: 'Create a Poll',
-            components: [
-              { type: 1, components: [{ type: 4, custom_id: 'title',       label: 'Question',                               style: 1, required: true,  max_length: 120, placeholder: 'e.g. Raid night — Friday or Saturday?' }] },
-              { type: 1, components: [{ type: 4, custom_id: 'options',     label: 'Options  (one per line, min 2, max 10)', style: 2, required: true,  max_length: 800, placeholder: 'Friday\nSaturday\nSunday' }] },
-              { type: 1, components: [{ type: 4, custom_id: 'description', label: 'Description  (optional)',                style: 2, required: false, max_length: 400 }] },
-              { type: 1, components: [{ type: 4, custom_id: 'duration',    label: 'Duration in days  (default: 7)',         style: 1, required: false, max_length: 2,   placeholder: '7' }] },
-            ],
-          },
-        })
+        return Response.json({ type: 4, data: buildTypeSelectMessage(guildId ?? '') })
       }
 
       if (cmd === 'setup') {
@@ -177,25 +308,11 @@ export async function POST(req: NextRequest) {
         return Response.json({
           type: 4,
           data: {
-            flags: 64, // ephemeral
+            flags: 64,
             content: '⚙️ **Polly Setup** — pick your announcement channel:',
             components: [
-              {
-                type: 1,
-                components: [{
-                  type: 8, // channel_select
-                  custom_id: `setup:announce:${guildId ?? ''}`,
-                  placeholder: 'Select announcement channel…',
-                  channel_types: [0],
-                }],
-              },
-              {
-                type: 1,
-                components: [{
-                  type: 2, style: 5, label: 'Open Settings',
-                  url: `${siteUrl}/dashboard/${guildId}/settings`,
-                }],
-              },
+              { type: 1, components: [{ type: 8, custom_id: `setup:announce:${guildId ?? ''}`, placeholder: 'Select announcement channel…', channel_types: [0] }] },
+              { type: 1, components: [{ type: 2, style: 5, label: 'Open Settings', url: `${siteUrl}/dashboard/${guildId}/settings` }] },
             ],
           },
         })
@@ -208,42 +325,88 @@ export async function POST(req: NextRequest) {
     if (body.type === 5) {
       const idata    = body.data as Record<string, unknown>
       const customId = idata?.custom_id as string
+      const rows     = (idata.components as { components: { custom_id: string; value: string }[] }[]) ?? []
+      const get      = (id: string) => rows.flatMap(r => r.components).find(c => c.custom_id === id)?.value ?? ''
 
-      if (customId?.startsWith('create_poll:')) {
-        const pollGuildId = customId.split(':')[1] || guildId || ''
-        if (!pollGuildId) return Response.json({ type: 4, data: { content: '❌ Could not determine server.', flags: 64 } })
+      // ── Initial poll modal: poll:modal:{type}:{guildId} ──────────────────
+      if (customId.startsWith('poll:modal:')) {
+        const parts      = customId.split(':')
+        const pType      = parts[2] as 's' | 'yn' | 'ts'
+        const pGuildId   = parts[3] || guildId || ''
 
-        // Parse modal fields
-        const rows = (idata.components as { components: { custom_id: string; value: string }[] }[]) ?? []
-        const get  = (id: string) => rows.flatMap(r => r.components).find(c => c.custom_id === id)?.value ?? ''
+        const title = get('t').trim()
+        if (!title) return Response.json({ type: 4, data: { content: '❌ A question is required.', flags: 64 } })
 
-        const title       = get('title').trim()
-        const optionLines = get('options').split('\n').map(l => l.trim()).filter(Boolean)
-        const description = get('description').trim()
-        const durationRaw = parseInt(get('duration') || '7', 10)
-        const duration    = isNaN(durationRaw) || durationRaw < 1 ? 7 : Math.min(durationRaw, 365)
-
-        if (!title)                return Response.json({ type: 4, data: { content: '❌ Title is required.', flags: 64 } })
-        if (optionLines.length < 2) return Response.json({ type: 4, data: { content: '❌ At least 2 options are required.', flags: 64 } })
-
-        try {
-          const { poll, posted } = await createAndPostPoll(pollGuildId, title, optionLines, description, duration, userId, username)
-          const siteUrl = process.env.NEXTAUTH_URL ?? ''
-          const msg = posted
-            ? `✅ **${poll.title}** has been created and posted to the announcement channel!`
-            : `✅ **${poll.title}** has been created. [View on website](${siteUrl}/dashboard/${pollGuildId}/polls/${poll.id})\n\n⚠️ No announcement channel configured — set one up in [Settings](${siteUrl}/dashboard/${pollGuildId}/settings).`
-
-          // Auto-dismiss after 8 seconds
-          bg((async () => {
-            await sleep(8_000)
-            await deleteMessage(appId, token)
-          })())
-
-          return Response.json({ type: 4, data: { content: msg, flags: 64 } })
-        } catch (e) {
-          console.error('Modal poll creation error:', e)
-          return Response.json({ type: 4, data: { content: '❌ Something went wrong creating the poll.', flags: 64 } })
+        let options: string[]
+        if (pType === 'yn') {
+          options = ['Yes', 'No']
+        } else {
+          options = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10)
+          if (options.length < 2) return Response.json({ type: 4, data: { content: '❌ At least 2 options required.', flags: 64 } })
         }
+
+        const timeSlots = pType === 'ts'
+          ? get('ts').split(',').map(t => t.trim()).filter(t => /^\d{2}:\d{2}$/.test(t))
+          : []
+
+        const id    = draftId()
+        const draft: PollDraft = {
+          guildId: pGuildId, userId, username, pollType: pType,
+          title, description: get('d').trim(), options, timeSlots,
+          isAnonymous: false, allowMultiple: false, daysOpen: 7, hoursOpen: 0,
+        }
+        await saveDraft(id, draft)
+
+        // Clean up the type-selector message using the stored button click token
+        bg((async () => {
+          const tok = await getTok(`ptok:${userId}:${pGuildId}`)
+          if (tok) {
+            await patchMessage(appId, tok, {
+              embeds: [{ title: '✅ Poll type selected', description: 'Continue in the message below.', color: 0x22C55E }],
+              components: [],
+            })
+          }
+        })())
+
+        return Response.json({ type: 4, data: buildSettingsMessage(draft, id) })
+      }
+
+      // ── Edit modal: poll:redit:{draftId}:{type} ──────────────────────────
+      if (customId.startsWith('poll:redit:')) {
+        const parts  = customId.split(':')
+        const id     = parts[2]
+        const pType  = parts[3] as 's' | 'yn' | 'ts'
+        const draft  = await getDraft(id)
+        if (!draft || draft.userId !== userId) {
+          return Response.json({ type: 4, data: { content: '❌ Draft expired — use `/poll` to start again.', flags: 64 } })
+        }
+
+        const title = get('t').trim()
+        if (!title) return Response.json({ type: 4, data: { content: '❌ A question is required.', flags: 64 } })
+
+        draft.title       = title
+        draft.description = get('d').trim()
+        if (pType !== 'yn') {
+          const opts = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10)
+          if (opts.length >= 2) draft.options = opts
+        }
+        if (pType === 'ts') {
+          draft.timeSlots = get('ts').split(',').map(t => t.trim()).filter(t => /^\d{2}:\d{2}$/.test(t))
+        }
+        await saveDraft(id, draft)
+
+        // Clean up the old settings message
+        bg((async () => {
+          const tok = await getTok(`petok:${userId}:${id}`)
+          if (tok) {
+            await patchMessage(appId, tok, {
+              embeds: [{ title: '✏️ Poll updated', description: 'Review your changes in the message below.', color: 0x6366F1 }],
+              components: [],
+            })
+          }
+        })())
+
+        return Response.json({ type: 4, data: buildSettingsMessage(draft, id) })
       }
 
       return Response.json({ type: 6 })
@@ -256,16 +419,132 @@ export async function POST(req: NextRequest) {
 
       log('component', { customId, userId, guildId })
 
-      // ── Setup: announce channel picker ──────────────────────────────────────
+      // ── Poll: type selector buttons ──────────────────────────────────────
+      if (customId.startsWith('poll:type:')) {
+        const parts  = customId.split(':')
+        const pType  = parts[2] as 's' | 'yn' | 'ts'
+        const pGId   = parts[3] || guildId || ''
+        // Store this interaction's token so we can clean up the type selector later
+        await saveTok(`ptok:${userId}:${pGId}`, token)
+        return Response.json({ type: 9, data: buildModal(pType, `poll:modal:${pType}:${pGId}`) })
+      }
+
+      // ── Poll: duration — hours buttons ───────────────────────────────────
+      if (customId.startsWith('poll:durh:')) {
+        const parts = customId.split(':')
+        const id    = parts[2]
+        const hours = parseInt(parts[3])
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) return Response.json({ type: 6 })
+        draft.hoursOpen = hours
+        await saveDraft(id, draft)
+        return Response.json({ type: 7, data: buildSettingsMessage(draft, id) })
+      }
+
+      // ── Poll: duration — days buttons ─────────────────────────────────────
+      if (customId.startsWith('poll:dur:')) {
+        const parts = customId.split(':')
+        const id    = parts[2]
+        const days  = parseInt(parts[3])
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) return Response.json({ type: 6 })
+        draft.daysOpen  = days
+        draft.hoursOpen = 0
+        await saveDraft(id, draft)
+        return Response.json({ type: 7, data: buildSettingsMessage(draft, id) })
+      }
+
+      // ── Poll: toggle anonymous ────────────────────────────────────────────
+      if (customId.startsWith('poll:tog:anon:')) {
+        const id    = customId.slice('poll:tog:anon:'.length)
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) return Response.json({ type: 6 })
+        draft.isAnonymous = !draft.isAnonymous
+        await saveDraft(id, draft)
+        return Response.json({ type: 7, data: buildSettingsMessage(draft, id) })
+      }
+
+      // ── Poll: toggle multi-choice ─────────────────────────────────────────
+      if (customId.startsWith('poll:tog:multi:')) {
+        const id    = customId.slice('poll:tog:multi:'.length)
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) return Response.json({ type: 6 })
+        draft.allowMultiple = !draft.allowMultiple
+        await saveDraft(id, draft)
+        return Response.json({ type: 7, data: buildSettingsMessage(draft, id) })
+      }
+
+      // ── Poll: edit button → re-open modal ────────────────────────────────
+      if (customId.startsWith('poll:edit:')) {
+        const id    = customId.slice('poll:edit:'.length)
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) return Response.json({ type: 6 })
+        // Store token so edit modal submit can clean up this settings message
+        await saveTok(`petok:${userId}:${id}`, token)
+        return Response.json({ type: 9, data: buildModal(draft.pollType, `poll:redit:${id}:${draft.pollType}`, draft) })
+      }
+
+      // ── Poll: cancel ──────────────────────────────────────────────────────
+      if (customId.startsWith('poll:cancel:')) {
+        const id = customId.slice('poll:cancel:'.length)
+        await deleteDraft(id)
+        return Response.json({ type: 7, data: {
+          embeds: [{ title: '❌ Cancelled', description: 'Poll creation was cancelled. Use `/poll` to start again.', color: 0x6B7280 }],
+          components: [],
+        }})
+      }
+
+      // ── Poll: create ──────────────────────────────────────────────────────
+      if (customId.startsWith('poll:create:')) {
+        const id    = customId.slice('poll:create:'.length)
+        const draft = await getDraft(id)
+        if (!draft || draft.userId !== userId) {
+          return Response.json({ type: 7, data: {
+            embeds: [{ title: '❌ Draft expired', description: 'Use `/poll` to start a new poll.', color: 0xEF4444 }],
+            components: [],
+          }})
+        }
+
+        // Acknowledge immediately with "creating..." state
+        const siteUrl = process.env.NEXTAUTH_URL ?? ''
+        bg((async () => {
+          try {
+            const { poll, posted } = await createFromDraft(draft)
+            await deleteDraft(id)
+
+            const content = posted
+              ? `✅ **${poll.title}** has been posted to the announcement channel!`
+              : `✅ **${poll.title}** was created. [View it here](${siteUrl}/p/${poll.id})\n\n⚠️ No announcement channel — set one up in [Settings](${siteUrl}/dashboard/${draft.guildId}/settings).`
+
+            await patchMessage(appId, token, {
+              embeds: [{ title: posted ? '✅ Poll Posted!' : '✅ Poll Created', description: content, color: posted ? 0x22C55E : 0xF59E0B }],
+              components: [],
+            })
+            await sleep(8_000)
+            await deleteMessage(appId, token)
+          } catch (e) {
+            console.error('createFromDraft error:', e)
+            await patchMessage(appId, token, {
+              embeds: [{ title: '❌ Error', description: 'Something went wrong. Please try again.', color: 0xEF4444 }],
+              components: [],
+            })
+          }
+        })())
+
+        return Response.json({ type: 7, data: {
+          embeds: [{ title: '⏳ Creating your poll…', description: 'This will only take a moment.', color: 0x6366F1 }],
+          components: [],
+        }})
+      }
+
+      // ── Setup: announce channel picker ────────────────────────────────────
       if (customId.startsWith('setup:announce:')) {
         const setupGuildId = customId.split(':')[2]
         const channelId    = ((idata.values as string[]) ?? [])[0]
         if (setupGuildId && channelId) {
           try {
             const guild = await getGuild(setupGuildId)
-            if (guild) {
-              await upsertGuild({ ...guild, announceChannelId: channelId, updatedAt: new Date().toISOString() })
-            }
+            if (guild) await upsertGuild({ ...guild, announceChannelId: channelId, updatedAt: new Date().toISOString() })
           } catch (e) { console.error('Setup channel save error:', e) }
         }
         const siteUrl = process.env.NEXTAUTH_URL ?? ''
@@ -275,7 +554,7 @@ export async function POST(req: NextRequest) {
         }})
       }
 
-      // ── Vote: v:{pollId}:{optionId} ─────────────────────────────────────────
+      // ── Vote: v:{pollId}:{optionId} ───────────────────────────────────────
       if (customId.startsWith('v:')) {
         const [, pollId, optionId] = customId.split(':')
         if (!userId) return Response.json({ type: 4, data: { content: '❌ Could not identify you.', flags: 64 } })
@@ -287,20 +566,17 @@ export async function POST(req: NextRequest) {
         try {
           const data = await readData()
           const poll = data.polls.find(p => p.id === pollId)
-          if (!poll) {
-            return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
-          }
+          if (!poll) return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
           if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
             return Response.json({ type: 4, data: { content: '❌ This poll is no longer open.', flags: 64 } })
           }
 
-          // Voter role check
           if (guildId && poll.guildId === guildId) {
             const guild = await getGuild(guildId)
-            if (guild && guild.voterRoleIds.length > 0) {
+            if (guild?.voterRoleIds.length) {
               const memberRoles = (member?.roles as string[] | undefined) ?? []
               if (!guild.voterRoleIds.some(r => memberRoles.includes(r))) {
-                return Response.json({ type: 4, data: { content: '❌ You do not have permission to vote in this poll.', flags: 64 } })
+                return Response.json({ type: 4, data: { content: '❌ You do not have permission to vote.', flags: 64 } })
               }
             }
           }
@@ -309,29 +585,26 @@ export async function POST(req: NextRequest) {
           if (!poll.allowMultiple) {
             const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
             if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
-            else             data.votes.push(vote)
+            else data.votes.push(vote)
           } else {
             const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId && v.optionId === optionId)
             if (vIdx !== -1) data.votes[vIdx] = vote
-            else             data.votes.push(vote)
+            else data.votes.push(vote)
           }
           await writeData(data)
           savedVotes = data.votes.filter(v => v.pollId === pollId)
           savedPoll  = poll
-        } catch (e) { console.error('Vote handler error:', e) }
+        } catch (e) { console.error('Vote error:', e) }
 
         if (savedPoll && savedVotes) {
-          const poll  = savedPoll
-          const votes = savedVotes
+          const poll = savedPoll; const votes = savedVotes
           bg((async () => {
             updatePollInDiscord(poll, votes).catch(() => {})
             const hasSlots = poll.includeTimeSlots && poll.timeSlots.length > 0
             let followupId: string | null = null
             if (hasSlots) {
               followupId = await sendFollowup(token, appId, {
-                content:    buildTimeSlotFollowupContent(poll),
-                components: buildTimeSlotComponents(poll, optionId),
-                flags: 64,
+                content: buildTimeSlotFollowupContent(poll), components: buildTimeSlotComponents(poll, optionId), flags: 64,
               })
             }
             await sleep(5_000)
@@ -340,95 +613,82 @@ export async function POST(req: NextRequest) {
           })())
         }
 
-        const optionText = savedPoll?.options.find(o => o.id === optionId)?.text ?? optionId
-        const voteMsg = voteChanged
-          ? `🔄 Vote changed to **${optionText}**!`
-          : `✅ Voted for **${optionText}**!`
+        const optTxt  = savedPoll?.options.find(o => o.id === optionId)?.text ?? optionId
+        const voteMsg = voteChanged ? `🔄 Vote changed to **${optTxt}**!` : `✅ Voted for **${optTxt}**!`
         return Response.json({ type: 4, data: { content: voteMsg, flags: 64 } })
       }
 
-      // ── Time slot: t:{pollId}:{optionId}:{timeSlot} ─────────────────────────
+      // ── Time slot: t:{pollId}:{optionId}:{ts} ────────────────────────────
       if (customId.startsWith('t:')) {
-        const [, pollId, optionId, ...timeParts] = customId.split(':')
-        const timeSlot = timeParts.join(':')
+        const [, pollId, optionId, ...tparts] = customId.split(':')
+        const timeSlot = tparts.join(':')
         if (!userId) return Response.json({ type: 6 })
 
-        let savedVotes: Vote[] | null = null
-        let savedPoll: Poll | null = null
+        let savedVotes: Vote[] | null = null; let savedPoll: Poll | null = null
         try {
           const data = await readData()
           const poll = data.polls.find(p => p.id === pollId)
           if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) return Response.json({ type: 6 })
           const vote: Vote = { pollId, userId, username, optionId, timeSlot, votedAt: new Date().toISOString() }
           const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
-          if (vIdx !== -1) data.votes[vIdx] = vote
-          else             data.votes.push(vote)
+          if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
           await writeData(data)
-          savedVotes = data.votes.filter(v => v.pollId === pollId)
-          savedPoll  = poll
+          savedVotes = data.votes.filter(v => v.pollId === pollId); savedPoll = poll
         } catch (e) { console.error('Time slot error:', e) }
 
         if (savedPoll && savedVotes) {
-          const poll = savedPoll; const votes = savedVotes
+          const p = savedPoll; const v = savedVotes
           bg((async () => {
-            updatePollInDiscord(poll, votes).catch(() => {})
+            updatePollInDiscord(p, v).catch(() => {})
             await patchMessage(appId, token, { content: '✅ Time preference saved!', components: [] })
-            await sleep(5_000)
-            await deleteMessage(appId, token)
+            await sleep(5_000); await deleteMessage(appId, token)
           })())
         }
         return Response.json({ type: 6 })
       }
 
-      // ── Skip time: skip:{pollId} ─────────────────────────────────────────────
+      // ── Skip time: skip:{pollId} ──────────────────────────────────────────
       if (customId.startsWith('skip:')) {
         bg((async () => {
-          await patchMessage(appId, token, { content: '✅ No time preference noted.', components: [] })
-          await sleep(5_000)
-          await deleteMessage(appId, token)
+          await patchMessage(appId, token, { content: '✅ No time preference — noted!', components: [] })
+          await sleep(5_000); await deleteMessage(appId, token)
         })())
         return Response.json({ type: 6 })
       }
 
-      // ── Close poll: close:{pollId} ───────────────────────────────────────────
+      // ── Close poll: close:{pollId} ────────────────────────────────────────
       if (customId.startsWith('close:')) {
         const [, pollId] = customId.split(':')
         bg((async () => {
           try {
-            const data    = await readData()
-            const pollIdx = data.polls.findIndex(p => p.id === pollId)
-            if (pollIdx === -1) return
-            data.polls[pollIdx] = { ...data.polls[pollIdx], isClosed: true }
+            const data = await readData()
+            const idx  = data.polls.findIndex(p => p.id === pollId)
+            if (idx === -1) return
+            data.polls[idx] = { ...data.polls[idx], isClosed: true }
             await writeData(data)
-            await updatePollInDiscord(data.polls[pollIdx], data.votes.filter(v => v.pollId === pollId))
+            await updatePollInDiscord(data.polls[idx], data.votes.filter(v => v.pollId === pollId))
           } catch (e) { console.error('Close poll error:', e) }
         })())
         return Response.json({ type: 6 })
       }
 
-      // ── Dashboard: create poll prompt ────────────────────────────────────────
+      // ── Dashboard: create poll (open type selector) ───────────────────────
       if (customId.startsWith('dash:create:')) {
-        const dguildId = customId.split(':')[2]
-        const siteUrl  = process.env.NEXTAUTH_URL ?? ''
-        return Response.json({ type: 4, data: {
-          content: `**Create a new poll** — use \`/poll\` in any channel, or open the [web dashboard](${siteUrl}/dashboard/${dguildId}).`,
-          flags: 64,
-        }})
+        const dgId = customId.split(':')[2]
+        return Response.json({ type: 4, data: buildTypeSelectMessage(dgId) })
       }
 
-      // ── Dashboard: list polls ────────────────────────────────────────────────
+      // ── Dashboard: list polls ─────────────────────────────────────────────
       if (customId.startsWith('dash:list:')) {
-        const dguildId = customId.split(':')[2]
+        const dgId = customId.split(':')[2]
         bg((async () => {
           try {
-            const guild = await getGuild(dguildId)
+            const guild = await getGuild(dgId)
             if (!guild) return
-            const allData    = await readData()
-            const activePolls = allData.polls.filter(p => p.guildId === dguildId && !p.isClosed)
+            const allData     = await readData()
+            const activePolls = allData.polls.filter(p => p.guildId === dgId && !p.isClosed)
             await sendFollowup(token, appId, {
-              embeds:     [buildDashboardEmbed(guild, activePolls)],
-              components: buildDashboardComponents(guild),
-              flags: 64,
+              embeds: [buildDashboardEmbed(guild, activePolls)], components: buildDashboardComponents(guild), flags: 64,
             })
           } catch (e) { console.error('Dashboard list error:', e) }
         })())

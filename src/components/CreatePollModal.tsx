@@ -3,10 +3,16 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell } from 'lucide-react'
 import Link from 'next/link'
-import SelectInput from './SelectInput'
 import { Poll, PollTemplate } from '@/types'
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
+const HOUR_OPTIONS  = [1, 2, 4, 6, 12, 24]
+const DAY_OPTIONS   = [1, 3, 7, 14, 30]
+
+function nowTimeString() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 function utcToLocal(hhMM: string): string {
   const [h, m] = hhMM.split(':').map(Number)
@@ -51,7 +57,10 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
   const [useTimes,        setUseTimes]        = useState(false)
   const [times,           setTimes]           = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
   const [customTime,      setCustomTime]      = useState('')
+  const [durUnit,         setDurUnit]         = useState<'hours' | 'days'>('days')
+  const [durationHours,   setDurationHours]   = useState(6)
   const [daysOpen,        setDaysOpen]        = useState(7)
+  const [closeAtTime,     setCloseAtTime]     = useState(nowTimeString)
   const [isAnonymous,     setIsAnonymous]     = useState(false)
   const [allowMultiple,   setAllowMultiple]   = useState(false)
   const [isYesNo,         setIsYesNo]         = useState(false)
@@ -83,7 +92,8 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDaysOpen(7); setIsAnonymous(false)
+    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDurUnit('days'); setDurationHours(6)
+    setDaysOpen(7); setCloseAtTime(nowTimeString()); setIsAnonymous(false)
     setAllowMultiple(false); setIsYesNo(false); setError(''); setCreatedPoll(null)
     setPosted(false); setHasChannel(false); setOverrideChannel(''); setPingRoleIds([])
     setShowAdvanced(false)
@@ -97,13 +107,14 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     setAllowMultiple(t.allowMultiple)
     setUseTimes(t.includeTimeSlots)
     if (t.includeTimeSlots) setTimes(t.timeSlots)
+    setDurUnit('days')
     setDaysOpen(t.daysOpen)
     setIsYesNo(false)
   }
 
   function applyYesNo(on: boolean) {
     setIsYesNo(on)
-    if (on) setOptions(['✅ Yes', '❌ No'])
+    if (on) setOptions(['Yes', 'No'])
     else    setOptions(['', ''])
   }
 
@@ -134,7 +145,13 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     setLoading(true); setError('')
     try {
       const closesAt = new Date()
-      closesAt.setDate(closesAt.getDate() + daysOpen)
+      if (durUnit === 'hours') {
+        closesAt.setTime(closesAt.getTime() + durationHours * 60 * 60 * 1000)
+      } else {
+        const [h, m] = closeAtTime.split(':').map(Number)
+        closesAt.setHours(h, m, 0, 0)
+        closesAt.setDate(closesAt.getDate() + daysOpen)
+      }
       const res = await fetch(`/api/guilds/${guildId}/polls`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -321,17 +338,52 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
 
           <div>
             <label className="label">Poll duration</label>
-            <SelectInput
-              value={String(daysOpen)}
-              onChange={v => setDaysOpen(Number(v))}
-              options={[
-                { value: '1',  label: '1 day'   },
-                { value: '3',  label: '3 days'  },
-                { value: '7',  label: '7 days'  },
-                { value: '14', label: '14 days' },
-                { value: '30', label: '30 days' },
-              ]}
-            />
+
+            {/* Hours / Days toggle */}
+            <div className="flex gap-1 p-1 bg-p-surface-2 rounded-lg mb-3">
+              {(['hours', 'days'] as const).map(unit => (
+                <button key={unit} type="button" onClick={() => setDurUnit(unit)}
+                  className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-all capitalize ${
+                    durUnit === unit
+                      ? 'bg-p-surface text-p-text shadow-sm'
+                      : 'text-p-muted hover:text-p-text'
+                  }`}>
+                  {unit}
+                </button>
+              ))}
+            </div>
+
+            {durUnit === 'hours' ? (
+              <div className="flex flex-wrap gap-2">
+                {HOUR_OPTIONS.map(h => (
+                  <button key={h} type="button" onClick={() => setDurationHours(h)}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      durationHours === h ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    {h === 24 ? '24h (1 day)' : `${h}h`}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {DAY_OPTIONS.map(d => (
+                    <button key={d} type="button" onClick={() => setDaysOpen(d)}
+                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                        daysOpen === d ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                      }`}>
+                      {d === 1 ? '1 day' : `${d} days`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-p-muted text-xs whitespace-nowrap">Close at</label>
+                  <input type="time" value={closeAtTime} onChange={e => setCloseAtTime(e.target.value)}
+                    className="input py-1.5 text-sm w-32" />
+                  <span className="text-p-muted text-xs">your local time</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Advanced options */}

@@ -3,14 +3,25 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { useState } from 'react'
-import { Menu, X, LogIn, LogOut, LayoutDashboard, Settings, ChevronDown, Vote } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Menu, X, LogIn, LogOut, LayoutDashboard, Settings, Vote } from 'lucide-react'
 
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
 
 export default function Navbar() {
   const { data: session } = useSession()
   const [open, setOpen]   = useState(false)
-  const isBotAdmin = session?.user?.isBotAdmin
+  const pathname          = usePathname()
+  const isBotAdmin        = session?.user?.isBotAdmin
+
+  function navCls(href: string) {
+    const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+    return `px-3 py-1.5 rounded-lg text-sm transition-all ${
+      active
+        ? 'text-p-text bg-p-surface-2 font-medium'
+        : 'text-p-muted hover:text-p-text hover:bg-p-surface-2'
+    }`
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-p-bg/90 backdrop-blur-md border-b border-p-border/60">
@@ -26,20 +37,15 @@ export default function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1">
-          <Link href="/"
-            className="px-3 py-1.5 rounded-lg text-sm text-p-muted hover:text-p-text hover:bg-p-surface-2 transition-all">
-            Home
-          </Link>
+          <Link href="/" className={navCls('/')}>Home</Link>
           {session && (
-            <Link href="/dashboard"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-p-muted hover:text-p-text hover:bg-p-surface-2 transition-all">
+            <Link href="/dashboard" className={`flex items-center gap-1.5 ${navCls('/dashboard')}`}>
               <LayoutDashboard size={14} />
               Dashboard
             </Link>
           )}
           {isBotAdmin && (
-            <Link href="/admin"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-p-primary/80 hover:text-p-primary hover:bg-p-primary-b transition-all">
+            <Link href="/admin" className={`flex items-center gap-1.5 ${navCls('/admin')}`}>
               <Settings size={14} />
               Admin
             </Link>
@@ -56,7 +62,6 @@ export default function Navbar() {
                     className="rounded-full border border-p-border group-hover:border-p-primary/50 transition-colors" />
                 )}
                 <span className="text-sm text-p-text max-w-[120px] truncate">{session.user?.name}</span>
-                <ChevronDown size={13} className="text-p-muted" />
               </Link>
               <button onClick={() => signOut({ callbackUrl: '/' })} className="btn-ghost text-xs py-1.5">
                 <LogOut size={13} />
@@ -84,21 +89,21 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden border-t border-p-border bg-p-surface/95 backdrop-blur-md px-4 py-3 flex flex-col gap-1">
+        <div className="md:hidden border-t border-p-border bg-p-surface/95 backdrop-blur-md px-4 py-3 flex flex-col gap-1 animate-slide-down">
           <Link href="/" onClick={() => setOpen(false)}
-            className="px-3 py-2.5 rounded-lg text-sm text-p-muted hover:text-p-text hover:bg-p-surface-2">
+            className={`py-2.5 ${navCls('/')}`}>
             Home
           </Link>
           {session && (
             <Link href="/dashboard" onClick={() => setOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-p-muted hover:text-p-text hover:bg-p-surface-2">
+              className={`flex items-center gap-2 py-2.5 ${navCls('/dashboard')}`}>
               <LayoutDashboard size={15} />
               Dashboard
             </Link>
           )}
           {isBotAdmin && (
             <Link href="/admin" onClick={() => setOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-p-primary/80 hover:text-p-primary hover:bg-p-primary-b">
+              className={`flex items-center gap-2 py-2.5 ${navCls('/admin')}`}>
               <Settings size={15} />
               Admin
             </Link>

@@ -86,7 +86,7 @@
     @apply input resize-none;
   }
   .label {
-    @apply block text-xs font-semibold text-p-muted mb-1.5 tracking-wider uppercase;
+    @apply block text-xs font-semibold text-p-muted mb-1.5;
   }
 
   /* Badge */

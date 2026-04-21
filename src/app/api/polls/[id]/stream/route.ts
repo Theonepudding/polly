@@ -15,6 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)) } catch { /* closed */ }
       }
 
+      let keepaliveTick = 0
       const check = async () => {
         try {
           const votes = await getVotes(id)
@@ -23,8 +24,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
             lastHash = hash
             enqueue({ votes })
           }
-          // keepalive so the connection doesn't time out
-          controller.enqueue(encoder.encode(': keepalive\n\n'))
+          // send keepalive comment every ~30s (every 15 checks at 2s interval)
+          if (++keepaliveTick % 15 === 0) {
+            controller.enqueue(encoder.encode(': keepalive\n\n'))
+          }
         } catch {
           if (intervalId) clearInterval(intervalId)
           try { controller.close() } catch { /* already closed */ }
@@ -32,7 +35,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       }
 
       await check()
-      intervalId = setInterval(check, 500)
+      intervalId = setInterval(check, 2000)
 
       // Max 5 minutes per connection, then client reconnects automatically
       setTimeout(() => {

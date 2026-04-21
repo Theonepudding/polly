@@ -15,12 +15,19 @@ export async function GET(
 
   const total  = votes.length
   const closed = poll.isClosed || (poll.closesAt ? new Date(poll.closesAt) <= new Date() : false)
+
+  // Strip leading emoji from option text (handles old polls that stored "✅ Yes" / "❌ No")
+  const cleanText = (s: string) => s.replace(/^[\u{2000}-\u{27FF}\u{1F000}-\u{1FAFF}]+\s*/u, '').trim() || s
   const accent = closed ? CYAN : INDIGO
   const H      = Math.max(560, 160 + poll.options.length * 168 + 100)
 
   const closesLabel = poll.closesAt
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : ''
+
+  const cacheHeaders = {
+    'Cache-Control': 'public, max-age=15, stale-while-revalidate=30',
+  }
 
   return new ImageResponse(
     (
@@ -84,7 +91,7 @@ export async function GET(
             return (
               <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: 30 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <span style={{ color: '#f0f0ff', fontSize: 29, fontWeight: 600 }}>{opt.text}</span>
+                  <span style={{ color: '#f0f0ff', fontSize: 29, fontWeight: 600 }}>{cleanText(opt.text)}</span>
                   <span style={{ color: count > 0 ? accent : '#9999bb', fontSize: 25, fontWeight: 700 }}>
                     {pct}% · {count} {count === 1 ? 'vote' : 'votes'}
                   </span>
@@ -132,5 +139,6 @@ export async function GET(
       </div>
     ),
     { width: W, height: H },
+    { headers: cacheHeaders },
   )
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, updatePoll, deletePoll, getVotes } from '@/lib/polls'
-import { updatePollInDiscord, deletePollFromDiscord, postPollResults, postAuditLog } from '@/lib/discord-bot'
+import { updatePollInDiscord, deletePollFromDiscord, postPollResults, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 import { getGuild } from '@/lib/guilds'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
@@ -42,9 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (wasClosing) {
       const guild = await getGuild(guildId)
       if (guild) {
-        // Post results announcement to announce channel
         postPollResults(updated, votes, guild).catch(() => {})
-        // Audit log
         const winner = votes.length > 0
           ? updated.options.reduce((b, o) =>
               votes.filter(v => v.optionId === o.id).length > votes.filter(v => v.optionId === b.id).length ? o : b,
@@ -56,6 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
           session.user.name ?? 'Unknown',
         ).catch(() => {})
+        refreshDashboard(guildId).catch(() => {})
       }
     }
   }
@@ -81,6 +80,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       `**${poll.title}**`,
       session.user.name ?? 'Unknown',
     ).catch(() => {})
+    refreshDashboard(guildId).catch(() => {})
   }
 
   await deletePoll(id)
