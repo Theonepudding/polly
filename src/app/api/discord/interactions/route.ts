@@ -644,11 +644,12 @@ export async function POST(req: NextRequest) {
           const p = savedPoll; const fv = freshVote; const changed = voteChanged
           bg((async () => {
             const listed = await getVotes(p.id)
-            // kv.list may not yet include the key we just wrote — inject it explicitly
-            const hasVote = p.allowMultiple
-              ? listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId)
-              : listed.some(v => v.userId === fv.userId)
-            const votes = hasVote ? listed : [...listed, fv]
+            // kv.list may lag behind kv.put — ensure freshVote is represented.
+            // For single-choice: replace any existing vote by this user.
+            // For multi-choice: add if not already present.
+            const votes = p.allowMultiple
+              ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
+              : [...listed.filter(v => v.userId !== fv.userId), fv]
             await updatePollInDiscord(p, votes).catch(() => {})
             if (changed) {
               await sleep(5_000)
@@ -686,10 +687,9 @@ export async function POST(req: NextRequest) {
           const p = savedPoll; const fv = freshVote
           bg((async () => {
             const listed = await getVotes(p.id)
-            const hasFv  = p.allowMultiple
-              ? listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId)
-              : listed.some(v => v.userId === fv.userId)
-            const votes = hasFv ? listed : [...listed, fv]
+            const votes = p.allowMultiple
+              ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
+              : [...listed.filter(v => v.userId !== fv.userId), fv]
             await updatePollInDiscord(p, votes).catch(() => {})
             await patchMessage(appId, token, { content: '✅ Time preference saved!', components: [] })
             await sleep(5_000); await deleteMessage(appId, token)
@@ -712,10 +712,10 @@ export async function POST(req: NextRequest) {
               const p = poll; const fv = vote
               bg((async () => {
                 const listed = await getVotes(p.id)
-                const hasFv  = p.allowMultiple
-                  ? listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId)
-                  : listed.some(v => v.userId === fv.userId)
-                updatePollInDiscord(p, hasFv ? listed : [...listed, fv]).catch(() => {})
+                const votes = p.allowMultiple
+                  ? (listed.some(v => v.userId === fv.userId && v.optionId === fv.optionId) ? listed : [...listed, fv])
+                  : [...listed.filter(v => v.userId !== fv.userId), fv]
+                updatePollInDiscord(p, votes).catch(() => {})
               })())
             }
           } catch (e) { console.error('Skip time vote error:', e) }
