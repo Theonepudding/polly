@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle, Terminal, Trash2, AlertTriangle, PenLine, RefreshCw } from 'lucide-react'
 
@@ -8,8 +9,10 @@ interface Channel { id: string; name: string; type: number }
 interface Role    { id: string; name: string; color: number; permissions?: string }
 interface GuildConfig {
   guildName: string
+  ownerId: string
   announceChannelId?: string
   pollyChannelId?: string
+  guideMessage?: string
   dashboardChannelId?: string
   auditLogChannelId?: string
   adminRoleIds: string[]
@@ -18,8 +21,9 @@ interface GuildConfig {
 }
 
 export default function SettingsPage() {
-  const params = useParams()
-  const router = useRouter()
+  const params  = useParams()
+  const router  = useRouter()
+  const { data: session, status: authStatus } = useSession()
   const guildId = params.guildId as string
 
   const [config,    setConfig]    = useState<GuildConfig | null>(null)
@@ -60,7 +64,6 @@ export default function SettingsPage() {
           .filter(r => r.name !== '@everyone' && r.permissions && (parseInt(r.permissions, 10) & 8) !== 0)
           .map(r => r.id)
         setDiscordAdminIds(discordAdmins)
-        // Auto-populate adminRoleIds from Discord if not manually configured
         if (data && (!data.adminRoleIds || data.adminRoleIds.length === 0) && discordAdmins.length > 0) {
           data = { ...data, adminRoleIds: discordAdmins }
         }
@@ -79,23 +82,30 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Admin-only guard: redirect if loaded and not an admin
+  useEffect(() => {
+    if (!config || authStatus !== 'authenticated' || !session?.user?.id) return
+    const isOwner    = config.ownerId === session.user.id
+    const noAdmins   = config.adminRoleIds.length === 0
+    const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+    if (!isOwner && !noAdmins && !isBotAdmin) {
+      router.replace(`/dashboard/${guildId}`)
+    }
+  }, [config, session, authStatus, guildId, router])
+
   function updateConfig(newConfig: GuildConfig) {
     setConfig(newConfig)
     if (hasLoaded.current) setIsDirty(true)
   }
 
   function discardChanges() {
-    if (originalConfig) {
-      setConfig(originalConfig)
-      setIsDirty(false)
-    }
+    if (originalConfig) { setConfig(originalConfig); setIsDirty(false) }
   }
 
   async function save(e?: React.FormEvent) {
     e?.preventDefault()
     if (!config) return
-    setSaving(true)
-    setError('')
+    setSaving(true); setError('')
     const res = await fetch(`/api/guilds/${guildId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -103,9 +113,7 @@ export default function SettingsPage() {
     })
     setSaving(false)
     if (res.ok) {
-      setSaved(true)
-      setIsDirty(false)
-      setOriginalConfig(config)
+      setSaved(true); setIsDirty(false); setOriginalConfig(config)
       router.refresh()
       setTimeout(() => setSaved(false), 2500)
     } else {
@@ -113,13 +121,39 @@ export default function SettingsPage() {
     }
   }
 
-  function toggleRole(key: 'adminRoleIds' | 'creatorRoleIds' | 'voterRoleIds', id: string) {
+  const nonEveryone = roles.filter(r => r.name !== '@everyone')
+  const allRoleIds  = nonEveryone.map(r => r.id)
+
+  // For creator/voter: empty = everyone allowed → all show as colored.
+  // Clicking a colored role when list is empty = revoke it (store all others).
+  // Clicking a colored role in a non-empty list = remove it.
+  // Clicking a muted role in a non-empty list = add it.
+  // If result would include all roles, simplify back to empty.
+  function toggleRestrictedRole(key: 'creatorRoleIds' | 'voterRoleIds', id: string) {
     if (!config) return
     const curr = config[key]
-    updateConfig({
-      ...config,
-      [key]: curr.includes(id) ? curr.filter(r => r !== id) : [...curr, id],
-    })
+    let next: string[]
+    if (curr.length === 0) {
+      // All currently allowed → revoke this one → allow all others explicitly
+      next = allRoleIds.filter(r => r !== id)
+    } else if (curr.includes(id)) {
+      next = curr.filter(r => r !== id)
+    } else {
+      const added = [...curr, id]
+      next = allRoleIds.every(r => added.includes(r)) ? [] : added
+    }
+    updateConfig({ ...config, [key]: next })
+  }
+
+  function isRestrictedRoleActive(key: 'creatorRoleIds' | 'voterRoleIds', id: string): boolean {
+    if (!config) return false
+    return config[key].length === 0 || config[key].includes(id)
+  }
+
+  function toggleAdminRole(id: string) {
+    if (!config) return
+    const curr = config.adminRoleIds
+    updateConfig({ ...config, adminRoleIds: curr.includes(id) ? curr.filter(r => r !== id) : [...curr, id] })
   }
 
   async function postGuide() {
@@ -161,15 +195,11 @@ export default function SettingsPage() {
     setRemoving(true)
     const res = await fetch(`/api/guilds/${guildId}`, { method: 'DELETE' })
     setRemoving(false)
-    if (res.ok) {
-      router.push('/dashboard')
-    } else {
-      setError('Failed to remove bot. Try again or kick it manually from Discord.')
-      setRemoveConfirm(false)
-    }
+    if (res.ok) { router.push('/dashboard') }
+    else { setError('Failed to remove bot. Try again or kick it manually from Discord.'); setRemoveConfirm(false) }
   }
 
-  if (loading) return (
+  if (loading || authStatus === 'loading') return (
     <div className="max-w-3xl mx-auto px-4 py-12 flex justify-center">
       <Loader2 className="animate-spin text-p-muted" size={24} />
     </div>
@@ -202,7 +232,6 @@ export default function SettingsPage() {
             <p className="text-[#c8ccd4] text-sm mb-4">
               When a poll is created, Polly posts it here as a Discord message with voting buttons. Members vote directly from this channel.
             </p>
-            {/* Discord embed mockup */}
             <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
               <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                 <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
@@ -243,16 +272,15 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          {/* Polly Channel */}
+          {/* Guide Channel */}
           <div className="card p-6">
             <div className="flex items-center gap-2 mb-1">
               <BookOpen size={16} className="text-p-primary" />
-              <h2 className="font-display font-semibold text-p-text">Polly Channel</h2>
+              <h2 className="font-display font-semibold text-p-text">Guide Channel</h2>
             </div>
             <p className="text-[#c8ccd4] text-sm mb-4">
-              Polly posts a pinned guide here explaining how to vote and use polls. Good for a dedicated <span className="font-mono text-p-text">#polls</span> or <span className="font-mono text-p-text">#bot-info</span> channel that members can refer to.
+              Polly posts a pinned guide here explaining how to vote and use polls. Good for a dedicated <span className="font-mono text-p-text">#polls</span> or <span className="font-mono text-p-text">#bot-info</span> channel. You can customise the guide message below.
             </p>
-            {/* Discord embed mockup */}
             <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
               <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                 <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
@@ -266,9 +294,9 @@ export default function SettingsPage() {
                 <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
                 <div className="flex-1 py-1 pr-3">
                   <div className="text-white font-bold mb-1">How Polly Works</div>
-                  <div className="text-[#b5bac1] mb-1.5">Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.</div>
-                  <div className="text-[#b5bac1] mt-1"><span className="text-white font-semibold">Voting</span> — Click an option button to cast your vote. You can change it any time before the poll closes.</div>
-                  <div className="text-[#b5bac1] mt-1"><span className="text-white font-semibold">Creating a poll</span> — Use /poll or the web dashboard. New polls are posted here automatically.</div>
+                  <div className="text-[#b5bac1] mb-1.5">
+                    {config.guideMessage ?? 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.'}
+                  </div>
                 </div>
               </div>
               <div className="px-3 pb-3 pt-1 text-[#72767d]">Polly — Discord poll bot</div>
@@ -276,10 +304,27 @@ export default function SettingsPage() {
             <select
               value={config.pollyChannelId ?? ''}
               onChange={e => updateConfig({ ...config, pollyChannelId: e.target.value || undefined })}
-              className="input mb-4">
+              className="input mb-3">
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
             </select>
+            <div className="mb-4">
+              <label className="label">Custom guide message <span className="normal-case font-normal text-p-muted/50">(optional — shown in Discord embed)</span></label>
+              <textarea
+                className="textarea text-sm"
+                rows={4}
+                placeholder="Leave empty to use the default guide text. Write whatever you'd like your members to see when they first join your polls channel."
+                maxLength={2000}
+                value={config.guideMessage ?? ''}
+                onChange={e => updateConfig({ ...config, guideMessage: e.target.value || undefined })}
+              />
+              {config.guideMessage && (
+                <button type="button" onClick={() => updateConfig({ ...config, guideMessage: undefined })}
+                  className="text-xs text-p-muted hover:text-p-danger mt-1">
+                  Reset to default
+                </button>
+              )}
+            </div>
             {config.pollyChannelId && (
               <div className="flex items-center gap-3">
                 <button type="button" onClick={postGuide} disabled={guideStatus === 'posting'}
@@ -308,9 +353,8 @@ export default function SettingsPage() {
               <h2 className="font-display font-semibold text-p-text">Dashboard Embed Channel</h2>
             </div>
             <p className="text-[#c8ccd4] text-sm mb-4">
-              Polly keeps a single live message here that lists all active polls. Members can see what&apos;s open, create new polls, or open the dashboard — all from one place. Works best in a read-only or low-traffic channel.
+              Polly keeps a single live message here that lists all active polls. Members can see what&apos;s open, create new polls, or open the dashboard — all from one place.
             </p>
-            {/* Discord embed mockup */}
             <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
               <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                 <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
@@ -342,8 +386,7 @@ export default function SettingsPage() {
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
             </select>
             {config.dashboardChannelId && (
-              <button type="button" onClick={setupDashboard}
-                className="btn-accent text-sm" disabled={saving}>
+              <button type="button" onClick={setupDashboard} className="btn-accent text-sm" disabled={saving}>
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                 Post / Refresh Dashboard Embed
               </button>
@@ -405,22 +448,19 @@ export default function SettingsPage() {
               <h2 className="font-display font-semibold text-p-text">Poll Admin Roles</h2>
             </div>
             <p className="text-[#c8ccd4] text-sm mb-3">
-              Members with these roles can create polls, close any poll, resend embeds, and delete any poll. By default, Polly respects Discord&apos;s built-in Administrator roles — use the button below to detect them automatically.
+              Members with these roles can create polls, close any poll, resend embeds, and delete any poll. By default, Polly respects Discord&apos;s built-in Administrator roles.
             </p>
             <div className="flex flex-wrap gap-2 mb-4">
-              {roles.filter(r => r.name !== '@everyone').map(role => {
-                const isSelected      = config.adminRoleIds.includes(role.id)
-                const isDiscordAdmin  = discordAdminIds.includes(role.id)
+              {nonEveryone.map(role => {
+                const isSelected     = config.adminRoleIds.includes(role.id)
+                const isDiscordAdmin = discordAdminIds.includes(role.id)
                 return (
                   <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => toggleRole('adminRoleIds', role.id)}
+                    key={role.id} type="button"
+                    onClick={() => toggleAdminRole(role.id)}
                     title={isDiscordAdmin ? 'Has Discord Administrator permission' : undefined}
                     className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all gap-1.5 ${
-                      isSelected
-                        ? 'badge-primary'
-                        : 'badge-muted hover:border-p-border-2'
+                      isSelected ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
                     }`}>
                     {isDiscordAdmin && <Shield size={10} className={isSelected ? 'text-p-primary' : 'text-p-muted'} />}
                     {role.name}
@@ -441,23 +481,28 @@ export default function SettingsPage() {
               <PenLine size={16} className="text-p-accent" />
               <h2 className="font-display font-semibold text-p-text">Poll Creator Roles</h2>
             </div>
-            <p className="text-p-muted text-sm mb-4">
-              Members with these roles can create polls and delete their own polls, but cannot close or manage polls created by others. Leave empty to make creation follow the admin role rules above.
+            <p className="text-p-muted text-sm mb-1">
+              Members with these roles can create and delete their own polls. Click a role to revoke its access.
+            </p>
+            <p className="text-p-subtle text-xs mb-4">
+              {config.creatorRoleIds.length === 0
+                ? 'All roles currently have access. Click a role to restrict it.'
+                : `${config.creatorRoleIds.length} role${config.creatorRoleIds.length !== 1 ? 's' : ''} allowed.`}
             </p>
             <div className="flex flex-wrap gap-2">
-              {roles.filter(r => r.name !== '@everyone').map(role => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => toggleRole('creatorRoleIds', role.id)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                    config.creatorRoleIds.includes(role.id)
-                      ? 'badge-accent'
-                      : 'badge-muted hover:border-p-border-2'
-                  }`}>
-                  {role.name}
-                </button>
-              ))}
+              {nonEveryone.map(role => {
+                const active = isRestrictedRoleActive('creatorRoleIds', role.id)
+                return (
+                  <button
+                    key={role.id} type="button"
+                    onClick={() => toggleRestrictedRole('creatorRoleIds', role.id)}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      active ? 'badge-accent' : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    {role.name}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -467,21 +512,28 @@ export default function SettingsPage() {
               <Users size={16} className="text-p-accent" />
               <h2 className="font-display font-semibold text-p-text">Voter Roles</h2>
             </div>
-            <p className="text-p-muted text-sm mb-4">Only members with these roles can vote. Leave empty to allow everyone to vote.</p>
+            <p className="text-p-muted text-sm mb-1">
+              Members with these roles can vote. Click a role to revoke its access.
+            </p>
+            <p className="text-p-subtle text-xs mb-4">
+              {config.voterRoleIds.length === 0
+                ? 'All roles currently have access. Click a role to restrict it.'
+                : `${config.voterRoleIds.length} role${config.voterRoleIds.length !== 1 ? 's' : ''} allowed.`}
+            </p>
             <div className="flex flex-wrap gap-2">
-              {roles.filter(r => r.name !== '@everyone').map(role => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => toggleRole('voterRoleIds', role.id)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                    config.voterRoleIds.includes(role.id)
-                      ? 'badge-primary'
-                      : 'badge-muted hover:border-p-border-2'
-                  }`}>
-                  {role.name}
-                </button>
-              ))}
+              {nonEveryone.map(role => {
+                const active = isRestrictedRoleActive('voterRoleIds', role.id)
+                return (
+                  <button
+                    key={role.id} type="button"
+                    onClick={() => toggleRestrictedRole('voterRoleIds', role.id)}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      active ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    {role.name}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -503,11 +555,8 @@ export default function SettingsPage() {
         <p className="text-p-muted text-sm mb-5">
           Permanently removes Polly from this server and deletes all poll data. This cannot be undone.
         </p>
-
         {!removeConfirm ? (
-          <button
-            type="button"
-            onClick={() => setRemoveConfirm(true)}
+          <button type="button" onClick={() => setRemoveConfirm(true)}
             className="btn-secondary text-sm border-p-danger/40 text-p-danger hover:bg-p-danger/10">
             <Trash2 size={14} />
             Remove Polly from this server
@@ -518,9 +567,7 @@ export default function SettingsPage() {
               Are you sure? This will delete all polls, votes, and settings for <strong>{config?.guildName}</strong> and kick Polly from the server.
             </p>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setRemoveConfirm(false)} className="btn-secondary text-sm">
-                Cancel
-              </button>
+              <button type="button" onClick={() => setRemoveConfirm(false)} className="btn-secondary text-sm">Cancel</button>
               <button type="button" onClick={removeBot} disabled={removing}
                 className="btn-primary text-sm bg-p-danger border-p-danger hover:bg-p-danger/80">
                 {removing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -537,17 +584,8 @@ export default function SettingsPage() {
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <span className="text-p-muted text-sm">You have unsaved changes</span>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={discardChanges}
-                className="btn-ghost text-sm text-p-muted">
-                Discard
-              </button>
-              <button
-                type="submit"
-                form="settings-form"
-                disabled={saving}
-                className="btn-primary px-6">
+              <button type="button" onClick={discardChanges} className="btn-ghost text-sm text-p-muted">Discard</button>
+              <button type="submit" form="settings-form" disabled={saving} className="btn-primary px-6">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {saved ? 'Saved!' : 'Save Settings'}
               </button>

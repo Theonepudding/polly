@@ -40,6 +40,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     adminRoleIds:       body.adminRoleIds   ?? guild.adminRoleIds,
     creatorRoleIds:     body.creatorRoleIds ?? guild.creatorRoleIds ?? [],
     voterRoleIds:       body.voterRoleIds   ?? guild.voterRoleIds,
+    guideMessage:       body.guideMessage !== undefined
+      ? (body.guideMessage || undefined)
+      : guild.guideMessage,
   }
   await upsertGuild(updated)
   return NextResponse.json(updated)

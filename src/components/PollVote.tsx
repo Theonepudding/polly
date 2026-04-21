@@ -205,9 +205,12 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
               </button>
               {isOpen && !poll.isAnonymous && (
                 <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                  {optVotes.map((v, i) => (
+                  {optVotes.slice(0, 20).map((v, i) => (
                     <span key={i} className="badge badge-muted text-[11px]">{v.username}</span>
                   ))}
+                  {optVotes.length > 20 && (
+                    <span className="badge badge-muted text-[11px] text-p-muted">+{optVotes.length - 20} more</span>
+                  )}
                 </div>
               )}
             </div>
@@ -250,7 +253,9 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {isClosed ? (
-            <span className="badge badge-muted gap-1"><Lock size={9} />Closed</span>
+            <span className="badge bg-p-accent/20 text-p-accent border-p-accent/40 gap-1 font-semibold">
+              <Lock size={10} />Closed
+            </span>
           ) : (
             <span className="badge badge-success gap-1.5">
               {live && <span className="w-1.5 h-1.5 rounded-full bg-p-success animate-pulse shrink-0" />}

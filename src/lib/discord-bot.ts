@@ -15,8 +15,13 @@ function botHeaders() {
   }
 }
 
-function pollImageUrl(pollId: string): string {
-  return `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?t=${Date.now()}`
+function pollImageUrl(pollId: string, page = 0): string {
+  const base = `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?t=${Date.now()}`
+  return page > 0 ? `${base}&p=${page}` : base
+}
+
+function needsTwoImages(poll: Poll): boolean {
+  return poll.options.length > 6
 }
 
 function pollPageUrl(pollId: string): string {
@@ -84,7 +89,6 @@ export function buildPollEmbed(poll: Poll, votes: Vote[]) {
   ].filter(Boolean).join('  ·  ')
 
   const footerParts = [
-    `${total} vote${total !== 1 ? 's' : ''}`,
     poll.closesAt ? `Closes ${shortDate(poll.closesAt)}` : 'No end date',
     poll.createdByName,
   ]
@@ -190,6 +194,18 @@ export function buildClosedPollComponents(poll: Poll): object[] {
   }]
 }
 
+export function buildPollEmbeds(poll: Poll, votes: Vote[]): object[] {
+  const e1 = buildPollEmbed(poll, votes)
+  if (!needsTwoImages(poll)) return [e1]
+  return [e1, { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1) } }]
+}
+
+export function buildClosedEmbeds(poll: Poll, votes: Vote[]): object[] {
+  const e1 = buildClosedEmbed(poll, votes)
+  if (!needsTwoImages(poll)) return [e1]
+  return [e1, { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1) } }]
+}
+
 // ─── Dashboard embed ──────────────────────────────────────────────────────────
 
 export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
@@ -256,7 +272,7 @@ export async function postPollToDiscord(poll: Poll): Promise<string | null> {
       headers: botHeaders(),
       body:    JSON.stringify({
         content:    pingContent || undefined,
-        embeds:     [buildPollEmbed(poll, [])],
+        embeds:     buildPollEmbeds(poll, []),
         components: buildPollComponents(poll),
         allowed_mentions: poll.pingRoleIds?.length
           ? { roles: poll.pingRoleIds }
@@ -286,14 +302,14 @@ export async function updatePollInDiscord(poll: Poll, votes: Vote[]): Promise<bo
   const channelId = poll.discordChannelId ?? await resolveChannelId(poll)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId || !poll.discordMessageId) return false
 
-  const embed      = poll.isClosed ? buildClosedEmbed(poll, votes) : buildPollEmbed(poll, votes)
+  const embeds     = poll.isClosed ? buildClosedEmbeds(poll, votes) : buildPollEmbeds(poll, votes)
   const components = poll.isClosed ? buildClosedPollComponents(poll) : buildPollComponents(poll)
 
   try {
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
       method:  'PATCH',
       headers: botHeaders(),
-      body:    JSON.stringify({ embeds: [embed], components }),
+      body:    JSON.stringify({ embeds, components }),
     })
     if (res.status === 404) return false
     return res.ok
@@ -411,7 +427,7 @@ export async function sendReminderPing(poll: Poll, guild: Guild): Promise<void> 
       headers: botHeaders(),
       body:    JSON.stringify({
         content: `${pingContent ? pingContent + ' ' : ''}⏰ **Less than 24 hours left to vote!**`,
-        embeds:  [buildPollEmbed(poll, [])],
+        embeds:  buildPollEmbeds(poll, []),
         components: buildPollComponents(poll),
         allowed_mentions: poll.pingRoleIds?.length
           ? { roles: poll.pingRoleIds }
@@ -423,14 +439,14 @@ export async function sendReminderPing(poll: Poll, guild: Guild): Promise<void> 
 
 // ─── Polly guide message ─────────────────────────────────────────────────────
 
-export async function postPollyGuide(channelId: string, guildId: string): Promise<string | null> {
+export async function postPollyGuide(channelId: string, guildId: string, customMessage?: string): Promise<string | null> {
   if (!process.env.DISCORD_BOT_TOKEN) return null
   const siteUrl   = process.env.NEXTAUTH_URL ?? ''
   const dashboard = `${siteUrl}/dashboard/${guildId}`
 
   const embed = {
     title:       'How Polly Works',
-    description: 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.',
+    description: customMessage ?? 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.',
     color:       COLOR_ACTIVE,
     fields: [
       {

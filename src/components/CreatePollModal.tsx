@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown, Smile } from 'lucide-react'
 import Link from 'next/link'
 import { Poll, PollTemplate } from '@/types'
+import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
 const HOUR_OPTIONS  = [1, 2, 4, 6, 12, 24]
@@ -24,7 +25,7 @@ function utcToLocal(hhMM: string): string {
 
 interface Channel { id: string; name: string }
 interface Role    { id: string; name: string; mentionable?: boolean }
-interface DiscordEmoji { id: string; name: string; animated: boolean; available?: boolean }
+type DiscordEmoji = DE
 
 interface Props {
   guildId:    string
@@ -64,6 +65,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [emojis,           setEmojis]           = useState<DiscordEmoji[]>([])
   const [emojiPickerFor,   setEmojiPickerFor]   = useState<number | null>(null)
   const [emojiPickerPos,   setEmojiPickerPos]   = useState<{ top: number; left: number } | null>(null)
+  const [emojiTab,         setEmojiTab]         = useState<string>('server')
 
   useEffect(() => {
     if (!open) return
@@ -76,7 +78,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
       setChannels((ch as { id: string; name: string; type: number }[]).filter(c => c.type === 0))
       setRoles((rl as Role[]).filter((r: Role) => r.name !== '@everyone'))
       setTemplates(((tmpl as { templates: PollTemplate[] }).templates ?? []).filter((t: PollTemplate) => t.active))
-      setEmojis((em as DiscordEmoji[]).filter(e => e.available !== false))
+      const filteredEmojis = (em as DiscordEmoji[]).filter(e => e.available !== false)
+      setEmojis(filteredEmojis)
+      if (filteredEmojis.length === 0) setEmojiTab('smileys')
     }).catch(() => {})
   }, [open, guildId])
 
@@ -100,7 +104,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
-    setEmojiPickerFor(null); setEmojiPickerPos(null)
+    setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
   }
 
   function loadTemplate(t: PollTemplate) {
@@ -530,50 +534,25 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
 
       {/* Emoji picker — fixed position so it escapes the modal's overflow-y-auto */}
       {emojiPickerFor !== null && emojiPickerPos && (
-        <div
-          data-emoji-picker=""
-          style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999, background: '#252538', border: '1px solid #4a4a62', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', width: '240px' }}
-        >
-          <div className="px-3 py-2 border-b" style={{ borderColor: '#3a3a52' }}>
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#9898b8' }}>
-              Server emojis — {emojiPickerFor === -1 ? 'title' : `option ${emojiPickerFor + 1}`}
-            </p>
-          </div>
-          {emojis.length === 0 ? (
-            <p className="text-sm px-3 py-3 leading-relaxed" style={{ color: '#c0c0d8' }}>
-              This server has no custom emojis. Type Unicode emoji directly into the text field.
-            </p>
-          ) : (
-            <div className="grid grid-cols-8 gap-0.5 p-2 max-h-44 overflow-y-auto">
-              {emojis.map(e => (
-                <button
-                  key={e.id}
-                  type="button"
-                  title={`:${e.name}:`}
-                  onClick={() => {
-                    const emojiStr = `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`
-                    if (emojiPickerFor === -1) {
-                      setTitle(prev => prev + emojiStr)
-                    } else {
-                      setOption(emojiPickerFor, options[emojiPickerFor] + emojiStr)
-                    }
-                    setEmojiPickerFor(null)
-                    setEmojiPickerPos(null)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded p-0.5 transition-colors"
-                  onMouseEnter={e => (e.currentTarget.style.background = '#3a3a52')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <img
-                    src={`https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? 'gif' : 'png'}?size=32`}
-                    alt={e.name}
-                    className="w-6 h-6 object-contain"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <EmojiPickerPanel
+          top={emojiPickerPos.top}
+          left={emojiPickerPos.left}
+          tab={emojiTab}
+          emojis={emojis}
+          label={`Server emojis — ${emojiPickerFor === -1 ? 'title' : `option ${emojiPickerFor + 1}`}`}
+          onTabChange={setEmojiTab}
+          onPickGuild={e => {
+            const s = `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`
+            if (emojiPickerFor === -1) setTitle(prev => prev + s)
+            else setOption(emojiPickerFor, options[emojiPickerFor] + s)
+            setEmojiPickerFor(null); setEmojiPickerPos(null)
+          }}
+          onPickStd={em => {
+            if (emojiPickerFor === -1) setTitle(prev => prev + em)
+            else setOption(emojiPickerFor, options[emojiPickerFor] + em)
+            setEmojiPickerFor(null); setEmojiPickerPos(null)
+          }}
+        />
       )}
     </div>
   )

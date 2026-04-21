@@ -94,39 +94,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Demo poll card */}
-      <section className="max-w-xl mx-auto px-4 pb-24">
-        <div className="card p-6 shadow-xl shadow-black/40">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display font-semibold text-p-text text-lg">What time works for raid night?</h3>
-              <p className="text-p-muted text-sm mt-0.5">Closes in 2 days · 12 votes</p>
-            </div>
-            <span className="badge badge-success">Active</span>
-          </div>
-          {[
-            { label: 'Friday 8pm UTC',    pct: 67, n: 8,  winner: true  },
-            { label: 'Saturday 8pm UTC',  pct: 25, n: 3,  winner: false },
-            { label: 'Sunday 6pm UTC',    pct: 8,  n: 1,  winner: false },
-          ].map(opt => (
-            <div key={opt.label} className="mb-4 last:mb-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className={`text-sm font-medium ${opt.winner ? 'text-p-accent' : 'text-p-text'}`}>
-                  {opt.winner && '🏆 '}{opt.label}
-                </span>
-                <span className="text-p-muted text-xs">{opt.n} · {opt.pct}%</span>
-              </div>
-              <div className="progress-bar">
-                <div
-                  className={opt.winner ? 'progress-fill-winner' : 'progress-fill'}
-                  style={{ width: `${opt.pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Features */}
       <section className="max-w-6xl mx-auto px-4 pb-24">
         <div className="text-center mb-12">

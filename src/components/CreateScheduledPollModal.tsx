@@ -1,7 +1,7 @@
 'use client'
-import { useState, useMemo } from 'react'
-import { X, Plus, Trash2, Clock, RefreshCw } from 'lucide-react'
-import SelectInput from './SelectInput'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Plus, Trash2, RefreshCw, ChevronDown, Smile, Clock } from 'lucide-react'
+import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 
 const INTERVAL_PRESETS = [
   { label: 'Daily',     days: 1  },
@@ -11,6 +11,7 @@ const INTERVAL_PRESETS = [
 ]
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
+const DAYS_OPEN_OPTIONS = [1, 3, 7, 14]
 
 function utcToLocal(hhMM: string): string {
   const [h, m] = hhMM.split(':').map(Number)
@@ -37,6 +38,9 @@ function defaultStartDate(intervalDays: number, atHour: number): string {
   return d.toLocaleDateString('en-CA')
 }
 
+type DiscordEmoji = DE
+interface Role { id: string; name: string; mentionable?: boolean }
+
 interface Props {
   guildId:  string
   userId:   string
@@ -44,22 +48,30 @@ interface Props {
 }
 
 export default function CreateScheduledPollModal({ guildId, userId, userName }: Props) {
-  const [open, setOpen] = useState(false)
-  const [title,        setTitle]        = useState('')
-  const [description,  setDescription]  = useState('')
-  const [options,      setOptions]      = useState(['', ''])
-  const [intervalDays, setIntervalDays] = useState(7)
-  const [customDays,   setCustomDays]   = useState('')
-  const [useCustom,    setUseCustom]    = useState(false)
-  const [localTime,    setLocalTime]    = useState('18:00')
-  const [startDate,    setStartDate]    = useState(() => defaultStartDate(7, 18))
-  const [useTimes,     setUseTimes]     = useState(false)
-  const [times,        setTimes]        = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
-  const [customTime,   setCustomTime]   = useState('')
-  const [daysOpen,     setDaysOpen]     = useState(7)
-  const [postDiscord,  setPostDiscord]  = useState(true)
-  const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState('')
+  const [open,          setOpen]          = useState(false)
+  const [title,         setTitle]         = useState('')
+  const [description,   setDescription]   = useState('')
+  const [options,       setOptions]       = useState(['', ''])
+  const [isAnonymous,   setIsAnonymous]   = useState(false)
+  const [allowMultiple, setAllowMultiple] = useState(false)
+  const [useTimes,      setUseTimes]      = useState(false)
+  const [times,         setTimes]         = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
+  const [customTime,    setCustomTime]    = useState('')
+  const [intervalDays,  setIntervalDays]  = useState(7)
+  const [customDays,    setCustomDays]    = useState('')
+  const [useCustom,     setUseCustom]     = useState(false)
+  const [localTime,     setLocalTime]     = useState('18:00')
+  const [startDate,     setStartDate]     = useState(() => defaultStartDate(7, 18))
+  const [daysOpen,      setDaysOpen]      = useState(7)
+  const [postDiscord,   setPostDiscord]   = useState(true)
+  const [showAdvanced,  setShowAdvanced]  = useState(false)
+  const [loading,       setLoading]       = useState(false)
+  const [error,         setError]         = useState('')
+  const [emojis,        setEmojis]        = useState<DiscordEmoji[]>([])
+  const [roles,         setRoles]         = useState<Role[]>([])
+  const [emojiPickerFor,  setEmojiPickerFor]  = useState<number | null>(null)
+  const [emojiPickerPos,  setEmojiPickerPos]  = useState<{ top: number; left: number } | null>(null)
+  const [emojiTab,        setEmojiTab]        = useState<string>('server')
 
   const atHour = useMemo(() => localTimeToUTCHour(localTime), [localTime])
   const todayLocal = new Date().toLocaleDateString('en-CA')
@@ -68,7 +80,41 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     return new Date(`${startDate}T${localTime}:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
   }, [startDate, localTime])
 
-  function addOption() { if (options.length < 10) setOptions(o => [...o, '']) }
+  useEffect(() => {
+    if (!open) return
+    Promise.all([
+      fetch(`/api/guilds/${guildId}/channels?type=roles`).then(r => r.ok ? r.json() : []),
+      fetch(`/api/guilds/${guildId}/emojis`).then(r => r.ok ? r.json() : []),
+    ]).then(([rl, em]) => {
+      setRoles((rl as Role[]).filter((r: Role) => r.name !== '@everyone'))
+      const filtered = (em as DiscordEmoji[]).filter(e => e.available !== false)
+      setEmojis(filtered)
+      if (filtered.length === 0) setEmojiTab('smileys')
+    }).catch(() => {})
+  }, [open, guildId])
+
+  useEffect(() => {
+    if (emojiPickerFor === null) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element
+      if (target.closest('[data-emoji-picker]') || target.closest('[data-emoji-btn]')) return
+      setEmojiPickerFor(null); setEmojiPickerPos(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [emojiPickerFor])
+
+  function reset() {
+    setTitle(''); setDescription(''); setOptions(['', ''])
+    setIsAnonymous(false); setAllowMultiple(false); setUseTimes(false)
+    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime('')
+    setIntervalDays(7); setCustomDays(''); setUseCustom(false)
+    setLocalTime('18:00'); setStartDate(defaultStartDate(7, 18))
+    setDaysOpen(7); setPostDiscord(true); setShowAdvanced(false)
+    setError(''); setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
+  }
+
+  function addOption() { if (options.length < 12) setOptions(o => [...o, '']) }
   function removeOption(i: number) { if (options.length > 2) setOptions(o => o.filter((_, idx) => idx !== i)) }
   function setOption(i: number, val: string) { setOptions(o => o.map((v, idx) => idx === i ? val : v)) }
 
@@ -99,6 +145,15 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     setLocalTime(`${lh.padStart(2, '0')}:${(lm ?? '00').padStart(2, '0')}`)
   }
 
+  function openEmojiPicker(i: number, e: { currentTarget: HTMLButtonElement }) {
+    if (emojiPickerFor === i) { setEmojiPickerFor(null); setEmojiPickerPos(null); return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pickerWidth = 260
+    const left = Math.max(8, Math.min(rect.right - pickerWidth, window.innerWidth - pickerWidth - 8))
+    const top  = Math.min(rect.bottom + 4, window.innerHeight - 220)
+    setEmojiPickerFor(i); setEmojiPickerPos({ top, left })
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const cleanOpts = options.filter(o => o.trim())
@@ -117,8 +172,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
           options: cleanOpts.map((text, i) => ({ id: `opt-${i}`, text })),
           includeTimeSlots: useTimes,
           timeSlots: useTimes ? times : [],
-          isAnonymous: false,
-          allowMultiple: false,
+          isAnonymous,
+          allowMultiple,
           daysOpen,
           intervalDays,
           atHour,
@@ -129,7 +184,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
         }),
       })
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create schedule')
-      setOpen(false)
+      setOpen(false); reset()
       window.location.reload()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
@@ -145,146 +200,262 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     )
   }
 
-  function Toggle({ on, onToggle, label, desc }: { on: boolean; onToggle: () => void; label: string; desc: string }) {
-    return (
-      <div className="flex items-center justify-between p-4 rounded-xl border border-p-border bg-p-surface cursor-pointer hover:border-p-border-2 transition-all" onClick={onToggle}>
-        <div>
-          <p className="text-sm font-semibold text-p-text">{label}</p>
-          <p className="text-xs text-p-muted mt-0.5">{desc}</p>
-        </div>
-        <div className={`w-10 h-6 rounded-full border transition-all ml-4 shrink-0 ${on ? 'bg-p-primary-d border-p-primary/80' : 'bg-p-surface-2 border-p-border'}`}>
-          <div className={`w-4 h-4 rounded-full bg-white mt-0.5 ml-0.5 transition-transform ${on ? 'translate-x-4' : 'translate-x-0'}`} />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setOpen(false); reset() }} />
       <div className="relative w-full max-w-lg card shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-p-border">
           <div className="flex items-center gap-2">
             <RefreshCw size={16} className="text-p-primary" />
             <h2 className="font-display font-bold text-xl text-p-text">New Scheduled Poll</h2>
           </div>
-          <button onClick={() => setOpen(false)} className="text-p-muted hover:text-p-text p-1"><X size={18} /></button>
+          <button onClick={() => { setOpen(false); reset() }} className="text-p-muted hover:text-p-text p-1"><X size={18} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+
+          {/* Question */}
           <div>
             <label className="label">Question *</label>
-            <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Weekly raid night vote" maxLength={120} />
+            <div className="flex items-center gap-2 group">
+              <input className="input flex-1" value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Weekly raid night vote" maxLength={120} />
+              <button
+                type="button" data-emoji-btn=""
+                onClick={e => openEmojiPicker(-1, e)}
+                title="Insert emoji"
+                className={`p-1.5 rounded-md transition-all shrink-0 ${
+                  emojiPickerFor === -1
+                    ? 'text-p-primary bg-p-primary-b opacity-100'
+                    : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                }`}>
+                <Smile size={14} />
+              </button>
+            </div>
           </div>
 
+          {/* Options */}
           <div>
-            <label className="label">Description <span className="normal-case text-p-muted/50">(optional)</span></label>
-            <textarea className="textarea" rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="Any extra context for voters…" maxLength={400} />
-          </div>
-
-          <div>
-            <label className="label">Options *</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="label mb-0">Options *</label>
+              <span className="text-xs text-p-subtle">{options.filter(o => o.trim()).length} / 12</span>
+            </div>
             <div className="space-y-2">
               {options.map((opt, i) => (
-                <div key={i} className="flex gap-2">
-                  <input className="input flex-1" value={opt} onChange={e => setOption(i, e.target.value)} placeholder={`Option ${i + 1}`} maxLength={80} />
+                <div key={i} className="flex items-center gap-2 group">
+                  <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
+                    {i + 1}
+                  </span>
+                  <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
+                    placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
+                    maxLength={80} />
+                  <button
+                    type="button" data-emoji-btn=""
+                    onClick={e => openEmojiPicker(i, e)}
+                    title="Insert emoji"
+                    className={`p-1.5 rounded-md transition-all shrink-0 ${
+                      emojiPickerFor === i
+                        ? 'text-p-primary bg-p-primary-b opacity-100'
+                        : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                    }`}>
+                    <Smile size={14} />
+                  </button>
                   {options.length > 2 && (
-                    <button type="button" onClick={() => removeOption(i)} className="p-2 text-p-muted hover:text-p-danger transition-colors">
-                      <Trash2 size={15} />
+                    <button type="button" onClick={() => removeOption(i)}
+                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>
               ))}
-              {options.length < 10 && (
-                <button type="button" onClick={addOption} className="btn-ghost text-xs w-full justify-center">
-                  <Plus size={13} /> Add option
+              {options.length < 12 && (
+                <button type="button" onClick={addOption}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-p-border text-p-muted text-xs hover:border-p-primary/40 hover:text-p-primary hover:bg-p-primary-b transition-all">
+                  <Plus size={13} /> Add option {options.length + 1}
                 </button>
               )}
             </div>
           </div>
 
-          <Toggle on={useTimes} onToggle={() => setUseTimes(v => !v)} label="Time slot voting" desc="Voters pick a preferred time" />
+          {/* Compact voting options */}
+          <div>
+            <label className="label mb-2">Voting options</label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setIsAnonymous(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isAnonymous ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Anonymous
+              </button>
+              <button type="button" onClick={() => setAllowMultiple(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${allowMultiple ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Multi-choice
+              </button>
+              <button type="button" onClick={() => setUseTimes(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Time slots
+              </button>
+              <button type="button" onClick={() => setPostDiscord(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${postDiscord ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Post to Discord
+              </button>
+            </div>
+          </div>
+
+          {/* Time slot picker */}
           {useTimes && (
-            <div>
+            <div className="pl-1">
+              <label className="label">Time presets <span className="normal-case font-normal text-p-muted/50">(your local time)</span></label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {[...DEFAULT_TIMES_UTC, ...times.filter(t => !DEFAULT_TIMES_UTC.includes(t))].map(t => (
                   <button key={t} type="button" onClick={() => toggleSlot(t)}
-                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${times.includes(t) ? 'badge-primary' : 'badge-muted'}`}>
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      times.includes(t) ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                    }`}>
                     {utcToLocal(t)}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input type="time" className="input flex-1 text-sm py-2" value={customTime} onChange={e => setCustomTime(e.target.value)} />
-                <button type="button" onClick={addCustomSlot} className="btn-secondary text-xs shrink-0"><Plus size={13} />Add</button>
+                <input type="time" className="input flex-1 text-sm py-2"
+                  value={customTime} onChange={e => setCustomTime(e.target.value)} />
+                <button type="button" onClick={addCustomSlot} className="btn-secondary text-xs shrink-0">
+                  <Plus size={13} /> Add
+                </button>
               </div>
             </div>
           )}
 
+          {/* Repeat interval */}
           <div>
             <label className="label">Repeat every</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {INTERVAL_PRESETS.map(p => (
                 <button key={p.days} type="button" onClick={() => selectPreset(p.days)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${!useCustom && intervalDays === p.days ? 'badge-primary' : 'badge-muted'}`}>
+                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${!useCustom && intervalDays === p.days ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
                   {p.label}
                 </button>
               ))}
               <button type="button" onClick={() => setUseCustom(u => !u)}
-                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useCustom ? 'badge-primary' : 'badge-muted'}`}>
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useCustom ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
                 Custom…
               </button>
             </div>
             {useCustom && (
               <div className="flex gap-2 items-center">
                 <span className="text-xs text-p-muted shrink-0">Every</span>
-                <input type="number" min={1} max={365} className="input w-24 text-sm py-2 text-center" value={customDays} onChange={e => setCustomDays(e.target.value)} placeholder="7" />
+                <input type="number" min={1} max={365} className="input w-24 text-sm py-2 text-center"
+                  value={customDays} onChange={e => setCustomDays(e.target.value)} placeholder="7" />
                 <span className="text-xs text-p-muted shrink-0">days</span>
                 <button type="button" onClick={applyCustomDays} className="btn-ghost text-xs ml-auto">Apply</button>
               </div>
             )}
           </div>
 
+          {/* First poll date */}
           <div>
             <label className="label">First poll on</label>
-            <input type="date" className="input text-sm" value={startDate} min={todayLocal} onChange={e => setStartDate(e.target.value)} />
+            <input type="date" className="input text-sm" value={startDate} min={todayLocal}
+              onChange={e => setStartDate(e.target.value)} />
             {startDate && <p className="text-xs text-p-muted mt-1">Starts <span className="text-p-text">{startDayHint}</span></p>}
           </div>
 
+          {/* Post time */}
           <div>
-            <label className="label flex items-center gap-1.5"><Clock size={13} className="opacity-60" />Post time (your local time)</label>
+            <label className="label flex items-center gap-1.5">
+              <Clock size={13} className="opacity-60" />
+              Post time (your local time)
+            </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {DEFAULT_TIMES_UTC.map(utc => (
                 <button key={utc} type="button" onClick={() => pickPresetTime(utc)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${utcToLocal(utc) === localTime ? 'badge-primary' : 'badge-muted'}`}>
+                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${utcToLocal(utc) === localTime ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
                   {utcToLocal(utc)}
                 </button>
               ))}
             </div>
-            <input type="time" className="input text-sm py-2 w-full" value={localTime} onChange={e => { if (e.target.value) setLocalTime(e.target.value) }} />
+            <input type="time" className="input text-sm py-2 w-full"
+              value={localTime} onChange={e => { if (e.target.value) setLocalTime(e.target.value) }} />
             <p className="text-[11px] text-p-muted mt-1">UTC {String(atHour).padStart(2, '0')}:00</p>
           </div>
 
+          {/* Days open */}
           <div>
             <label className="label">Each poll stays open for</label>
-            <SelectInput value={String(daysOpen)} onChange={v => setDaysOpen(Number(v))} options={[
-              { value: '1', label: '1 day' }, { value: '3', label: '3 days' },
-              { value: '7', label: '7 days' }, { value: '14', label: '14 days' },
-            ]} />
+            <div className="flex flex-wrap gap-2">
+              {DAYS_OPEN_OPTIONS.map(d => (
+                <button key={d} type="button" onClick={() => setDaysOpen(d)}
+                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${daysOpen === d ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                  {d === 1 ? '1 day' : `${d} days`}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <Toggle on={postDiscord} onToggle={() => setPostDiscord(v => !v)} label="Post to Discord automatically" desc="Each new poll will be announced in the channel" />
+          {/* Advanced options */}
+          <button type="button" onClick={() => setShowAdvanced(v => !v)}
+            className="text-p-muted text-xs hover:text-p-text transition-colors flex items-center gap-1.5 w-full py-1">
+            <ChevronDown size={13} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            {showAdvanced ? 'Hide' : 'More'} options
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-4 border-t border-p-border pt-4">
+              <div>
+                <label className="label">Description <span className="normal-case text-p-muted/50">(optional)</span></label>
+                <textarea className="textarea" rows={2} value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Any extra context for voters…" maxLength={400} />
+              </div>
+
+              {roles.some(r => r.mentionable) && (
+                <div>
+                  <label className="label">Notify roles when posting</label>
+                  <p className="text-p-muted text-xs mb-2">Only mentionable roles are shown. These will be @mentioned each time a new poll is posted.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {roles.filter(r => r.mentionable).map(role => (
+                      <span key={role.id} className="badge badge-muted text-xs px-3 py-1.5 opacity-50 cursor-not-allowed" title="Per-schedule ping roles coming soon">
+                        {role.name}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-p-muted mt-1.5">Role pings for scheduled polls are configured at the server level.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {error && <p className="text-p-danger text-sm">{error}</p>}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setOpen(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button type="button" onClick={() => { setOpen(false); reset() }} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
               {loading ? 'Saving…' : 'Create Schedule'}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Emoji picker — fixed position outside modal overflow */}
+      {emojiPickerFor !== null && emojiPickerPos && (
+        <EmojiPickerPanel
+          top={emojiPickerPos.top}
+          left={emojiPickerPos.left}
+          tab={emojiTab}
+          emojis={emojis}
+          label={`Server emojis — ${emojiPickerFor === -1 ? 'title' : `option ${emojiPickerFor + 1}`}`}
+          onTabChange={setEmojiTab}
+          onPickGuild={e => {
+            const s = `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`
+            if (emojiPickerFor === -1) setTitle(prev => prev + s)
+            else setOption(emojiPickerFor, options[emojiPickerFor] + s)
+            setEmojiPickerFor(null); setEmojiPickerPos(null)
+          }}
+          onPickStd={em => {
+            if (emojiPickerFor === -1) setTitle(prev => prev + em)
+            else setOption(emojiPickerFor, options[emojiPickerFor] + em)
+            setEmojiPickerFor(null); setEmojiPickerPos(null)
+          }}
+        />
+      )}
     </div>
   )
 }
