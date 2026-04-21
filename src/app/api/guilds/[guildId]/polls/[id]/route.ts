@@ -41,19 +41,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       await updatePollInDiscord({ ...updated, isClosed: true }, votes).catch(() => {})
       const guild = await getGuild(guildId)
       if (guild) {
-        postPollResults(updated, votes, guild).catch(() => {})
         const winner = votes.length > 0
           ? updated.options.reduce((b, o) =>
               votes.filter(v => v.optionId === o.id).length > votes.filter(v => v.optionId === b.id).length ? o : b,
               updated.options[0])
           : null
-        postAuditLog(
-          guild,
-          'Poll closed',
-          `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
-          session.user.name ?? 'Unknown',
-        ).catch(() => {})
-        refreshDashboard(guildId).catch(() => {})
+        await Promise.allSettled([
+          postPollResults(updated, votes, guild),
+          postAuditLog(
+            guild,
+            'Poll closed',
+            `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
+            session.user.name ?? 'Unknown',
+          ),
+          refreshDashboard(guildId),
+        ])
       }
     } else {
       updatePollInDiscord(updated, votes).catch(() => {})
@@ -82,13 +84,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   await deletePoll(id)
 
   if (guild) {
-    postAuditLog(
-      guild,
-      'Poll deleted',
-      `**${poll.title}**`,
-      session.user.name ?? 'Unknown',
-    ).catch(() => {})
-    refreshDashboard(guildId).catch(() => {})
+    await Promise.allSettled([
+      postAuditLog(
+        guild,
+        'Poll deleted',
+        `**${poll.title}**`,
+        session.user.name ?? 'Unknown',
+      ),
+      refreshDashboard(guildId),
+    ])
   }
 
   return NextResponse.json({ ok: true })

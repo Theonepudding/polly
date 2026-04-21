@@ -56,12 +56,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   const guild = await getGuild(guildId)
   if (guild) {
     const interval = `every ${template.intervalDays === 1 ? 'day' : `${template.intervalDays} days`}`
-    postAuditLog(
+    await postAuditLog(
       guild,
       'Schedule created',
       `**${template.title}** — ${interval}, ${template.daysOpen}d open`,
       session.user.name ?? 'Unknown',
-    ).catch(() => {})
+    )
   }
 
   return NextResponse.json({ template }, { status: 201 })

@@ -28,12 +28,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (template) {
     const guild = await getGuild(guildId)
     if (guild) {
-      postAuditLog(
+      await postAuditLog(
         guild,
         'Schedule deleted',
         `**${template.title}**`,
         session.user.name ?? 'Unknown',
-      ).catch(() => {})
+      )
     }
   }
 

@@ -65,13 +65,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   if (guild) {
-    postAuditLog(
-      guild,
-      'Poll created',
-      `**[${poll.title}](${process.env.NEXTAUTH_URL}/p/${poll.id})**\n${poll.options.length} options · ${poll.closesAt ? `closes <t:${Math.floor(new Date(poll.closesAt).getTime() / 1000)}:R>` : 'no close date'}`,
-      session.user.name ?? 'Unknown',
-    ).catch(() => {})
-    refreshDashboard(guildId).catch(() => {})
+    await Promise.allSettled([
+      postAuditLog(
+        guild,
+        'Poll created',
+        `**[${poll.title}](${process.env.NEXTAUTH_URL}/p/${poll.id})**\n${poll.options.length} options · ${poll.closesAt ? `closes <t:${Math.floor(new Date(poll.closesAt).getTime() / 1000)}:R>` : 'no close date'}`,
+        session.user.name ?? 'Unknown',
+      ),
+      refreshDashboard(guildId),
+    ])
   }
 
   const postedChannelId = posted ? (poll.overrideChannelId ?? guild?.announceChannelId ?? null) : null
