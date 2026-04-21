@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogIn, LogOut, LayoutDashboard, Settings, Vote } from 'lucide-react'
+import { Menu, X, LogIn, LogOut, LayoutDashboard, Settings } from 'lucide-react'
 
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
 
@@ -29,9 +29,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-p-primary-b border border-p-primary/40 flex items-center justify-center">
-            <Vote size={16} className="text-p-primary" />
-          </div>
+          <Image src="/avatar.png" alt="Polly" width={32} height={32} className="rounded-xl" />
           <span className="font-display font-bold text-lg text-p-text">Polly</span>
         </Link>
 

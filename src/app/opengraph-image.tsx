@@ -10,6 +10,9 @@ const CYAN   = '#22d3ee'
 const BG     = '#0a0a10'
 
 export default async function OGImage() {
+  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://polly.pudding.vip'
+  const avatarSrc = `${baseUrl}/avatar.png`
+
   return new ImageResponse(
     (
       <div style={{
@@ -44,14 +47,14 @@ export default async function OGImage() {
           background: 'rgba(255,255,255,0.03)',
         }}>
           {/* Logo mark */}
-          <div style={{
-            width: 72, height: 72, borderRadius: 20, border: '2px solid rgba(129,140,248,0.4)',
-            background: 'rgba(99,102,241,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 36,
-          }}>
-            <div style={{ fontSize: 36, color: INDIGO, display: 'flex' }}>🗳️</div>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarSrc}
+            alt="Polly"
+            width={96}
+            height={96}
+            style={{ borderRadius: 24, marginBottom: 36, border: '2px solid rgba(129,140,248,0.4)' }}
+          />
 
           {/* Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 20 }}>
