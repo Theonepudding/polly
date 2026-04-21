@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { getTemplates, createTemplate } from '@/lib/poll-templates'
 import type { PollTemplate } from '@/types'
 
-interface Params { params: { guildId: string } }
+type Params = { params: Promise<{ guildId: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const templates = await getTemplates(params.guildId)
+  const { guildId } = await params
+  const templates = await getTemplates(guildId)
   return NextResponse.json({ templates })
 }
 
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { guildId } = await params
   const body = await req.json()
   const now  = new Date()
   const nextRun = new Date(now)
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const template: PollTemplate = {
     id:               `tpl-${Date.now()}`,
-    guildId:          params.guildId,
+    guildId:          guildId,
     title:            body.title.trim(),
     description:      body.description?.trim() || undefined,
     options:          body.options,

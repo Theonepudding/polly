@@ -3,9 +3,10 @@ import { getPoll, getVotes } from '@/lib/polls'
 
 export const runtime = 'edge'
 
-interface Params { params: { guildId: string; id: string } }
+type Params = { params: Promise<{ guildId: string; id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const { id } = await params
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()
@@ -13,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
       const send = async () => {
         try {
-          const [poll, votes] = await Promise.all([getPoll(params.id), getVotes(params.id)])
+          const [poll, votes] = await Promise.all([getPoll(id), getVotes(id)])
           if (!poll) { controller.close(); return }
           const data = JSON.stringify({ votes, isClosed: poll.isClosed })
           controller.enqueue(encoder.encode(`data: ${data}\n\n`))

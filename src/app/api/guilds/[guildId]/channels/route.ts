@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-interface Params { params: { guildId: string } }
+type Params = { params: Promise<{ guildId: string }> }
 
 // Returns text channels OR roles depending on ?type=roles
 export async function GET(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { guildId } = await params
   const type = req.nextUrl.searchParams.get('type')
 
   if (!process.env.DISCORD_BOT_TOKEN) {
@@ -16,8 +17,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   const endpoint = type === 'roles'
-    ? `https://discord.com/api/guilds/${params.guildId}/roles`
-    : `https://discord.com/api/guilds/${params.guildId}/channels`
+    ? `https://discord.com/api/guilds/${guildId}/roles`
+    : `https://discord.com/api/guilds/${guildId}/channels`
 
   try {
     const res = await fetch(endpoint, {

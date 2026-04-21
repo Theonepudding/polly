@@ -4,13 +4,14 @@ import { authOptions } from '@/lib/auth'
 import { getPolls, createPoll } from '@/lib/polls'
 import type { Poll } from '@/types'
 
-interface Params { params: { guildId: string } }
+type Params = { params: Promise<{ guildId: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const polls = await getPolls(params.guildId)
+  const { guildId } = await params
+  const polls = await getPolls(guildId)
   return NextResponse.json({ polls })
 }
 
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { guildId } = await params
   const body = await req.json()
 
   if (!body.title?.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 })
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const poll: Poll = {
     id:               `poll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    guildId:          params.guildId,
+    guildId:          guildId,
     title:            body.title.trim(),
     description:      body.description?.trim() || undefined,
     options:          body.options,
