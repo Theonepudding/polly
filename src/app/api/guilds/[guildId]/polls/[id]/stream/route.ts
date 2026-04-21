@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getPoll, getVotes } from '@/lib/polls'
 
-export const runtime = 'edge'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
 
