@@ -20,7 +20,7 @@ export default function Footer() {
             <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
               className="hover:text-p-text transition-colors">Add to Discord</a>
           </nav>
-          <p className="text-xs text-p-subtle">Polly — open-source Discord poll bot</p>
+          <p className="text-xs text-p-subtle">Polly — Discord poll bot</p>
         </div>
       </div>
     </footer>

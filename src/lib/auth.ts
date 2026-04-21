@@ -7,6 +7,7 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId:     process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+      authorization: { params: { scope: 'identify email guilds' } },
       // Override token/userinfo to use Web fetch (required for Cloudflare Workers)
       token: {
         url: 'https://discord.com/api/oauth2/token',

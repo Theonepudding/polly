@@ -51,7 +51,10 @@ export default async function DashboardPage() {
   if (!session) redirect('/?auth_error=unauthenticated')
 
   const accessToken = (session as { discordAccessToken?: string }).discordAccessToken
-  if (!accessToken) redirect('/')
+  if (!accessToken) {
+    // Token missing — user signed in before guilds scope was added, force re-auth
+    redirect('/api/auth/signin?callbackUrl=/dashboard')
+  }
 
   const [userGuilds, botGuildIds] = await Promise.all([
     getUserGuilds(accessToken),

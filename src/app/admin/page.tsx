@@ -2,17 +2,27 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getBotAdmins } from '@/lib/bot-admin'
-import { getAllGuilds } from '@/lib/guilds'
 import Link from 'next/link'
 import { Shield, Users, Server } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
+async function getBotGuilds(): Promise<{ id: string; name: string; icon?: string }[]> {
+  if (!process.env.DISCORD_BOT_TOKEN) return []
+  try {
+    const res = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+    })
+    if (!res.ok) return []
+    return res.json()
+  } catch { return [] }
+}
+
 export default async function AdminPage() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.isBotAdmin) redirect('/')
 
-  const [admins, guilds] = await Promise.all([getBotAdmins(), getAllGuilds()])
+  const [admins, guilds] = await Promise.all([getBotAdmins(), getBotGuilds()])
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -73,15 +83,24 @@ export default async function AdminPage() {
           Active Servers
         </h2>
         {guilds.length === 0 ? (
-          <div className="card p-6 text-p-muted text-center">No servers have been set up yet.</div>
+          <div className="card p-6 text-p-muted text-center">Bot is not in any servers yet.</div>
         ) : (
           <div className="flex flex-col gap-2">
             {guilds.map(g => (
-              <Link key={g.guildId} href={`/dashboard/${g.guildId}`}
-                className="card-hover p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-p-text font-medium">{g.guildName}</p>
-                  <p className="text-p-muted text-xs font-mono mt-0.5">{g.guildId}</p>
+              <Link key={g.id} href={`/dashboard/${g.id}`}
+                className="card-hover p-4 flex items-center gap-3">
+                {g.icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=32`}
+                    alt="" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-p-surface-2 flex items-center justify-center text-xs font-bold text-p-muted">
+                    {g.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-p-text font-medium">{g.name}</p>
+                  <p className="text-p-muted text-xs font-mono mt-0.5">{g.id}</p>
                 </div>
                 <Users size={14} className="text-p-muted" />
               </Link>
