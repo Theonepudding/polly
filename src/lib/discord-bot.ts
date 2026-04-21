@@ -328,6 +328,62 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
   }
 }
 
+// ─── Welcome / setup ─────────────────────────────────────────────────────────
+
+export async function sendWelcomeMessage(
+  guildId: string,
+  systemChannelId: string | null,
+  ownerId: string,
+  guildName: string,
+): Promise<void> {
+  if (!process.env.DISCORD_BOT_TOKEN) return
+  const siteUrl  = process.env.NEXTAUTH_URL ?? ''
+  const settings = `${siteUrl}/dashboard/${guildId}/settings`
+
+  const embed = {
+    title:       `👋 Polly has joined ${guildName}!`,
+    description: `Polly is ready to run polls in this server.\n\nAn admin needs to do a one-time setup before polls can be posted automatically.`,
+    color:       0x6366F1,
+    fields: [
+      {
+        name:  '⚙️ Setup (takes 30 seconds)',
+        value: `[Open Server Settings](${settings})\n• Pick an **announcement channel** — polls will be posted there\n• Optionally restrict who can create polls or vote with **roles**`,
+      },
+    ],
+    footer: { text: 'Only you can see this message — Polly' },
+  }
+
+  // DM the owner (only they can see it — fulfils "admin only")
+  try {
+    const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({ recipient_id: ownerId }),
+    })
+    if (dmRes.ok) {
+      const { id: dmChannelId } = await dmRes.json() as { id: string }
+      await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+        method:  'POST',
+        headers: botHeaders(),
+        body:    JSON.stringify({ embeds: [embed] }),
+      })
+    }
+  } catch (e) { console.error('DM welcome error:', e) }
+
+  // Also post to the system channel (brief public notice)
+  if (systemChannelId) {
+    try {
+      await fetch(`${DISCORD_API}/channels/${systemChannelId}/messages`, {
+        method:  'POST',
+        headers: botHeaders(),
+        body:    JSON.stringify({
+          content: `👋 **Polly** has been added to this server! Check your DMs for setup instructions, or visit [the dashboard](${settings}).`,
+        }),
+      })
+    } catch (e) { console.error('System channel welcome error:', e) }
+  }
+}
+
 // ─── Interaction response helpers ────────────────────────────────────────────
 
 export function ephemeralReply(content: string) {

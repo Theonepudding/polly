@@ -3,9 +3,10 @@ import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPolls } from '@/lib/polls'
 import { getGuild, upsertGuild } from '@/lib/guilds'
+import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
-import { Plus, Settings, Clock, BarChart3, CheckCircle2, Circle } from 'lucide-react'
+import { Plus, Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle } from 'lucide-react'
 import PollCard from '@/components/PollCard'
 import CreatePollModal from '@/components/CreatePollModal'
 
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props { params: Promise<{ guildId: string }> }
 
-async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string } | null> {
+async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string; system_channel_id?: string } | null> {
   if (!process.env.DISCORD_BOT_TOKEN) return null
   try {
     const res = await fetch(`https://discord.com/api/guilds/${guildId}`, {
@@ -48,6 +49,8 @@ export default async function GuildDashboardPage({ params }: Props) {
     }
     await upsertGuild(newGuild)
     guild = newGuild
+    // Send welcome + setup instructions (fire-and-forget)
+    sendWelcomeMessage(guildId, discordGuild.system_channel_id ?? null, session.user.id, discordGuild.name)
   }
 
   const allPolls = await getPolls(guildId)
@@ -79,6 +82,23 @@ export default async function GuildDashboardPage({ params }: Props) {
           <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} />
         </div>
       </div>
+
+      {/* Setup banner — shown until announce channel is configured */}
+      {!guild.announceChannelId && (
+        <div className="mb-8 flex items-start gap-3 p-4 rounded-xl border border-p-warning/30 bg-p-warning/5">
+          <AlertTriangle size={16} className="text-p-warning shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-p-text text-sm font-semibold">Polly needs a quick setup</p>
+            <p className="text-p-muted text-sm mt-0.5">
+              Set an announcement channel so polls are posted to Discord automatically, and optionally configure which roles can create polls or vote.
+            </p>
+          </div>
+          <Link href={`/dashboard/${guildId}/settings`} className="btn-primary text-xs shrink-0">
+            <Settings size={12} />
+            Set up now
+          </Link>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
