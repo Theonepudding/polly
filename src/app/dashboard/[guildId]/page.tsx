@@ -9,7 +9,7 @@ import type { Guild } from '@/types'
 import Link from 'next/link'
 import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, ExternalLink } from 'lucide-react'
 import PollCard from '@/components/PollCard'
-import ActivePollCard from '@/components/ActivePollCard'
+import ActivePollsList from '@/components/ActivePollsList'
 import CreatePollModal from '@/components/CreatePollModal'
 import AutoRefresh from '@/components/AutoRefresh'
 
@@ -187,7 +187,8 @@ export default async function GuildDashboardPage({ params }: Props) {
         ))}
       </div>
 
-      <AutoRefresh intervalMs={15000} />
+      {/* Structural refresh — picks up new/closed polls created elsewhere (Discord, etc.) */}
+      <AutoRefresh intervalMs={30000} />
 
       {/* Active polls */}
       <section className="mb-10">
@@ -195,18 +196,14 @@ export default async function GuildDashboardPage({ params }: Props) {
           <h2 className="font-display font-semibold text-xl text-p-text">Active Polls</h2>
           <span className="text-sm text-p-muted">{active.length} poll{active.length !== 1 ? 's' : ''}</span>
         </div>
-        {active.length === 0 ? (
-          <div className="card p-8 text-center text-p-muted">
-            <p className="mb-4">No active polls. Create one to get started!</p>
-            <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
-            {active.map(poll => (
-              <ActivePollCard key={poll.id} poll={poll} votes={votesByPoll[poll.id] ?? []} guildId={guildId} />
-            ))}
-          </div>
-        )}
+        <ActivePollsList
+          polls={active}
+          initialVotes={votesByPoll}
+          guildId={guildId}
+          userId={userId}
+          userName={session.user?.name ?? ''}
+          canManage={canManage}
+        />
       </section>
 
       {/* Recently closed */}
