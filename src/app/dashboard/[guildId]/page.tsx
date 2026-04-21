@@ -1,16 +1,21 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
-import { getPolls, getVotesByPoll } from '@/lib/polls'
+import { getPollsAndVotes } from '@/lib/polls'
+import { getTemplates } from '@/lib/poll-templates'
 import { getGuild, upsertGuild } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
-import { Plus, Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle } from 'lucide-react'
+import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, ExternalLink } from 'lucide-react'
 import PollCard from '@/components/PollCard'
 import CreatePollModal from '@/components/CreatePollModal'
 
 export const dynamic = 'force-dynamic'
+
+const BOT_INVITE_URL = process.env.DISCORD_CLIENT_ID
+  ? `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
+  : '#'
 
 interface Props { params: Promise<{ guildId: string }> }
 
@@ -19,6 +24,7 @@ async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?
   try {
     const res = await fetch(`https://discord.com/api/guilds/${guildId}`, {
       headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      cache: 'no-store',
     })
     if (!res.ok) return null
     return res.json()
@@ -49,20 +55,21 @@ export default async function GuildDashboardPage({ params }: Props) {
     }
     await upsertGuild(newGuild)
     guild = newGuild
-    // Send welcome + setup instructions (fire-and-forget)
     sendWelcomeMessage(guildId, discordGuild.system_channel_id ?? null, session.user.id, discordGuild.name)
   }
 
-  const [allPolls, votesByPoll] = await Promise.all([
-    getPolls(guildId),
-    getVotesByPoll(guildId),
+  // Single KV read for both polls and votes
+  const [{ polls: allPolls, votesByPoll }, templates] = await Promise.all([
+    getPollsAndVotes(guildId),
+    getTemplates(guildId),
   ])
-  const active   = allPolls.filter(p => !p.isClosed)
-  const closed   = allPolls.filter(p => p.isClosed).slice(0, 5)
-  const scheduled = allPolls.filter(p => !p.isClosed && p.closesAt && new Date(p.closesAt) > new Date())
+
+  const active        = allPolls.filter(p => !p.isClosed)
+  const allClosed     = allPolls.filter(p => p.isClosed)
+  const closedPreview = allClosed.slice(0, 5)
+  const activeTemplates = templates.filter(t => t.active)
 
   const userId = session.user?.id ?? ''
-  const isBotAdmin = session.user?.isBotAdmin
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -76,9 +83,13 @@ export default async function GuildDashboardPage({ params }: Props) {
           </div>
           <h1 className="font-display font-bold text-3xl text-p-text">{guild.guildName}</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href={`/dashboard/${guildId}/settings`}
-            className="btn-secondary text-sm">
+        <div className="flex items-center gap-3 flex-wrap">
+          <a href={`${BOT_INVITE_URL}`} target="_blank" rel="noopener noreferrer"
+            className="btn-ghost text-sm">
+            <ExternalLink size={14} />
+            Add to another server
+          </a>
+          <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
             <Settings size={14} />
             Settings
           </Link>
@@ -86,7 +97,7 @@ export default async function GuildDashboardPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Setup banner — shown until announce channel is configured */}
+      {/* Setup banner */}
       {!guild.announceChannelId && (
         <div className="mb-8 flex items-start gap-3 p-4 rounded-xl border border-p-warning/30 bg-p-warning/5">
           <AlertTriangle size={16} className="text-p-warning shrink-0 mt-0.5" />
@@ -106,10 +117,10 @@ export default async function GuildDashboardPage({ params }: Props) {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
         {[
-          { label: 'Active Polls',    value: active.length,   icon: Circle,       color: 'text-p-success' },
-          { label: 'Total Polls',     value: allPolls.length, icon: BarChart3,    color: 'text-p-primary' },
-          { label: 'Closed Polls',    value: closed.length,   icon: CheckCircle2, color: 'text-p-muted'   },
-          { label: 'Scheduled',       value: scheduled.length,icon: Clock,        color: 'text-p-warning'  },
+          { label: 'Active Polls',  value: active.length,          icon: Circle,       color: 'text-p-success' },
+          { label: 'Total Polls',   value: allPolls.length,         icon: BarChart3,    color: 'text-p-primary' },
+          { label: 'Closed Polls',  value: allClosed.length,        icon: CheckCircle2, color: 'text-p-muted'   },
+          { label: 'Templates',     value: activeTemplates.length,  icon: Clock,        color: 'text-p-warning' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4">
             <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
@@ -145,17 +156,26 @@ export default async function GuildDashboardPage({ params }: Props) {
       </section>
 
       {/* Recently closed */}
-      {closed.length > 0 && (
+      {closedPreview.length > 0 && (
         <section>
-          <h2 className="font-display font-semibold text-xl text-p-text mb-4">Recently Closed</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-semibold text-xl text-p-text">Recently Closed</h2>
+            {allClosed.length > 5 && (
+              <Link href={`/dashboard/${guildId}/polls`}
+                className="text-sm text-p-muted hover:text-p-text transition-colors">
+                View all {allClosed.length}
+              </Link>
+            )}
+          </div>
           <div className="flex flex-col gap-2">
-            {closed.map(poll => (
+            {closedPreview.map(poll => (
               <Link key={poll.id} href={`/dashboard/${guildId}/polls/${poll.id}`}
                 className="card-hover p-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-p-text font-medium text-sm">{poll.title}</p>
                   <p className="text-p-muted text-xs mt-0.5">
                     Closed {poll.closesAt ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                    {' · '}{(votesByPoll[poll.id] ?? []).length} vote{(votesByPoll[poll.id] ?? []).length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <span className="badge badge-muted">Closed</span>

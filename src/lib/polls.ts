@@ -54,6 +54,22 @@ export async function deletePoll(id: string): Promise<boolean> {
   return true
 }
 
+export async function getPollsAndVotes(guildId: string): Promise<{ polls: Poll[]; votesByPoll: Record<string, Vote[]> }> {
+  const data = await readData()
+  const polls = data.polls
+    .filter(p => p.guildId === guildId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  const ids = new Set(polls.map(p => p.id))
+  const votesByPoll: Record<string, Vote[]> = {}
+  for (const v of data.votes) {
+    if (ids.has(v.pollId)) {
+      if (!votesByPoll[v.pollId]) votesByPoll[v.pollId] = []
+      votesByPoll[v.pollId].push(v)
+    }
+  }
+  return { polls, votesByPoll }
+}
+
 export async function getVotesByPoll(guildId: string): Promise<Record<string, Vote[]>> {
   const data = await readData()
   const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
