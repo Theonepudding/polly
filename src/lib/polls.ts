@@ -1,7 +1,8 @@
 import { Poll, Vote, PollsData } from '@/types'
 import { getKV } from './kv'
 
-const KEY = 'polls'
+const KEY      = 'polls'
+const POLL_KEY = (id: string) => `poll:${id}`
 
 const emptyData = (): PollsData => ({ polls: [], votes: [] })
 
@@ -25,11 +26,21 @@ export async function getPolls(guildId?: string): Promise<Poll[]> {
 }
 
 export async function getPoll(id: string): Promise<Poll | null> {
+  const kv = await getKV()
+  if (kv) {
+    const raw = await kv.get(POLL_KEY(id))
+    if (raw) return JSON.parse(raw) as Poll
+  }
   const data = await readData()
   return data.polls.find(p => p.id === id) ?? null
 }
 
 export async function createPoll(poll: Poll): Promise<void> {
+  const kv = await getKV()
+  if (!kv) throw new Error('KV not available')
+  // Write individual key FIRST — available to vote/image handlers immediately,
+  // before the larger blob write finishes propagating to other edge locations.
+  await kv.put(POLL_KEY(poll.id), JSON.stringify(poll))
   const data = await readData()
   data.polls.push(poll)
   await writeData(data)
@@ -41,6 +52,8 @@ export async function updatePoll(id: string, patch: Partial<Poll>): Promise<bool
   if (idx === -1) return false
   data.polls[idx] = { ...data.polls[idx], ...patch }
   await writeData(data)
+  const kv = await getKV()
+  if (kv) await kv.put(POLL_KEY(id), JSON.stringify(data.polls[idx]))
   return true
 }
 
@@ -51,6 +64,8 @@ export async function deletePoll(id: string): Promise<boolean> {
   data.votes = data.votes.filter(v => v.pollId !== id)
   if (data.polls.length === len) return false
   await writeData(data)
+  const kv = await getKV()
+  if (kv) await kv.delete(POLL_KEY(id))
   return true
 }
 
@@ -94,18 +109,21 @@ export async function getUserVotes(pollId: string, userId: string): Promise<Vote
 }
 
 export async function deleteGuildPolls(guildId: string): Promise<number> {
+  const kv   = await getKV()
   const data = await readData()
   const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
   const before = data.polls.length
   data.polls = data.polls.filter(p => p.guildId !== guildId)
   data.votes = data.votes.filter(v => !ids.has(v.pollId))
   await writeData(data)
+  if (kv) await Promise.all([...ids].map(id => kv.delete(POLL_KEY(id))))
   return before - data.polls.length
 }
 
 export async function closeExpiredPolls(): Promise<Poll[]> {
-  const data  = await readData()
-  const now   = new Date()
+  const kv   = await getKV()
+  const data = await readData()
+  const now  = new Date()
   const closed: Poll[] = []
   for (const p of data.polls) {
     if (!p.isClosed && p.closesAt && new Date(p.closesAt) <= now) {
@@ -113,7 +131,10 @@ export async function closeExpiredPolls(): Promise<Poll[]> {
       closed.push(p)
     }
   }
-  if (closed.length) await writeData(data)
+  if (closed.length) {
+    await writeData(data)
+    if (kv) await Promise.all(closed.map(p => kv.put(POLL_KEY(p.id), JSON.stringify(p))))
+  }
   return closed
 }
 

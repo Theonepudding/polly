@@ -305,7 +305,9 @@ export async function GET(
     status: 200,
     headers: {
       'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=15, stale-while-revalidate=30',
+      // URL includes ?v=VOTE_COUNT so it changes when votes change.
+      // Cloudflare edge caches for 60s; browsers/Discord for 15s.
+      'Cache-Control': 'public, s-maxage=60, max-age=15, stale-while-revalidate=120',
     },
   })
 }

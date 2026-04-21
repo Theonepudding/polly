@@ -95,26 +95,34 @@ export default async function DashboardPage() {
     ? botGuildIds
     : kvGuilds.map(g => g.guildId)
 
-  const sharedGuilds = userGuilds.filter(g => effectiveBotIds.includes(g.id))
+  let guildsWithMeta: GuildWithMeta[]
+  let invitableGuilds: typeof userGuilds = []
 
-  const guildsWithMeta: GuildWithMeta[] = sharedGuilds.map(g => ({
-    guildId:        g.id,
-    guildName:      g.name,
-    guildIcon:      g.icon ?? undefined,
-    ownerId:        '',
-    adminRoleIds:   [],
-    creatorRoleIds: [],
-    voterRoleIds:   [],
-    userIsAdmin:    g.owner || !!(parseInt(g.permissions) & 0x20),
-    createdAt:      '',
-    updatedAt:      '',
-  }))
+  if (userGuilds.length > 0) {
+    const sharedGuilds = userGuilds.filter(g => effectiveBotIds.includes(g.id))
+    guildsWithMeta = sharedGuilds.map(g => ({
+      guildId:        g.id,
+      guildName:      g.name,
+      guildIcon:      g.icon ?? undefined,
+      ownerId:        '',
+      adminRoleIds:   [],
+      creatorRoleIds: [],
+      voterRoleIds:   [],
+      userIsAdmin:    g.owner || !!(parseInt(g.permissions) & 0x20),
+      createdAt:      '',
+      updatedAt:      '',
+    }))
+    invitableGuilds = userGuilds.filter(g =>
+      !botGuildIds.includes(g.id) && (g.owner || !!(parseInt(g.permissions) & 0x20))
+    ).slice(0, 6)
+  } else {
+    // Discord API unavailable (rate limit / expired token) — fall back to KV-stored guilds
+    guildsWithMeta = kvGuilds
+      .filter(g => g.ownerId === session.user.id || effectiveBotIds.includes(g.guildId))
+      .map(g => ({ ...g, userIsAdmin: g.ownerId === session.user.id }))
+  }
 
   if (guildsWithMeta.length === 1) redirect(`/dashboard/${guildsWithMeta[0].guildId}`)
-
-  const invitableGuilds = userGuilds.filter(g =>
-    !botGuildIds.includes(g.id) && (g.owner || !!(parseInt(g.permissions) & 0x20))
-  ).slice(0, 6)
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">

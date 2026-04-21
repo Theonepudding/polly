@@ -15,8 +15,8 @@ function botHeaders() {
   }
 }
 
-function pollImageUrl(pollId: string, page = 0, maxH?: number): string {
-  const base = `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?t=${Date.now()}`
+function pollImageUrl(pollId: string, page = 0, version = 0, maxH?: number): string {
+  const base = `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?v=${version}`
   const p = page > 0 ? `&p=${page}` : ''
   const h = maxH ? `&h=${maxH}` : ''
   return `${base}${p}${h}`
@@ -125,7 +125,7 @@ export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true, 
       ? `${poll.description}${poll.closesAt ? `\n\nCloses ${discordTimestamp(poll.closesAt)}` : ''}`
       : poll.closesAt ? `Closes ${discordTimestamp(poll.closesAt)}` : undefined,
     color:       COLOR_ACTIVE,
-    image:       { url: pollImageUrl(poll.id, 0, maxH) },
+    image:       { url: pollImageUrl(poll.id, 0, votes.length, maxH) },
     ...(includeFooter ? { footer: pollFooter(poll), timestamp: new Date().toISOString() } : {}),
   }
 }
@@ -201,7 +201,7 @@ export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true
     url:         pollPageUrl(poll.id),
     description: lines.length ? lines.join('\n') : '*No votes were cast.*',
     color:       COLOR_CLOSED,
-    image:       { url: pollImageUrl(poll.id, 0, maxH) },
+    image:       { url: pollImageUrl(poll.id, 0, votes.length, maxH) },
     ...(includeFooter ? { footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() } : {}),
   }
 }
@@ -223,7 +223,7 @@ export function buildPollEmbeds(poll: Poll, votes: Vote[]): object[] {
   const maxH = computePollImageH(poll)
   return [
     buildPollEmbed(poll, votes, false, maxH),
-    { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1, maxH) }, footer: pollFooter(poll), timestamp: new Date().toISOString() },
+    { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1, votes.length, maxH) }, footer: pollFooter(poll), timestamp: new Date().toISOString() },
   ]
 }
 
@@ -233,7 +233,7 @@ export function buildClosedEmbeds(poll: Poll, votes: Vote[]): object[] {
   const maxH = computePollImageH(poll)
   return [
     buildClosedEmbed(poll, votes, false, maxH),
-    { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1, maxH) }, footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() },
+    { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1, votes.length, maxH) }, footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() },
   ]
 }
 

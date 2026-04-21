@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { readData, writeData, createPoll, updatePoll } from '@/lib/polls'
+import { readData, writeData, createPoll, updatePoll, getPoll } from '@/lib/polls'
 import { getGuild, upsertGuild, userCanCreate } from '@/lib/guilds'
 import { getKV } from '@/lib/kv'
 import {
@@ -234,23 +234,22 @@ async function createFromDraft(draft: PollDraft): Promise<{ poll: Poll; posted: 
     isClosed:         false,
   }
 
-  // Post to Discord BEFORE writing to KV so the single createPoll() write
-  // includes discordMessageId. This closes the race where a vote fires between
-  // the old createPoll() and updatePoll() calls and sees a stale poll.
   const guild = await getGuild(draft.guildId)
   let posted  = false
+
+  // Write to KV first so the poll exists when Discord delivers the message
+  // and users click vote buttons (or the image endpoint is fetched).
+  await createPoll(poll)
 
   if (guild?.announceChannelId) {
     const msgId = await postPollToDiscord(poll).catch(() => null)
     if (msgId) {
+      await updatePoll(poll.id, { discordMessageId: msgId, discordChannelId: guild.announceChannelId })
       poll.discordMessageId = msgId
       poll.discordChannelId = guild.announceChannelId
       posted = true
     }
   }
-
-  // Single KV write — discordMessageId is included if posting succeeded
-  await createPoll(poll)
 
   if (guild) {
     postAuditLog(guild, 'Poll created', `**${poll.title}** (via /poll)`, draft.username).catch(() => {})
@@ -573,35 +572,43 @@ export async function POST(req: NextRequest) {
         const [, pollId, optionId] = customId.split(':')
         if (!userId) return Response.json({ type: 4, data: { content: '❌ Could not identify you.', flags: 64 } })
 
-        let savedVotes:  Vote[] | null = null
-        let savedPoll:   Poll   | null = null
-        let voteChanged              = false
+        // Fast individual-key lookup — avoids reading the heavy polls+votes blob
+        // for existence check, and handles KV eventual-consistency lag with a retry.
+        let poll: Poll | null = await getPoll(pollId)
+        if (!poll) {
+          await sleep(400)
+          poll = await getPoll(pollId)
+        }
+        if (!poll) return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
+        if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
+          return Response.json({ type: 4, data: { content: '❌ This poll is no longer open.', flags: 64 } })
+        }
 
-        try {
-          const data = await readData()
-          const poll = data.polls.find(p => p.id === pollId)
-          if (!poll) return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
-          if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
-            return Response.json({ type: 4, data: { content: '❌ This poll is no longer open.', flags: 64 } })
-          }
-
-          if (guildId && poll.guildId === guildId) {
-            const guild = await getGuild(guildId)
-            if (guild?.voterRoleIds.length) {
-              const memberRoles = (member?.roles as string[] | undefined) ?? []
-              if (!guild.voterRoleIds.some(r => memberRoles.includes(r))) {
-                return Response.json({ type: 4, data: { content: '❌ You do not have permission to vote.', flags: 64 } })
-              }
+        if (guildId && poll.guildId === guildId) {
+          const guild = await getGuild(guildId)
+          if (guild?.voterRoleIds.length) {
+            const memberRoles = (member?.roles as string[] | undefined) ?? []
+            if (!guild.voterRoleIds.some(r => memberRoles.includes(r))) {
+              return Response.json({ type: 4, data: { content: '❌ You do not have permission to vote.', flags: 64 } })
             }
           }
+        }
 
+        let savedVotes: Vote[] | null = null
+        let savedPoll:  Poll   | null = null
+        let voteChanged               = false
+
+        try {
           // For polls with time slots: show the time picker first — vote is
           // saved only after the user picks a time (or clicks "No preference").
           if (poll.includeTimeSlots && poll.timeSlots.length > 0) {
             savedPoll = poll
           } else {
+            const data = await readData()
+            // Use the blob's copy if present (most consistent with votes), else use individual key
+            const livePoll = data.polls.find(p => p.id === pollId) ?? poll
             const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
-            if (!poll.allowMultiple) {
+            if (!livePoll.allowMultiple) {
               const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
               if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
               else data.votes.push(vote)
@@ -612,7 +619,7 @@ export async function POST(req: NextRequest) {
             }
             await writeData(data)
             savedVotes = data.votes.filter(v => v.pollId === pollId)
-            savedPoll  = poll
+            savedPoll  = livePoll
           }
         } catch (e) { console.error('Vote error:', e) }
 
