@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle, Terminal } from 'lucide-react'
 
 interface Channel { id: string; name: string; type: number }
 interface Role    { id: string; name: string; color: number }
@@ -27,7 +27,8 @@ export default function SettingsPage() {
   const [saved,       setSaved]       = useState(false)
   const [error,       setError]       = useState('')
   const [loading,     setLoading]     = useState(true)
-  const [guideStatus, setGuideStatus] = useState<'idle' | 'posting' | 'ok' | 'fail'>('idle')
+  const [guideStatus,    setGuideStatus]    = useState<'idle' | 'posting' | 'ok' | 'fail'>('idle')
+  const [cmdStatus,      setCmdStatus]      = useState<'idle' | 'registering' | 'ok' | 'fail'>('idle')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +74,12 @@ export default function SettingsPage() {
       ...config,
       [key]: curr.includes(id) ? curr.filter(r => r !== id) : [...curr, id],
     })
+  }
+
+  async function registerCommands() {
+    setCmdStatus('registering')
+    const res = await fetch('/api/guilds/register-commands', { method: 'POST' })
+    setCmdStatus(res.ok ? 'ok' : 'fail')
   }
 
   async function postGuide() {
@@ -190,6 +197,34 @@ export default function SettingsPage() {
                 Post / Refresh Dashboard Embed
               </button>
             )}
+          </div>
+
+          {/* Discord slash commands */}
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Terminal size={16} className="text-p-accent" />
+              <h2 className="font-display font-semibold text-p-text">Discord Slash Commands</h2>
+            </div>
+            <p className="text-p-muted text-sm mb-4">
+              Register <code className="text-p-muted bg-p-surface-2 px-1 rounded">/poll</code> and <code className="text-p-muted bg-p-surface-2 px-1 rounded">/setup</code> as global slash commands. Run this once (or after any command changes).
+            </p>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={registerCommands} disabled={cmdStatus === 'registering'}
+                className="btn-secondary text-sm">
+                {cmdStatus === 'registering' ? <Loader2 size={14} className="animate-spin" /> : <Terminal size={14} />}
+                Register Commands
+              </button>
+              {cmdStatus === 'ok' && (
+                <span className="flex items-center gap-1.5 text-p-success text-xs">
+                  <CheckCircle2 size={13} /> Commands registered! May take up to 1 hour to appear globally.
+                </span>
+              )}
+              {cmdStatus === 'fail' && (
+                <span className="flex items-center gap-1.5 text-p-warning text-xs">
+                  <AlertCircle size={13} /> Failed — check DISCORD_BOT_TOKEN is set correctly.
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Admin roles */}

@@ -172,6 +172,35 @@ export async function POST(req: NextRequest) {
         })
       }
 
+      if (cmd === 'setup') {
+        const siteUrl = process.env.NEXTAUTH_URL ?? ''
+        return Response.json({
+          type: 4,
+          data: {
+            flags: 64, // ephemeral
+            content: '⚙️ **Polly Setup** — pick your announcement channel:',
+            components: [
+              {
+                type: 1,
+                components: [{
+                  type: 8, // channel_select
+                  custom_id: `setup:announce:${guildId ?? ''}`,
+                  placeholder: 'Select announcement channel…',
+                  channel_types: [0],
+                }],
+              },
+              {
+                type: 1,
+                components: [{
+                  type: 2, style: 5, label: 'Open Settings',
+                  url: `${siteUrl}/dashboard/${guildId}/settings`,
+                }],
+              },
+            ],
+          },
+        })
+      }
+
       return Response.json({ type: 4, data: { content: '❓ Unknown command.', flags: 64 } })
     }
 
