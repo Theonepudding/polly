@@ -3,9 +3,21 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes, castVote } from '@/lib/polls'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
-import type { Vote } from '@/types'
+import type { Poll, Vote } from '@/types'
 
 type Params = { params: Promise<{ id: string }> }
+
+function bgDiscordUpdate(poll: Poll, votes: Vote[]) {
+  const work = (async () => {
+    await new Promise(r => setTimeout(r, 1500))
+    await updatePollInDiscord(poll, votes).catch(() => {})
+    refreshDashboard(poll.guildId).catch(() => {})
+  })()
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare')
+    getCloudflareContext().ctx.waitUntil(work)
+  } catch { work.catch(() => {}) }
+}
 
 export async function GET(_: Request, { params }: Params) {
   const { id } = await params
@@ -22,7 +34,7 @@ export async function POST(req: Request, { params }: Params) {
   if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date()))
     return NextResponse.json({ error: 'Poll is closed' }, { status: 400 })
 
-  const body    = await req.json()
+  const body     = await req.json()
   const optionIds: string[] = poll.allowMultiple
     ? (Array.isArray(body.optionIds) ? body.optionIds : [body.optionId])
     : [body.optionId ?? body.optionIds?.[0]]
@@ -43,7 +55,7 @@ export async function POST(req: Request, { params }: Params) {
     }
     ;({ votes } = await castVote(vote, poll.allowMultiple))
   }
-  await updatePollInDiscord(poll, votes).catch(() => {})
-  refreshDashboard(poll.guildId).catch(() => {})
+
+  bgDiscordUpdate(poll, votes)
   return NextResponse.json({ votes })
 }

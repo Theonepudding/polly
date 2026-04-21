@@ -1,13 +1,12 @@
 import { Poll, Vote, PollsData } from '@/types'
 import { getKV } from './kv'
 
-const KEY       = 'polls'
-const VOTES_KEY = 'votes'
-const POLL_KEY  = (id: string) => `poll:${id}`
+const KEY            = 'polls'
+const POLL_KEY       = (id: string)     => `poll:${id}`
+const POLL_VOTES_KEY = (pollId: string) => `pv:${pollId}`
 
-const emptyData = (): PollsData => ({ polls: [], votes: [] })
 
-// ── Internal: polls-only reads/writes ─────────────────────────────────────────
+// ── Polls (read/write polls key only) ─────────────────────────────────────────
 
 async function readPollsFromKV(): Promise<Poll[]> {
   const kv = await getKV()
@@ -22,48 +21,39 @@ async function writePollsToKV(polls: Poll[]): Promise<void> {
   await kv.put(KEY, JSON.stringify({ polls }))
 }
 
-// ── Internal: votes-only reads/writes ────────────────────────────────────────
-// These NEVER touch the polls key, so castVote can never clobber poll records.
+// ── Per-poll vote keys  pv:{pollId} ───────────────────────────────────────────
+// Each poll has its own key so concurrent votes on DIFFERENT polls never race.
+// Same-poll concurrent votes are still a theoretical race, but extremely rare
+// for a Discord poll bot and require Durable Objects to fully prevent.
 
-async function readVotesFromKV(): Promise<Vote[]> {
+async function readPollVotes(pollId: string): Promise<Vote[]> {
   const kv = await getKV()
   if (!kv) return []
-  const raw = await kv.get(VOTES_KEY)
+  const raw = await kv.get(POLL_VOTES_KEY(pollId))
   if (raw) return (JSON.parse(raw) as { votes: Vote[] }).votes
-  // Migration: fall back to votes in old combined blob on first deploy
-  const oldRaw = await kv.get(KEY)
-  if (!oldRaw) return []
-  return (JSON.parse(oldRaw) as PollsData).votes ?? []
+  // Migration path 1: global votes blob (previous architecture)
+  const gRaw = await kv.get('votes')
+  if (gRaw) {
+    const all = (JSON.parse(gRaw) as { votes: Vote[] }).votes
+    const mine = all.filter(v => v.pollId === pollId)
+    if (mine.length) return mine
+  }
+  // Migration path 2: old combined polls+votes blob
+  const pRaw = await kv.get(KEY)
+  if (pRaw) return ((JSON.parse(pRaw) as PollsData).votes ?? []).filter(v => v.pollId === pollId)
+  return []
 }
 
-async function writeVotesToKV(votes: Vote[]): Promise<void> {
+async function writePollVotes(pollId: string, votes: Vote[]): Promise<void> {
   const kv = await getKV()
   if (!kv) throw new Error('KV not available')
-  await kv.put(VOTES_KEY, JSON.stringify({ votes }))
+  await kv.put(POLL_VOTES_KEY(pollId), JSON.stringify({ votes }))
 }
 
-// ── Public: combined read (for operations that need both) ─────────────────────
-
-export async function readData(): Promise<PollsData> {
-  const kv = await getKV()
-  if (!kv) return emptyData()
-  const [pollsRaw, votesRaw] = await Promise.all([kv.get(KEY), kv.get(VOTES_KEY)])
-  const polls = pollsRaw ? ((JSON.parse(pollsRaw) as PollsData).polls ?? []) : []
-  if (votesRaw) {
-    return { polls, votes: (JSON.parse(votesRaw) as { votes: Vote[] }).votes }
-  }
-  // Migration: old combined blob still has votes
-  if (pollsRaw) {
-    const old = JSON.parse(pollsRaw) as PollsData
-    if (old.votes?.length) return { polls, votes: old.votes }
-  }
-  return { polls, votes: [] }
-}
-
-// ── Polls ─────────────────────────────────────────────────────────────────────
+// ── Public poll API ───────────────────────────────────────────────────────────
 
 export async function getPolls(guildId?: string): Promise<Poll[]> {
-  const polls = await readPollsFromKV()
+  const polls   = await readPollsFromKV()
   const filtered = guildId ? polls.filter(p => p.guildId === guildId) : polls
   return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
@@ -81,8 +71,8 @@ export async function getPoll(id: string): Promise<Poll | null> {
 export async function createPoll(poll: Poll): Promise<void> {
   const kv = await getKV()
   if (!kv) throw new Error('KV not available')
-  // Individual key first — lets vote/image handlers find the poll immediately,
-  // before the blob write propagates to other edges.
+  // Individual key first — vote/image handlers can find the poll immediately
+  // even before the blob propagates to other edges.
   await kv.put(POLL_KEY(poll.id), JSON.stringify(poll))
   const polls = await readPollsFromKV()
   polls.push(poll)
@@ -101,37 +91,31 @@ export async function updatePoll(id: string, patch: Partial<Poll>): Promise<bool
 }
 
 export async function deletePoll(id: string): Promise<boolean> {
-  const [polls, allVotes, kv] = await Promise.all([
-    readPollsFromKV(),
-    readVotesFromKV(),
-    getKV(),
-  ])
-  const before = polls.length
+  const polls = await readPollsFromKV()
+  const len   = polls.length
   const newPolls = polls.filter(p => p.id !== id)
-  if (newPolls.length === before) return false
-  const newVotes = allVotes.filter(v => v.pollId !== id)
+  if (newPolls.length === len) return false
+  const kv = await getKV()
   await Promise.all([
     writePollsToKV(newPolls),
-    writeVotesToKV(newVotes),
-    kv ? kv.delete(POLL_KEY(id)) : Promise.resolve(),
+    kv ? kv.delete(POLL_VOTES_KEY(id)) : Promise.resolve(),
+    kv ? kv.delete(POLL_KEY(id))       : Promise.resolve(),
   ])
   return true
 }
 
 export async function deleteGuildPolls(guildId: string): Promise<number> {
-  const [polls, allVotes, kv] = await Promise.all([
-    readPollsFromKV(),
-    readVotesFromKV(),
-    getKV(),
-  ])
-  const ids     = new Set(polls.filter(p => p.guildId === guildId).map(p => p.id))
-  const before  = polls.length
+  const polls  = await readPollsFromKV()
+  const ids    = new Set(polls.filter(p => p.guildId === guildId).map(p => p.id))
+  const before = polls.length
   const newPolls = polls.filter(p => p.guildId !== guildId)
-  const newVotes = allVotes.filter(v => !ids.has(v.pollId))
+  const kv = await getKV()
   await Promise.all([
     writePollsToKV(newPolls),
-    writeVotesToKV(newVotes),
-    kv ? Promise.all([...ids].map(id => kv.delete(POLL_KEY(id)))) : Promise.resolve(),
+    kv ? Promise.all([...ids].flatMap(id => [
+      kv.delete(POLL_VOTES_KEY(id)),
+      kv.delete(POLL_KEY(id)),
+    ])) : Promise.resolve(),
   ])
   return before - newPolls.length
 }
@@ -164,71 +148,70 @@ export async function getPollsNeedingReminder(): Promise<Poll[]> {
   )
 }
 
-// ── Votes ─────────────────────────────────────────────────────────────────────
+// ── Public vote API ───────────────────────────────────────────────────────────
 
 export async function getVotes(pollId: string, cachedData?: PollsData): Promise<Vote[]> {
   if (cachedData) return cachedData.votes.filter(v => v.pollId === pollId)
-  const allVotes = await readVotesFromKV()
-  return allVotes.filter(v => v.pollId === pollId)
+  return readPollVotes(pollId)
 }
 
 export async function getUserVotes(pollId: string, userId: string): Promise<Vote[]> {
-  const allVotes = await readVotesFromKV()
-  return allVotes.filter(v => v.pollId === pollId && v.userId === userId)
+  const votes = await readPollVotes(pollId)
+  return votes.filter(v => v.userId === userId)
 }
 
 export async function getPollsAndVotes(guildId: string): Promise<{ polls: Poll[]; votesByPoll: Record<string, Vote[]> }> {
-  const [polls, allVotes] = await Promise.all([readPollsFromKV(), readVotesFromKV()])
+  const polls      = await readPollsFromKV()
   const guildPolls = polls
     .filter(p => p.guildId === guildId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const votesByPoll: Record<string, Vote[]> = {}
-  for (const p of guildPolls) {
-    votesByPoll[p.id] = allVotes.filter(v => v.pollId === p.id)
-  }
+  await Promise.all(guildPolls.map(async p => {
+    votesByPoll[p.id] = await readPollVotes(p.id)
+  }))
   return { polls: guildPolls, votesByPoll }
 }
 
 export async function getVotesByPoll(guildId: string): Promise<Record<string, Vote[]>> {
-  const [polls, allVotes] = await Promise.all([readPollsFromKV(), readVotesFromKV()])
-  const ids  = new Set(polls.filter(p => p.guildId === guildId).map(p => p.id))
+  const polls = await readPollsFromKV()
+  const ids   = polls.filter(p => p.guildId === guildId).map(p => p.id)
   const out: Record<string, Vote[]> = {}
-  for (const id of ids) {
-    out[id] = allVotes.filter(v => v.pollId === id)
-  }
+  await Promise.all(ids.map(async id => { out[id] = await readPollVotes(id) }))
   return out
 }
 
-// ── castVote: reads/writes ONLY the votes key ─────────────────────────────────
-// Completely isolated from polls key — no risk of clobbering poll records
-// under concurrent poll creation (KV propagation lag on new polls).
+// ── castVote: reads/writes pv:{pollId} only — never touches the polls key ─────
 
 export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ voteChanged: boolean; votes: Vote[] }> {
-  const allVotes = await readVotesFromKV()
+  const votes     = await readPollVotes(vote.pollId)
   let voteChanged = false
 
   if (allowMultiple) {
-    const idx = allVotes.findIndex(
+    const idx = votes.findIndex(
       v => v.pollId === vote.pollId && v.userId === vote.userId && v.optionId === vote.optionId
     )
-    if (idx !== -1) allVotes[idx] = vote
-    else allVotes.push(vote)
+    if (idx !== -1) votes[idx] = vote
+    else votes.push(vote)
   } else {
-    const idx = allVotes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
+    const idx = votes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
     if (idx !== -1) {
-      voteChanged = allVotes[idx].optionId !== vote.optionId
-      allVotes[idx] = vote
+      voteChanged = votes[idx].optionId !== vote.optionId
+      votes[idx]  = vote
     } else {
-      allVotes.push(vote)
+      votes.push(vote)
     }
   }
 
-  await writeVotesToKV(allVotes)
-  const pollVotes = allVotes.filter(v => v.pollId === vote.pollId)
-  return { voteChanged, votes: pollVotes }
+  await writePollVotes(vote.pollId, votes)
+  return { voteChanged, votes }
 }
 
-// ── Legacy export for any external callers ────────────────────────────────────
+// ── Compat exports ────────────────────────────────────────────────────────────
+
+export async function readData(): Promise<PollsData> {
+  return { polls: await readPollsFromKV(), votes: [] }
+}
+
 export async function writeData(data: PollsData): Promise<void> {
   await writePollsToKV(data.polls)
 }
