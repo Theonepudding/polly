@@ -21,7 +21,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { guildId } = await params
-  let body: Record<string, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
   const now  = new Date()
   const nextRun = new Date(now)
