@@ -110,7 +110,11 @@ export async function GET(
   // 26 = separator(13) + label(13); 30 per row = chip height(22) + gap(8); last row has no trailing gap
   const TS_H      = hasTimeSlots ? 26 + slotRows * 30 - 8 : 0
   const TS_SEP_H  = hasTimeSlots ? 16 : 0
-  const H = PAD_V * 2 + HEADER_H + optsAreaH + TS_SEP_H + TS_H + FOOTER_H
+  // MIN_H keeps aspect ratio consistent across polls so Discord always scales to the same width.
+  // Discord constrains embed image height at ~300px displayed; below ~460px natural height the
+  // image fits without squeezing, so polls with few options stay at the same rendered width.
+  const MIN_H     = 460
+  const H = Math.max(MIN_H, PAD_V * 2 + HEADER_H + optsAreaH + TS_SEP_H + TS_H + FOOTER_H)
 
   const closesLabel = poll.closesAt
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })

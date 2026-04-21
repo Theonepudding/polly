@@ -69,7 +69,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [emojiPickerPos,   setEmojiPickerPos]   = useState<{ top: number; left: number } | null>(null)
   const [emojiTab,         setEmojiTab]         = useState<string>('server')
   const [syncKey,          setSyncKey]          = useState(0)
-  const [optBtnNums,    setOptBtnNums]    = useState<(number|undefined)[]>([undefined, undefined])
   const [optBtnEmojis,  setOptBtnEmojis]  = useState<string[]>(['', ''])
   const [btnEmojiPickerFor, setBtnEmojiPickerFor] = useState<number | null>(null)
   const [btnEmojiPickerPos, setBtnEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
@@ -135,7 +134,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
     setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
-    setOptBtnNums([undefined, undefined]); setOptBtnEmojis(['', ''])
+    setOptBtnEmojis(['', ''])
     setBtnEmojiPickerFor(null); setBtnEmojiPickerPos(null)
     setSyncKey(k => k + 1)
   }
@@ -150,7 +149,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     if (t.includeTimeSlots) setTimes(t.timeSlots)
     setDurUnit('days')
     setDaysOpen(t.daysOpen)
-    setOptBtnNums(t.options.map(o => o.buttonNum))
     setOptBtnEmojis(t.options.map(o => o.buttonEmoji ?? ''))
     setSyncKey(k => k + 1)
   }
@@ -158,14 +156,12 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   function addOption() {
     if (options.length < 12) {
       setOptions(o => [...o, ''])
-      setOptBtnNums(n => [...n, undefined])
       setOptBtnEmojis(e => [...e, ''])
     }
   }
   function removeOption(i: number) {
     if (options.length > 2) {
       setOptions(o => o.filter((_, idx) => idx !== i))
-      setOptBtnNums(n => n.filter((_, idx) => idx !== i))
       setOptBtnEmojis(e => e.filter((_, idx) => idx !== i))
       setSyncKey(k => k + 1)
     }
@@ -225,7 +221,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           options: cleanOpts.map((text, i) => ({
             id: `opt-${i}`,
             text,
-            ...(optBtnNums[i] !== undefined ? { buttonNum: optBtnNums[i] } : {}),
             ...(optBtnEmojis[i] ? { buttonEmoji: optBtnEmojis[i] } : {}),
           })),
           includeTimeSlots: useTimes,
@@ -359,24 +354,32 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             </div>
             <div className="space-y-2">
               {options.map((opt, i) => {
-                const btnEmoji = optBtnEmojis[i] ?? ''
-                const btnNum   = optBtnNums[i] ?? (i + 1)
+                const btnEmoji      = optBtnEmojis[i] ?? ''
                 const btnEmojiMatch = btnEmoji.match(/^<(a?):(\w+):(\d+)>$/)
                 return (
                 <div key={`${i}-${syncKey}`} className="flex items-center gap-2">
-                  {/* Editable Discord button number badge */}
-                  <div className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/30 flex items-center justify-center shrink-0"
-                       title="Discord button number">
-                    <input
-                      type="number" min={1} max={25}
-                      value={btnNum}
-                      onChange={e => {
-                        const n = parseInt(e.target.value)
-                        setOptBtnNums(nums => nums.map((v, idx) => idx === i ? (isNaN(n) ? undefined : Math.min(25, Math.max(1, n))) : v))
-                      }}
-                      className="w-5 h-5 text-[11px] font-bold text-p-primary bg-transparent text-center border-none outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
+                  {/* Left: static number + optional emoji — click to set button emoji */}
+                  <button
+                    type="button"
+                    data-btn-emoji-btn=""
+                    onClick={e => openBtnEmojiPicker(i, e)}
+                    title="Set emoji for this Discord vote button"
+                    className={`h-8 min-w-[2.75rem] px-2 rounded-md flex items-center justify-center gap-1 shrink-0 border transition-colors ${
+                      btnEmojiPickerFor === i
+                        ? 'bg-p-accent/20 border-p-accent/50 text-p-primary'
+                        : btnEmoji
+                          ? 'bg-p-surface-2 border-p-border text-p-primary'
+                          : 'bg-p-surface-2 border-p-border text-p-muted hover:border-p-primary/50 hover:text-p-primary'
+                    }`}
+                  >
+                    <span className="text-[12px] font-bold leading-none">{i + 1}</span>
+                    {btnEmojiMatch
+                      ? <img src={`https://cdn.discordapp.com/emojis/${btnEmojiMatch[3]}.${btnEmojiMatch[1]==='a'?'gif':'png'}?size=32`} alt={btnEmojiMatch[2]} className="w-4 h-4 object-contain" />
+                      : btnEmoji
+                        ? <span className="text-sm leading-none">{btnEmoji}</span>
+                        : null
+                    }
+                  </button>
                   <EmojiInput
                     ref={el => { optionRefsMap.current[i] = el }}
                     key={`opt-${i}-${syncKey}`}
@@ -389,27 +392,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                     onEmojiButtonClick={e => openEmojiPicker(i, e)}
                     emojiButtonActive={emojiPickerFor === i}
                   />
-                  {/* Discord vote button emoji */}
-                  <button
-                    type="button"
-                    data-btn-emoji-btn=""
-                    onClick={e => openBtnEmojiPicker(i, e)}
-                    title="Set Discord vote button emoji"
-                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-md transition-colors shrink-0 ${
-                      btnEmojiPickerFor === i
-                        ? 'text-p-accent bg-p-accent/15'
-                        : btnEmoji
-                          ? 'text-p-accent bg-p-accent/8'
-                          : 'text-p-muted hover:text-p-accent hover:bg-p-accent/10'
-                    }`}>
-                    {btnEmojiMatch
-                      ? <img src={`https://cdn.discordapp.com/emojis/${btnEmojiMatch[3]}.${btnEmojiMatch[1]==='a'?'gif':'png'}?size=32`} alt={btnEmojiMatch[2]} className="w-3.5 h-3.5 object-contain" />
-                      : btnEmoji
-                        ? <span className="text-xs leading-none">{btnEmoji}</span>
-                        : <span className="text-[11px] leading-none font-semibold">🎮</span>
-                    }
-                    <span className="text-[9px] leading-none font-medium opacity-75">btn</span>
-                  </button>
                   {options.length > 2 && (
                     <button type="button" onClick={() => removeOption(i)}
                       className="p-1.5 text-p-muted hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-colors shrink-0">
