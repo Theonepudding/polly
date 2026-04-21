@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type FormEvent, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown } from 'lucide-react'
+import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown, Smile } from 'lucide-react'
 import Link from 'next/link'
 import { Poll, PollTemplate } from '@/types'
 
@@ -24,6 +24,7 @@ function utcToLocal(hhMM: string): string {
 
 interface Channel { id: string; name: string }
 interface Role    { id: string; name: string }
+interface DiscordEmoji { id: string; name: string; animated: boolean; available?: boolean }
 
 interface Props {
   guildId:    string
@@ -34,31 +35,35 @@ interface Props {
 
 export default function CreatePollModal({ guildId, userId, userName, canManage = false }: Props) {
   const router = useRouter()
-  const [open,            setOpen]            = useState(false)
-  const [title,           setTitle]           = useState('')
-  const [description,     setDescription]     = useState('')
-  const [options,         setOptions]         = useState(['', ''])
-  const [useTimes,        setUseTimes]        = useState(false)
-  const [times,           setTimes]           = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
-  const [customTime,      setCustomTime]      = useState('')
-  const [durUnit,         setDurUnit]         = useState<'hours' | 'days'>('days')
-  const [durationHours,   setDurationHours]   = useState(6)
-  const [daysOpen,        setDaysOpen]        = useState(7)
-  const [closeAtTime,     setCloseAtTime]     = useState(nowTimeString)
-  const [isAnonymous,     setIsAnonymous]     = useState(false)
-  const [allowMultiple,   setAllowMultiple]   = useState(false)
-  const [loading,         setLoading]         = useState(false)
-  const [error,           setError]           = useState('')
-  const [createdPoll,     setCreatedPoll]     = useState<Poll | null>(null)
-  const [posted,          setPosted]          = useState(false)
-  const [hasChannel,      setHasChannel]      = useState(false)
-  const [postedChannelId, setPostedChannelId] = useState<string | null>(null)
-  const [channels,        setChannels]        = useState<Channel[]>([])
-  const [roles,           setRoles]           = useState<Role[]>([])
-  const [templates,       setTemplates]       = useState<PollTemplate[]>([])
-  const [overrideChannel, setOverrideChannel] = useState('')
-  const [pingRoleIds,     setPingRoleIds]     = useState<string[]>([])
-  const [showAdvanced,    setShowAdvanced]    = useState(false)
+  const [open,             setOpen]             = useState(false)
+  const [title,            setTitle]            = useState('')
+  const [description,      setDescription]      = useState('')
+  const [options,          setOptions]          = useState(['', ''])
+  const [useTimes,         setUseTimes]         = useState(false)
+  const [times,            setTimes]            = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
+  const [customTime,       setCustomTime]       = useState('')
+  const [durUnit,          setDurUnit]          = useState<'hours' | 'days'>('days')
+  const [durationHours,    setDurationHours]    = useState(6)
+  const [customHoursInput, setCustomHoursInput] = useState('')
+  const [daysOpen,         setDaysOpen]         = useState(7)
+  const [closeAtTime,      setCloseAtTime]      = useState(nowTimeString)
+  const [isAnonymous,      setIsAnonymous]      = useState(false)
+  const [allowMultiple,    setAllowMultiple]    = useState(false)
+  const [loading,          setLoading]          = useState(false)
+  const [error,            setError]            = useState('')
+  const [createdPoll,      setCreatedPoll]      = useState<Poll | null>(null)
+  const [posted,           setPosted]           = useState(false)
+  const [hasChannel,       setHasChannel]       = useState(false)
+  const [postedChannelId,  setPostedChannelId]  = useState<string | null>(null)
+  const [channels,         setChannels]         = useState<Channel[]>([])
+  const [roles,            setRoles]            = useState<Role[]>([])
+  const [templates,        setTemplates]        = useState<PollTemplate[]>([])
+  const [overrideChannel,  setOverrideChannel]  = useState('')
+  const [pingRoleIds,      setPingRoleIds]      = useState<string[]>([])
+  const [showAdvanced,     setShowAdvanced]     = useState(false)
+  const [emojis,           setEmojis]           = useState<DiscordEmoji[]>([])
+  const [emojiPickerFor,   setEmojiPickerFor]   = useState<number | null>(null)
+  const [emojiPickerPos,   setEmojiPickerPos]   = useState<{ top: number; left: number } | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -66,20 +71,36 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
       fetch(`/api/guilds/${guildId}/channels`).then(r => r.ok ? r.json() : []),
       fetch(`/api/guilds/${guildId}/channels?type=roles`).then(r => r.ok ? r.json() : []),
       fetch(`/api/guilds/${guildId}/templates`).then(r => r.ok ? r.json() : { templates: [] }),
-    ]).then(([ch, rl, tmpl]) => {
+      fetch(`/api/guilds/${guildId}/emojis`).then(r => r.ok ? r.json() : []),
+    ]).then(([ch, rl, tmpl, em]) => {
       setChannels((ch as { id: string; name: string; type: number }[]).filter(c => c.type === 0))
       setRoles((rl as Role[]).filter((r: Role) => r.name !== '@everyone'))
       setTemplates(((tmpl as { templates: PollTemplate[] }).templates ?? []).filter((t: PollTemplate) => t.active))
+      setEmojis((em as DiscordEmoji[]).filter(e => e.available !== false))
     }).catch(() => {})
   }, [open, guildId])
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (emojiPickerFor === null) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element
+      if (target.closest('[data-emoji-picker]') || target.closest('[data-emoji-btn]')) return
+      setEmojiPickerFor(null)
+      setEmojiPickerPos(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [emojiPickerFor])
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
     setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDurUnit('days'); setDurationHours(6)
-    setDaysOpen(7); setCloseAtTime(nowTimeString()); setIsAnonymous(false)
-    setAllowMultiple(false); setError(''); setCreatedPoll(null)
+    setCustomHoursInput(''); setDaysOpen(7); setCloseAtTime(nowTimeString())
+    setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
+    setEmojiPickerFor(null); setEmojiPickerPos(null)
   }
 
   function loadTemplate(t: PollTemplate) {
@@ -94,7 +115,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setDaysOpen(t.daysOpen)
   }
 
-  function addOption()  { if (options.length < 6) setOptions(o => [...o, '']) }
+  function addOption()  { if (options.length < 12) setOptions(o => [...o, '']) }
   function removeOption(i: number) { if (options.length > 2) setOptions(o => o.filter((_, idx) => idx !== i)) }
   function setOption(i: number, val: string) { setOptions(o => o.map((v, idx) => idx === i ? val : v)) }
 
@@ -113,7 +134,21 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setPingRoleIds(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function openEmojiPicker(i: number, e: MouseEvent<HTMLButtonElement>) {
+    if (emojiPickerFor === i) {
+      setEmojiPickerFor(null)
+      setEmojiPickerPos(null)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pickerWidth = 240
+    const left = Math.max(8, Math.min(rect.right - pickerWidth, window.innerWidth - pickerWidth - 8))
+    const top  = Math.min(rect.bottom + 4, window.innerHeight - 220)
+    setEmojiPickerFor(i)
+    setEmojiPickerPos({ top, left })
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const cleanOpts = options.filter(o => o.trim())
     if (!title.trim()) return setError('Please add a title.')
@@ -253,7 +288,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="label mb-0">Options *</label>
-              <span className="text-xs text-p-subtle">{options.filter(o => o.trim()).length} / 6</span>
+              <span className="text-xs text-p-subtle">{options.filter(o => o.trim()).length} / 12</span>
             </div>
             <div className="space-y-2">
               {options.map((opt, i) => (
@@ -264,15 +299,27 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                   <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
                     placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
                     maxLength={80} />
+                  <button
+                    type="button"
+                    data-emoji-btn=""
+                    onClick={e => openEmojiPicker(i, e)}
+                    title="Insert emoji"
+                    className={`p-1.5 rounded-md transition-all shrink-0 ${
+                      emojiPickerFor === i
+                        ? 'text-p-primary bg-p-primary-b opacity-100'
+                        : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                    }`}>
+                    <Smile size={14} />
+                  </button>
                   {options.length > 2 && (
                     <button type="button" onClick={() => removeOption(i)}
-                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100">
+                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
                       <Trash2 size={14} />
                     </button>
                   )}
                 </div>
               ))}
-              {options.length < 6 && (
+              {options.length < 12 && (
                 <button type="button" onClick={addOption}
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-p-border text-p-muted text-xs hover:border-p-primary/40 hover:text-p-primary hover:bg-p-primary-b transition-all">
                   <Plus size={13} /> Add option {options.length + 1}
@@ -341,15 +388,39 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             </div>
 
             {durUnit === 'hours' ? (
-              <div className="flex flex-wrap gap-2">
-                {HOUR_OPTIONS.map(h => (
-                  <button key={h} type="button" onClick={() => setDurationHours(h)}
-                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                      durationHours === h ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                    }`}>
-                    {h === 24 ? '24h (1 day)' : `${h}h`}
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {HOUR_OPTIONS.map(h => (
+                    <button key={h} type="button"
+                      onClick={() => { setDurationHours(h); setCustomHoursInput('') }}
+                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                        durationHours === h && !customHoursInput ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                      }`}>
+                      {h === 24 ? '24h (1 day)' : `${h}h`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="720"
+                    placeholder="Custom…"
+                    value={customHoursInput}
+                    onChange={e => {
+                      setCustomHoursInput(e.target.value)
+                      const n = parseInt(e.target.value)
+                      if (!isNaN(n) && n >= 1) setDurationHours(Math.min(n, 720))
+                    }}
+                    className="input w-24 text-sm py-1.5"
+                  />
+                  <span className="text-p-muted text-xs">hours</span>
+                  {customHoursInput && parseInt(customHoursInput) >= 1 && (
+                    <span className="text-p-primary text-xs font-medium">
+                      {parseInt(customHoursInput)}h selected
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -442,6 +513,45 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           </div>
         </form>
       </div>
+
+      {/* Emoji picker — fixed position so it escapes the modal's overflow-y-auto */}
+      {emojiPickerFor !== null && emojiPickerPos && (
+        <div
+          data-emoji-picker=""
+          style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
+          className="w-60 p-2 bg-p-surface border border-p-border rounded-xl shadow-2xl"
+        >
+          <p className="text-[10px] text-p-muted font-semibold uppercase tracking-wider px-1 mb-2">
+            Server emojis — option {emojiPickerFor + 1}
+          </p>
+          {emojis.length === 0 ? (
+            <p className="text-p-muted text-xs px-1 py-2 leading-relaxed">
+              This server has no custom emojis. Type standard Unicode emoji directly into the option text.
+            </p>
+          ) : (
+            <div className="grid grid-cols-8 gap-0.5 max-h-44 overflow-y-auto">
+              {emojis.map(e => (
+                <button
+                  key={e.id}
+                  type="button"
+                  title={`:${e.name}:`}
+                  onClick={() => {
+                    setOption(emojiPickerFor, options[emojiPickerFor] + `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`)
+                    setEmojiPickerFor(null)
+                    setEmojiPickerPos(null)
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-p-surface-2 transition-colors p-0.5">
+                  <img
+                    src={`https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? 'gif' : 'png'}?size=32`}
+                    alt={e.name}
+                    className="w-6 h-6 object-contain"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

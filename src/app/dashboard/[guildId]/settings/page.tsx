@@ -34,7 +34,9 @@ export default function SettingsPage() {
   const [cmdStatus,      setCmdStatus]      = useState<'idle' | 'registering' | 'ok' | 'fail'>('idle')
   const [removeConfirm,    setRemoveConfirm]    = useState(false)
   const [removing,         setRemoving]         = useState(false)
-  const [detectingAdmins,  setDetectingAdmins]  = useState(false)
+  const [detectingAdmins,    setDetectingAdmins]    = useState(false)
+  const [discordAdminIds,    setDiscordAdminIds]    = useState<string[]>([])
+  const [originalConfig,     setOriginalConfig]     = useState<GuildConfig | null>(null)
   const hasLoaded = useRef(false)
 
   const load = useCallback(async () => {
@@ -45,28 +47,48 @@ export default function SettingsPage() {
         fetch(`/api/guilds/${guildId}/channels`),
         fetch(`/api/guilds/${guildId}/channels?type=roles`),
       ])
-      if (cfgRes.ok) {
-        const data = await cfgRes.json()
-        setConfig({ ...data, creatorRoleIds: data.creatorRoleIds ?? [] })
+
+      let data: GuildConfig | null = null
+      if (cfgRes.ok) data = await cfgRes.json()
+
+      if (chRes.ok) setChannels((await chRes.json()).filter((c: Channel) => c.type === 0))
+
+      if (rlRes.ok) {
+        const allRoles: Role[] = await rlRes.json()
+        setRoles(allRoles)
+        const discordAdmins = allRoles
+          .filter(r => r.name !== '@everyone' && r.permissions && (parseInt(r.permissions, 10) & 8) !== 0)
+          .map(r => r.id)
+        setDiscordAdminIds(discordAdmins)
+        // Auto-populate adminRoleIds from Discord if not manually configured
+        if (data && (!data.adminRoleIds || data.adminRoleIds.length === 0) && discordAdmins.length > 0) {
+          data = { ...data, adminRoleIds: discordAdmins }
+        }
       }
-      if (chRes.ok)  setChannels((await chRes.json()).filter((c: Channel) => c.type === 0))
-      if (rlRes.ok)  setRoles(await rlRes.json())
+
+      if (data) {
+        const normalized = { ...data, creatorRoleIds: data.creatorRoleIds ?? [] }
+        setConfig(normalized)
+        setOriginalConfig(normalized)
+      }
     } catch { setError('Failed to load settings') }
     hasLoaded.current = true
     setIsDirty(false)
     setLoading(false)
   }, [guildId])
 
-  useEffect(() => {
-    load()
-    const onFocus = () => load()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [load])
+  useEffect(() => { load() }, [load])
 
   function updateConfig(newConfig: GuildConfig) {
     setConfig(newConfig)
     if (hasLoaded.current) setIsDirty(true)
+  }
+
+  function discardChanges() {
+    if (originalConfig) {
+      setConfig(originalConfig)
+      setIsDirty(false)
+    }
   }
 
   async function save(e?: React.FormEvent) {
@@ -83,6 +105,7 @@ export default function SettingsPage() {
     if (res.ok) {
       setSaved(true)
       setIsDirty(false)
+      setOriginalConfig(config)
       router.refresh()
       setTimeout(() => setSaved(false), 2500)
     } else {
@@ -176,15 +199,40 @@ export default function SettingsPage() {
               <Hash size={16} className="text-p-primary" />
               <h2 className="font-display font-semibold text-p-text">Poll Announcement Channel</h2>
             </div>
-            <p className="text-p-muted text-sm mb-3">
+            <p className="text-[#c8ccd4] text-sm mb-4">
               When a poll is created, Polly posts it here as a Discord message with voting buttons. Members vote directly from this channel.
             </p>
-            <div className="mb-4 p-3 rounded-lg bg-p-surface-2 border border-p-border text-xs text-p-muted font-mono leading-relaxed">
-              <span className="text-p-primary font-semibold">Polly</span>
-              {'  '}
-              <span className="text-p-subtle">— new poll message with vote buttons appears here</span>
-              <br />
-              <span className="text-p-subtle italic">e.g. #announcements, #polls</span>
+            {/* Discord embed mockup */}
+            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
+              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-[9px]">P</span>
+                </div>
+                <span className="text-white font-semibold">Polly</span>
+                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
+              </div>
+              <div className="flex gap-0">
+                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
+                <div className="flex-1 py-1 pr-3">
+                  <div className="text-white font-bold mb-1">Raid Night: Friday or Saturday?</div>
+                  <div className="text-[#b5bac1] mb-2">Vote closes in 2 days</div>
+                  <div className="space-y-1 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded bg-[#2f3136]"><div className="h-full w-3/5 bg-[#6366f1] rounded" /></div>
+                      <span className="text-[#b5bac1] w-8 text-right">60%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded bg-[#2f3136]"><div className="h-full w-2/5 bg-[#6366f1] rounded" /></div>
+                      <span className="text-[#b5bac1] w-8 text-right">40%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 px-3 pb-3">
+                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">Friday</div>
+                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">Saturday</div>
+                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">🗳️ Vote on the website</div>
+              </div>
             </div>
             <select
               value={config.announceChannelId ?? ''}
@@ -201,15 +249,29 @@ export default function SettingsPage() {
               <BookOpen size={16} className="text-p-primary" />
               <h2 className="font-display font-semibold text-p-text">Polly Channel</h2>
             </div>
-            <p className="text-p-muted text-sm mb-3">
+            <p className="text-[#c8ccd4] text-sm mb-4">
               Polly posts a pinned guide here explaining how to vote and use polls. Good for a dedicated <span className="font-mono text-p-text">#polls</span> or <span className="font-mono text-p-text">#bot-info</span> channel that members can refer to.
             </p>
-            <div className="mb-4 p-3 rounded-lg bg-p-surface-2 border border-p-border text-xs text-p-muted font-mono leading-relaxed">
-              <span className="text-p-primary font-semibold">Polly</span>
-              {'  '}
-              <span className="text-p-subtle">📌 pinned — "How Polly Works" guide embed</span>
-              <br />
-              <span className="text-p-subtle italic">e.g. #polls, #bot-info, #how-to-vote</span>
+            {/* Discord embed mockup */}
+            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
+              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-[9px]">P</span>
+                </div>
+                <span className="text-white font-semibold">Polly</span>
+                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
+                <span className="text-[10px] text-[#72767d] ml-1">📌 Pinned message</span>
+              </div>
+              <div className="flex gap-0">
+                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
+                <div className="flex-1 py-1 pr-3">
+                  <div className="text-white font-bold mb-1">How Polly Works</div>
+                  <div className="text-[#b5bac1] mb-1.5">Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.</div>
+                  <div className="text-[#b5bac1] mt-1"><span className="text-white font-semibold">Voting</span> — Click an option button to cast your vote. You can change it any time before the poll closes.</div>
+                  <div className="text-[#b5bac1] mt-1"><span className="text-white font-semibold">Creating a poll</span> — Use /poll or the web dashboard. New polls are posted here automatically.</div>
+                </div>
+              </div>
+              <div className="px-3 pb-3 pt-1 text-[#72767d]">Polly — Discord poll bot</div>
             </div>
             <select
               value={config.pollyChannelId ?? ''}
@@ -245,15 +307,32 @@ export default function SettingsPage() {
               <Zap size={16} className="text-p-accent" />
               <h2 className="font-display font-semibold text-p-text">Dashboard Embed Channel</h2>
             </div>
-            <p className="text-p-muted text-sm mb-3">
+            <p className="text-[#c8ccd4] text-sm mb-4">
               Polly keeps a single live message here that lists all active polls. Members can see what&apos;s open, create new polls, or open the dashboard — all from one place. Works best in a read-only or low-traffic channel.
             </p>
-            <div className="mb-4 p-3 rounded-lg bg-p-surface-2 border border-p-border text-xs text-p-muted font-mono leading-relaxed">
-              <span className="text-p-primary font-semibold">Polly</span>
-              {'  '}
-              <span className="text-p-subtle">— live embed: active polls + [Create Poll] [View All] buttons</span>
-              <br />
-              <span className="text-p-subtle italic">e.g. #polls, #vote-here — updates automatically</span>
+            {/* Discord embed mockup */}
+            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
+              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-[9px]">P</span>
+                </div>
+                <span className="text-white font-semibold">Polly</span>
+                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
+              </div>
+              <div className="flex gap-0">
+                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
+                <div className="flex-1 py-1 pr-3">
+                  <div className="text-white font-bold mb-2">Your Server — Polls</div>
+                  <div className="text-[#b5bac1] mb-0.5"><span className="text-[#6366f1] font-semibold">Raid Night: Friday or Saturday?</span> · closes in 2d</div>
+                  <div className="text-[#b5bac1] mb-0.5"><span className="text-[#6366f1] font-semibold">Movie Night pick</span> · closes in 5d</div>
+                  <div className="text-[#72767d] mt-1.5">2 active polls · Polly</div>
+                </div>
+              </div>
+              <div className="flex gap-2 px-3 pb-3">
+                <div className="rounded px-3 py-1 bg-[#5865f2] text-white">➕ Create Poll</div>
+                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">📋 View All Polls</div>
+                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">⚙️ Open Dashboard</div>
+              </div>
             </div>
             <select
               value={config.dashboardChannelId ?? ''}
@@ -277,7 +356,7 @@ export default function SettingsPage() {
               <Hash size={16} className="text-p-muted" />
               <h2 className="font-display font-semibold text-p-text">Audit Log Channel <span className="text-p-subtle text-xs font-normal ml-1">(optional)</span></h2>
             </div>
-            <p className="text-p-muted text-sm mb-4">
+            <p className="text-[#c8ccd4] text-sm mb-4">
               Polly posts a log entry here when polls are created, closed, or deleted. Leave empty to disable logging.
             </p>
             <select
@@ -295,9 +374,9 @@ export default function SettingsPage() {
               <Terminal size={16} className="text-p-accent" />
               <h2 className="font-display font-semibold text-p-text">Discord Slash Commands</h2>
             </div>
-            <p className="text-p-muted text-sm mb-4">
-              Register <code className="text-p-muted bg-p-surface-2 px-1 rounded">/poll</code> and{' '}
-              <code className="text-p-muted bg-p-surface-2 px-1 rounded">/setup</code> as global slash commands.
+            <p className="text-[#c8ccd4] text-sm mb-4">
+              Register <code className="text-[#c8ccd4] bg-p-surface-2 px-1 rounded">/poll</code> and{' '}
+              <code className="text-[#c8ccd4] bg-p-surface-2 px-1 rounded">/setup</code> as global slash commands.
               Run this once (or after any command changes).
             </p>
             <div className="flex items-center gap-3">
@@ -325,23 +404,29 @@ export default function SettingsPage() {
               <Shield size={16} className="text-p-primary" />
               <h2 className="font-display font-semibold text-p-text">Poll Admin Roles</h2>
             </div>
-            <p className="text-p-muted text-sm mb-3">
+            <p className="text-[#c8ccd4] text-sm mb-3">
               Members with these roles can create polls, close any poll, resend embeds, and delete any poll. By default, Polly respects Discord&apos;s built-in Administrator roles — use the button below to detect them automatically.
             </p>
             <div className="flex flex-wrap gap-2 mb-4">
-              {roles.filter(r => r.name !== '@everyone').map(role => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => toggleRole('adminRoleIds', role.id)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                    config.adminRoleIds.includes(role.id)
-                      ? 'badge-primary'
-                      : 'badge-muted hover:border-p-border-2'
-                  }`}>
-                  {role.name}
-                </button>
-              ))}
+              {roles.filter(r => r.name !== '@everyone').map(role => {
+                const isSelected      = config.adminRoleIds.includes(role.id)
+                const isDiscordAdmin  = discordAdminIds.includes(role.id)
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => toggleRole('adminRoleIds', role.id)}
+                    title={isDiscordAdmin ? 'Has Discord Administrator permission' : undefined}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all gap-1.5 ${
+                      isSelected
+                        ? 'badge-primary'
+                        : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    {isDiscordAdmin && <Shield size={10} className={isSelected ? 'text-p-primary' : 'text-p-muted'} />}
+                    {role.name}
+                  </button>
+                )
+              })}
             </div>
             <button type="button" onClick={detectAdminRoles} disabled={detectingAdmins}
               className="btn-secondary text-xs">
@@ -451,14 +536,22 @@ export default function SettingsPage() {
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-p-border bg-p-surface/95 backdrop-blur-sm">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <span className="text-p-muted text-sm">You have unsaved changes</span>
-            <button
-              type="submit"
-              form="settings-form"
-              disabled={saving}
-              className="btn-primary px-6">
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {saved ? 'Saved!' : 'Save Settings'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={discardChanges}
+                className="btn-ghost text-sm text-p-muted">
+                Discard
+              </button>
+              <button
+                type="submit"
+                form="settings-form"
+                disabled={saving}
+                className="btn-primary px-6">
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {saved ? 'Saved!' : 'Save Settings'}
+              </button>
+            </div>
           </div>
         </div>
       )}

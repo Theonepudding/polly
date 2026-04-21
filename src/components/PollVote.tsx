@@ -14,6 +14,25 @@ function utcToLocal(hhMM: string): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+function renderOptionText(text: string) {
+  const parts = text.split(/(<a?:\w+:\d+>)/g)
+  return parts.map((part, i) => {
+    const m = part.match(/^<(a?):(\w+):(\d+)>$/)
+    if (m) {
+      return (
+        <img
+          key={i}
+          src={`https://cdn.discordapp.com/emojis/${m[3]}.${m[1] === 'a' ? 'gif' : 'png'}?size=32`}
+          alt={`:${m[2]}:`}
+          title={`:${m[2]}:`}
+          className="inline-block w-5 h-5 align-text-bottom mx-0.5"
+        />
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
 interface Props {
   poll:     Poll
   votes:    Vote[]
@@ -161,9 +180,9 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                 className="w-full text-left p-4"
                 onClick={() => !poll.isAnonymous && count > 0 && setExpanded(isOpen ? null : opt.id)}>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
-                  <span className={clsx('text-sm font-semibold truncate',
+                  <span className={clsx('text-sm font-semibold flex items-center gap-1 min-w-0',
                     isWin ? 'text-p-accent' : isMyVote ? 'text-p-primary' : 'text-p-text')}>
-                    {isWin ? '🏆 ' : ''}{opt.text}
+                    {isWin ? '🏆 ' : null}{renderOptionText(opt.text)}
                   </span>
                   <span className="text-xs shrink-0 flex items-center gap-2">
                     {isMyVote && <Check size={12} className="text-p-primary" />}
@@ -330,7 +349,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                     {selected.includes(opt.id) && <Check size={10} className="text-white" />}
                   </span>
                 )}
-                {opt.text}
+                {renderOptionText(opt.text)}
               </span>
             </button>
           ))}

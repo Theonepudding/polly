@@ -37,8 +37,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const votes = await getVotes(id)
 
     if (wasClosing) {
-      // Await Discord update so it completes before the CF worker context closes
-      await updatePollInDiscord(updated, votes).catch(() => {})
+      // Force isClosed: true — KV read-after-write can lag, so updated.isClosed may still be false
+      await updatePollInDiscord({ ...updated, isClosed: true }, votes).catch(() => {})
       const guild = await getGuild(guildId)
       if (guild) {
         postPollResults(updated, votes, guild).catch(() => {})

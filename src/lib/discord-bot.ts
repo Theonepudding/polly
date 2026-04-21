@@ -56,6 +56,23 @@ function roleMentions(roleIds?: string[]): string {
   return roleIds.map(id => `<@&${id}>`).join(' ')
 }
 
+// ─── Option emoji helpers ─────────────────────────────────────────────────────
+
+function extractDiscordEmoji(text: string): {
+  emoji?: { id: string; name: string; animated: boolean }
+  label: string
+} {
+  const match = text.match(/<(a?):(\w+):(\d+)>/)
+  if (match) {
+    const label = text.replace(/<a?:\w+:\d+>/g, '').trim().slice(0, 80)
+    return {
+      emoji: { animated: match[1] === 'a', name: match[2], id: match[3] },
+      label: label || match[2],
+    }
+  }
+  return { label: text.slice(0, 80) }
+}
+
 // ─── Embed builders ──────────────────────────────────────────────────────────
 
 export function buildPollEmbed(poll: Poll, votes: Vote[]) {
@@ -89,12 +106,17 @@ export function buildPollEmbed(poll: Poll, votes: Vote[]) {
 export function buildPollComponents(poll: Poll) {
   const rows: object[] = []
 
-  const optionButtons = poll.options.slice(0, 25).map(opt => ({
-    type:      2,
-    style:     1,
-    label:     opt.text.slice(0, 80),
-    custom_id: `v:${poll.id}:${opt.id}`,
-  }))
+  // Cap at 12: 3 option rows of 5 + 1 website button row = 4 rows (Discord max is 5)
+  const optionButtons = poll.options.slice(0, 12).map(opt => {
+    const { emoji, label } = extractDiscordEmoji(opt.text)
+    return {
+      type:      2,
+      style:     1,
+      label,
+      ...(emoji ? { emoji } : {}),
+      custom_id: `v:${poll.id}:${opt.id}`,
+    }
+  })
   for (let i = 0; i < optionButtons.length; i += 5) {
     rows.push({ type: 1, components: optionButtons.slice(i, i + 5) })
   }
