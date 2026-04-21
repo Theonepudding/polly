@@ -4,20 +4,22 @@ import { redirect } from 'next/navigation'
 import { getTemplates } from '@/lib/poll-templates'
 import { getGuild } from '@/lib/guilds'
 import Link from 'next/link'
-import { Clock, Plus } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import CreateScheduledPollModal from '@/components/CreateScheduledPollModal'
+import TemplateActions from '@/components/TemplateActions'
 
 export const dynamic = 'force-dynamic'
 
-interface Props { params: { guildId: string } }
+interface Props { params: Promise<{ guildId: string }> }
 
 export default async function TemplatesPage({ params }: Props) {
+  const { guildId } = await params
   const session = await getServerSession(authOptions)
   if (!session) redirect('/')
 
   const [guild, templates] = await Promise.all([
-    getGuild(params.guildId),
-    getTemplates(params.guildId),
+    getGuild(guildId),
+    getTemplates(guildId),
   ])
 
   const userId   = session.user?.id ?? ''
@@ -30,13 +32,13 @@ export default async function TemplatesPage({ params }: Props) {
           <div className="flex items-center gap-2 text-p-muted text-sm mb-1">
             <Link href="/dashboard" className="hover:text-p-text transition-colors">Dashboard</Link>
             <span>/</span>
-            <Link href={`/dashboard/${params.guildId}`} className="hover:text-p-text transition-colors">{guild?.guildName}</Link>
+            <Link href={`/dashboard/${guildId}`} className="hover:text-p-text transition-colors">{guild?.guildName}</Link>
             <span>/</span>
             <span className="text-p-text">Scheduled Polls</span>
           </div>
           <h1 className="font-display font-bold text-3xl text-p-text">Scheduled Polls</h1>
         </div>
-        <CreateScheduledPollModal guildId={params.guildId} userId={userId} userName={userName} />
+        <CreateScheduledPollModal guildId={guildId} userId={userId} userName={userName} />
       </div>
 
       {templates.length === 0 ? (
@@ -63,27 +65,7 @@ export default async function TemplatesPage({ params }: Props) {
                   {t.lastRunAt && <span>Last ran: {new Date(t.lastRunAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}</span>}
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={async () => {
-                    await fetch(`/api/guilds/${params.guildId}/templates/${t.id}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ active: !t.active }),
-                    })
-                  }}
-                  className="btn-secondary text-xs py-1.5">
-                  {t.active ? 'Pause' : 'Resume'}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!confirm('Delete this template?')) return
-                    await fetch(`/api/guilds/${params.guildId}/templates/${t.id}`, { method: 'DELETE' })
-                  }}
-                  className="btn-danger text-xs py-1.5">
-                  Delete
-                </button>
-              </div>
+              <TemplateActions guildId={guildId} templateId={t.id} active={t.active} />
             </div>
           ))}
         </div>

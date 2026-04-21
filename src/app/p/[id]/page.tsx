@@ -7,10 +7,11 @@ import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const poll = await getPoll(params.id)
+  const { id } = await params
+  const poll = await getPoll(id)
   if (!poll) return { title: 'Poll not found' }
   return {
     title:       poll.title,
@@ -20,13 +21,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PublicPollPage({ params }: Props) {
+  const { id } = await params
   const [session, poll] = await Promise.all([
     getServerSession(authOptions),
-    getPoll(params.id),
+    getPoll(id),
   ])
   if (!poll) notFound()
 
-  const votes     = await getVotes(params.id)
+  const votes     = await getVotes(id)
   const myVotes   = session?.user?.id
     ? votes.filter(v => v.userId === session.user.id)
     : []

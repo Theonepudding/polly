@@ -10,16 +10,17 @@ import CreatePollModal from '@/components/CreatePollModal'
 
 export const dynamic = 'force-dynamic'
 
-interface Props { params: { guildId: string } }
+interface Props { params: Promise<{ guildId: string }> }
 
 export default async function GuildDashboardPage({ params }: Props) {
+  const { guildId } = await params
   const session = await getServerSession(authOptions)
   if (!session) redirect('/')
 
-  const guild = await getGuild(params.guildId)
+  const guild = await getGuild(guildId)
   if (!guild) notFound()
 
-  const allPolls = await getPolls(params.guildId)
+  const allPolls = await getPolls(guildId)
   const active   = allPolls.filter(p => !p.isClosed)
   const closed   = allPolls.filter(p => p.isClosed).slice(0, 5)
   const scheduled = allPolls.filter(p => !p.isClosed && p.closesAt && new Date(p.closesAt) > new Date())
@@ -40,12 +41,12 @@ export default async function GuildDashboardPage({ params }: Props) {
           <h1 className="font-display font-bold text-3xl text-p-text">{guild.guildName}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/dashboard/${params.guildId}/settings`}
+          <Link href={`/dashboard/${guildId}/settings`}
             className="btn-secondary text-sm">
             <Settings size={14} />
             Settings
           </Link>
-          <CreatePollModal guildId={params.guildId} userId={userId} userName={session.user?.name ?? ''} />
+          <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} />
         </div>
       </div>
 
@@ -71,7 +72,7 @@ export default async function GuildDashboardPage({ params }: Props) {
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-semibold text-xl text-p-text">Active Polls</h2>
-          <Link href={`/dashboard/${params.guildId}/polls`}
+          <Link href={`/dashboard/${guildId}/polls`}
             className="text-sm text-p-muted hover:text-p-text transition-colors">
             View all
           </Link>
@@ -79,12 +80,12 @@ export default async function GuildDashboardPage({ params }: Props) {
         {active.length === 0 ? (
           <div className="card p-8 text-center text-p-muted">
             <p className="mb-4">No active polls. Create one to get started!</p>
-            <CreatePollModal guildId={params.guildId} userId={userId} userName={session.user?.name ?? ''} />
+            <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} />
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
             {active.map(poll => (
-              <PollCard key={poll.id} poll={poll} guildId={params.guildId} />
+              <PollCard key={poll.id} poll={poll} guildId={guildId} />
             ))}
           </div>
         )}
@@ -96,7 +97,7 @@ export default async function GuildDashboardPage({ params }: Props) {
           <h2 className="font-display font-semibold text-xl text-p-text mb-4">Recently Closed</h2>
           <div className="flex flex-col gap-2">
             {closed.map(poll => (
-              <Link key={poll.id} href={`/dashboard/${params.guildId}/polls/${poll.id}`}
+              <Link key={poll.id} href={`/dashboard/${guildId}/polls/${poll.id}`}
                 className="card-hover p-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-p-text font-medium text-sm">{poll.title}</p>
