@@ -2,7 +2,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPolls } from '@/lib/polls'
-import { getGuild } from '@/lib/guilds'
+import { getGuild, upsertGuild } from '@/lib/guilds'
+import type { Guild } from '@/types'
 import Link from 'next/link'
 import { Plus, Settings, Clock, BarChart3, CheckCircle2, Circle } from 'lucide-react'
 import PollCard from '@/components/PollCard'
@@ -12,13 +13,42 @@ export const dynamic = 'force-dynamic'
 
 interface Props { params: Promise<{ guildId: string }> }
 
+async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string } | null> {
+  if (!process.env.DISCORD_BOT_TOKEN) return null
+  try {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
 export default async function GuildDashboardPage({ params }: Props) {
   const { guildId } = await params
   const session = await getServerSession(authOptions)
   if (!session) redirect('/')
 
-  const guild = await getGuild(guildId)
-  if (!guild) notFound()
+  let guild = await getGuild(guildId)
+
+  // First visit — auto-register guild from Discord API
+  if (!guild) {
+    const discordGuild = await fetchDiscordGuild(guildId)
+    if (!discordGuild) notFound()
+    const now = new Date().toISOString()
+    const newGuild: Guild = {
+      guildId,
+      guildName:     discordGuild.name,
+      guildIcon:     discordGuild.icon ?? undefined,
+      ownerId:       session.user.id,
+      adminRoleIds:  [],
+      voterRoleIds:  [],
+      createdAt:     now,
+      updatedAt:     now,
+    }
+    await upsertGuild(newGuild)
+    guild = newGuild
+  }
 
   const allPolls = await getPolls(guildId)
   const active   = allPolls.filter(p => !p.isClosed)
