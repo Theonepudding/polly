@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import GuildCard from '@/components/GuildCard'
 import type { GuildWithMeta } from '@/types'
 import { ExternalLink, Plus } from 'lucide-react'
+import Image from 'next/image'
 
 const BOT_INVITE_URL = process.env.DISCORD_CLIENT_ID
   ? `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
@@ -36,11 +37,50 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/api/auth/signin?callbackUrl=/dashboard')
+
+  if (!session) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-24 text-center">
+        <Image
+          src="/avatar.png"
+          alt="Polly"
+          width={72}
+          height={72}
+          className="mx-auto mb-6 rounded-2xl"
+        />
+        <h1 className="font-display font-bold text-3xl text-p-text mb-3">Polly Dashboard</h1>
+        <p className="text-p-muted mb-8">
+          Sign in with Discord to manage polls across your servers.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <a
+            href="/api/auth/signin?callbackUrl=/dashboard"
+            className="btn-primary justify-center">
+            Sign in with Discord
+          </a>
+          <a
+            href={BOT_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary justify-center">
+            <ExternalLink size={15} />
+            Add Polly to a server
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   const accessToken = (session.user as { discordAccessToken?: string }).discordAccessToken
   if (!accessToken) {
-    redirect('/api/auth/signin?callbackUrl=/dashboard')
+    return (
+      <div className="max-w-lg mx-auto px-4 py-24 text-center">
+        <p className="text-p-muted mb-6">Your session has expired.</p>
+        <a href="/api/auth/signin?callbackUrl=/dashboard" className="btn-primary justify-center inline-flex">
+          Sign in again
+        </a>
+      </div>
+    )
   }
 
   const [userGuilds, botGuildIds] = await Promise.all([
@@ -48,26 +88,23 @@ export default async function DashboardPage() {
     getBotGuilds(),
   ])
 
-  // Guilds the user is in AND Polly is also in
   const sharedGuilds = userGuilds.filter(g => botGuildIds.includes(g.id))
 
-  // Build guild meta (member counts can be fetched lazily)
   const guildsWithMeta: GuildWithMeta[] = sharedGuilds.map(g => ({
-    guildId:       g.id,
-    guildName:     g.name,
-    guildIcon:     g.icon ?? undefined,
-    ownerId:       '',
-    adminRoleIds:  [],
-    voterRoleIds:  [],
-    userIsAdmin:   g.owner || !!(parseInt(g.permissions) & 0x20), // MANAGE_GUILD
-    createdAt:     '',
-    updatedAt:     '',
+    guildId:        g.id,
+    guildName:      g.name,
+    guildIcon:      g.icon ?? undefined,
+    ownerId:        '',
+    adminRoleIds:   [],
+    creatorRoleIds: [],
+    voterRoleIds:   [],
+    userIsAdmin:    g.owner || !!(parseInt(g.permissions) & 0x20),
+    createdAt:      '',
+    updatedAt:      '',
   }))
 
-  // Auto-redirect when the user only has access to one server
   if (guildsWithMeta.length === 1) redirect(`/dashboard/${guildsWithMeta[0].guildId}`)
 
-  // Guilds user is in but bot is not yet — show invite prompt
   const invitableGuilds = userGuilds.filter(g =>
     !botGuildIds.includes(g.id) && (g.owner || !!(parseInt(g.permissions) & 0x20))
   ).slice(0, 6)
@@ -106,6 +143,7 @@ export default async function DashboardPage() {
               <div key={g.id} className="card p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   {g.icon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=32`}
                       alt="" className="w-8 h-8 rounded-lg" />
                   ) : (

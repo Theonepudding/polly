@@ -105,6 +105,9 @@
   .badge-danger {
     @apply badge bg-p-danger/15 text-p-danger border-p-danger/30;
   }
+  .badge-accent {
+    @apply badge bg-p-accent/15 text-p-accent border-p-accent/30;
+  }
   .badge-muted {
     @apply badge bg-p-surface-2 text-p-muted border-p-border;
   }

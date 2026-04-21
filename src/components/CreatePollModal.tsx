@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell } from 'lucide-react'
+import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { Poll, PollTemplate } from '@/types'
 
@@ -22,33 +22,17 @@ function utcToLocal(hhMM: string): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
-function Toggle({ on, onToggle, label, desc }: { on: boolean; onToggle: () => void; label: string; desc: string }) {
-  return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-p-border bg-p-surface cursor-pointer hover:border-p-border-2 transition-all"
-      onClick={onToggle}>
-      <div>
-        <p className="text-sm font-semibold text-p-text">{label}</p>
-        <p className="text-xs text-p-muted mt-0.5">{desc}</p>
-      </div>
-      <div className={`w-10 h-6 rounded-full border transition-all ml-4 shrink-0 ${
-        on ? 'bg-p-primary-d border-p-primary/80' : 'bg-p-surface-2 border-p-border'
-      }`}>
-        <div className={`w-4 h-4 rounded-full bg-white mt-0.5 ml-0.5 transition-transform ${on ? 'translate-x-4' : 'translate-x-0'}`} />
-      </div>
-    </div>
-  )
-}
-
 interface Channel { id: string; name: string }
 interface Role    { id: string; name: string }
 
 interface Props {
-  guildId:  string
-  userId:   string
-  userName: string
+  guildId:    string
+  userId:     string
+  userName:   string
+  canManage?: boolean
 }
 
-export default function CreatePollModal({ guildId, userId, userName }: Props) {
+export default function CreatePollModal({ guildId, userId, userName, canManage = false }: Props) {
   const router = useRouter()
   const [open,            setOpen]            = useState(false)
   const [title,           setTitle]           = useState('')
@@ -63,13 +47,12 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
   const [closeAtTime,     setCloseAtTime]     = useState(nowTimeString)
   const [isAnonymous,     setIsAnonymous]     = useState(false)
   const [allowMultiple,   setAllowMultiple]   = useState(false)
-  const [isYesNo,         setIsYesNo]         = useState(false)
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState('')
   const [createdPoll,     setCreatedPoll]     = useState<Poll | null>(null)
   const [posted,          setPosted]          = useState(false)
   const [hasChannel,      setHasChannel]      = useState(false)
-  // extra features
+  const [postedChannelId, setPostedChannelId] = useState<string | null>(null)
   const [channels,        setChannels]        = useState<Channel[]>([])
   const [roles,           setRoles]           = useState<Role[]>([])
   const [templates,       setTemplates]       = useState<PollTemplate[]>([])
@@ -94,9 +77,9 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
     setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDurUnit('days'); setDurationHours(6)
     setDaysOpen(7); setCloseAtTime(nowTimeString()); setIsAnonymous(false)
-    setAllowMultiple(false); setIsYesNo(false); setError(''); setCreatedPoll(null)
-    setPosted(false); setHasChannel(false); setOverrideChannel(''); setPingRoleIds([])
-    setShowAdvanced(false)
+    setAllowMultiple(false); setError(''); setCreatedPoll(null)
+    setPosted(false); setHasChannel(false); setPostedChannelId(null)
+    setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
   }
 
   function loadTemplate(t: PollTemplate) {
@@ -109,16 +92,9 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     if (t.includeTimeSlots) setTimes(t.timeSlots)
     setDurUnit('days')
     setDaysOpen(t.daysOpen)
-    setIsYesNo(false)
   }
 
-  function applyYesNo(on: boolean) {
-    setIsYesNo(on)
-    if (on) setOptions(['Yes', 'No'])
-    else    setOptions(['', ''])
-  }
-
-  function addOption()  { if (options.length < 10) setOptions(o => [...o, '']) }
+  function addOption()  { if (options.length < 6) setOptions(o => [...o, '']) }
   function removeOption(i: number) { if (options.length > 2) setOptions(o => o.filter((_, idx) => idx !== i)) }
   function setOption(i: number, val: string) { setOptions(o => o.map((v, idx) => idx === i ? val : v)) }
 
@@ -166,7 +142,7 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
           closesAt: closesAt.toISOString(),
           createdBy: userId,
           createdByName: userName,
-          pingRoleIds:      pingRoleIds.length ? pingRoleIds : undefined,
+          pingRoleIds:       pingRoleIds.length ? pingRoleIds : undefined,
           overrideChannelId: overrideChannel || undefined,
         }),
       })
@@ -175,6 +151,7 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
       setCreatedPoll(data.poll)
       setPosted(data.posted ?? false)
       setHasChannel(data.hasChannel ?? false)
+      setPostedChannelId(data.postedChannelId ?? null)
       router.refresh()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
@@ -190,7 +167,6 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
     )
   }
 
-  // Success screen
   if (createdPoll) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -209,7 +185,11 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
           {posted && (
             <div className="flex items-center gap-2 text-p-success text-sm mb-5">
               <CheckCircle2 size={16} />
-              Posted to your Discord announcement channel.
+              Posted to{' '}
+              {postedChannelId && channels.find(c => c.id === postedChannelId)
+                ? <><strong>#{channels.find(c => c.id === postedChannelId)!.name}</strong>.</>
+                : 'your Discord announcement channel.'
+              }
             </div>
           )}
 
@@ -262,59 +242,67 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
             </div>
           )}
 
+          {/* Title */}
           <div>
             <label className="label">Question *</label>
             <input className="input" value={title} onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Raid night: Friday or Saturday?" maxLength={120} />
           </div>
 
+          {/* Options */}
           <div>
-            <label className="label">Description <span className="normal-case text-p-muted/50">(optional)</span></label>
-            <textarea className="textarea" rows={2} value={description} onChange={e => setDescription(e.target.value)}
-              placeholder="Any extra context for voters…" maxLength={400} />
-          </div>
-
-          {/* Quick yes/no toggle */}
-          <Toggle
-            on={isYesNo}
-            onToggle={() => applyYesNo(!isYesNo)}
-            label="Quick Yes / No"
-            desc='Auto-fills options as "✅ Yes" and "❌ No"'
-          />
-
-          {!isYesNo && (
-            <div>
-              <label className="label">Options *</label>
-              <div className="space-y-2">
-                {options.map((opt, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input className="input flex-1" value={opt} onChange={e => setOption(i, e.target.value)}
-                      placeholder={`Option ${i + 1}`} maxLength={80} />
-                    {options.length > 2 && (
-                      <button type="button" onClick={() => removeOption(i)} className="p-2 text-p-muted hover:text-p-danger transition-colors">
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {options.length < 10 && (
-                  <button type="button" onClick={addOption} className="btn-ghost text-xs w-full justify-center">
-                    <Plus size={13} /> Add option
-                  </button>
-                )}
-              </div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="label mb-0">Options *</label>
+              <span className="text-xs text-p-subtle">{options.filter(o => o.trim()).length} / 6</span>
             </div>
-          )}
-
-          {/* Toggles */}
-          <div className="space-y-2">
-            <Toggle on={isAnonymous}   onToggle={() => setIsAnonymous(v => !v)}   label="Anonymous voting"  desc="Voter names are hidden from everyone" />
-            <Toggle on={allowMultiple} onToggle={() => setAllowMultiple(v => !v)} label="Multi-choice"      desc="Allow voting for more than one option" />
-            <Toggle on={useTimes}      onToggle={() => setUseTimes(v => !v)}      label="Time slot voting"  desc="Voters can pick a preferred time after choosing" />
+            <div className="space-y-2">
+              {options.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2 group">
+                  <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
+                    {i + 1}
+                  </span>
+                  <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
+                    placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
+                    maxLength={80} />
+                  {options.length > 2 && (
+                    <button type="button" onClick={() => removeOption(i)}
+                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {options.length < 6 && (
+                <button type="button" onClick={addOption}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-p-border text-p-muted text-xs hover:border-p-primary/40 hover:text-p-primary hover:bg-p-primary-b transition-all">
+                  <Plus size={13} /> Add option {options.length + 1}
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* Compact voting options */}
+          <div>
+            <label className="label mb-2">Voting options</label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setIsAnonymous(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isAnonymous ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Anonymous
+              </button>
+              <button type="button" onClick={() => setAllowMultiple(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${allowMultiple ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Multi-choice
+              </button>
+              <button type="button" onClick={() => setUseTimes(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                Time slots
+              </button>
+            </div>
+          </div>
+
+          {/* Time slot picker */}
           {useTimes && (
-            <div>
+            <div className="pl-1">
               <label className="label">Time presets <span className="normal-case font-normal text-p-muted/50">(your local time)</span></label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {[...DEFAULT_TIMES_UTC, ...times.filter(t => !DEFAULT_TIMES_UTC.includes(t))].map(t => (
@@ -336,10 +324,9 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
             </div>
           )}
 
+          {/* Duration */}
           <div>
             <label className="label">Poll duration</label>
-
-            {/* Hours / Days toggle */}
             <div className="flex gap-1 p-1 bg-p-surface-2 rounded-lg mb-3">
               {(['hours', 'days'] as const).map(unit => (
                 <button key={unit} type="button" onClick={() => setDurUnit(unit)}
@@ -386,19 +373,24 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
             )}
           </div>
 
-          {/* Advanced options */}
-          <div>
-            <button type="button" onClick={() => setShowAdvanced(v => !v)}
-              className="text-p-muted text-xs hover:text-p-text transition-colors flex items-center gap-1.5">
-              <Plus size={12} className={showAdvanced ? 'rotate-45 transition-transform' : 'transition-transform'} />
-              {showAdvanced ? 'Hide' : 'Show'} advanced options
-            </button>
-          </div>
+          {/* Advanced options toggle */}
+          <button type="button" onClick={() => setShowAdvanced(v => !v)}
+            className="text-p-muted text-xs hover:text-p-text transition-colors flex items-center gap-1.5 w-full py-1">
+            <ChevronDown size={13} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            {showAdvanced ? 'Hide' : 'More'} options
+          </button>
 
           {showAdvanced && (
             <div className="space-y-4 border-t border-p-border pt-4">
 
-              {/* Ping roles */}
+              {/* Description */}
+              <div>
+                <label className="label">Description <span className="normal-case text-p-muted/50">(optional)</span></label>
+                <textarea className="textarea" rows={2} value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="Any extra context for voters…" maxLength={400} />
+              </div>
+
+              {/* Notify roles */}
               {roles.length > 0 && (
                 <div>
                   <label className="label flex items-center gap-1.5">
@@ -422,8 +414,8 @@ export default function CreatePollModal({ guildId, userId, userName }: Props) {
                 </div>
               )}
 
-              {/* Override channel */}
-              {channels.length > 0 && (
+              {/* Override channel — admins only */}
+              {canManage && channels.length > 0 && (
                 <div>
                   <label className="label flex items-center gap-1.5">
                     <Hash size={12} className="text-p-muted" />

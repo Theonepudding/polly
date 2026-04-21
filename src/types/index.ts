@@ -5,7 +5,8 @@ export interface Guild {
   guildName: string
   guildIcon?: string       // Discord icon hash
   ownerId: string          // Discord user ID who set up the bot for this server
-  adminRoleIds: string[]   // roles that can create/manage polls
+  adminRoleIds: string[]   // roles that can manage/delete any poll
+  creatorRoleIds: string[] // roles that can create polls (empty = same as adminRoleIds logic)
   voterRoleIds: string[]   // roles that can vote (empty = everyone)
   announceChannelId?: string
   pollyChannelId?: string

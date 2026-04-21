@@ -74,5 +74,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     refreshDashboard(guildId).catch(() => {})
   }
 
-  return NextResponse.json({ poll, posted, hasChannel }, { status: 201 })
+  const postedChannelId = posted ? (poll.overrideChannelId ?? guild?.announceChannelId ?? null) : null
+  return NextResponse.json({ poll, posted, hasChannel, postedChannelId }, { status: 201 })
 }

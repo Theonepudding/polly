@@ -29,7 +29,9 @@ export default async function PollDetailPage({ params }: Props) {
   if (!poll || poll.guildId !== guildId) notFound()
   if (!guild) notFound()
 
-  const canManage = userCanManage(guild, session.user.id, []) || !!session.user.isBotAdmin
+  const canManage   = userCanManage(guild, session.user.id, []) || !!session.user.isBotAdmin
+  const isCreator   = session.user.id === poll.createdBy
+  const canDelete   = canManage || isCreator
   const votes   = await getVotes(id)
   const myVotes = votes.filter(v => v.userId === session.user.id)
 
@@ -72,8 +74,8 @@ export default async function PollDetailPage({ params }: Props) {
         userName={session.user.name ?? 'Anonymous'}
       />
 
-      {canManage && (
-        <PollManageBar guildId={guildId} pollId={id} isClosed={poll.isClosed} />
+      {canDelete && (
+        <PollManageBar guildId={guildId} pollId={id} isClosed={poll.isClosed} canManage={canManage} />
       )}
     </div>
   )

@@ -36,10 +36,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (updated) {
     const votes = await getVotes(id)
 
-    // Update the existing Discord embed
-    updatePollInDiscord(updated, votes).catch(() => {})
-
     if (wasClosing) {
+      // Await Discord update so it completes before the CF worker context closes
+      await updatePollInDiscord(updated, votes).catch(() => {})
       const guild = await getGuild(guildId)
       if (guild) {
         postPollResults(updated, votes, guild).catch(() => {})
@@ -56,6 +55,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ).catch(() => {})
         refreshDashboard(guildId).catch(() => {})
       }
+    } else {
+      updatePollInDiscord(updated, votes).catch(() => {})
     }
   }
 
@@ -67,12 +68,18 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { guildId, id } = await params
-  const poll = await getPoll(id)
+  const [poll, guild] = await Promise.all([getPoll(id), getGuild(guildId)])
   if (!poll || poll.guildId !== guildId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const isCreator = session.user.id === poll.createdBy
+  const isOwner   = guild?.ownerId === session.user.id
+  const noAdminRestriction = (guild?.adminRoleIds?.length ?? 0) === 0
+  if (!isCreator && !isOwner && !noAdminRestriction && !session.user.isBotAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   await deletePollFromDiscord(poll).catch(() => {})
 
-  const guild = await getGuild(guildId)
   if (guild) {
     postAuditLog(
       guild,

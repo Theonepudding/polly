@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPollsAndVotes } from '@/lib/polls'
 import { getTemplates } from '@/lib/poll-templates'
-import { getGuild, upsertGuild } from '@/lib/guilds'
+import { getGuild, upsertGuild, userCanManage } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
@@ -31,6 +31,18 @@ async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?
   } catch { return null }
 }
 
+async function fetchGuildRoles(guildId: string): Promise<{ id: string; name: string; permissions: string }[]> {
+  if (!process.env.DISCORD_BOT_TOKEN) return []
+  try {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      cache: 'no-store',
+    })
+    if (!res.ok) return []
+    return res.json()
+  } catch { return [] }
+}
+
 export default async function GuildDashboardPage({ params }: Props) {
   const { guildId } = await params
   const session = await getServerSession(authOptions)
@@ -40,25 +52,34 @@ export default async function GuildDashboardPage({ params }: Props) {
 
   // First visit — auto-register guild from Discord API
   if (!guild) {
-    const discordGuild = await fetchDiscordGuild(guildId)
+    const [discordGuild, guildRoles] = await Promise.all([
+      fetchDiscordGuild(guildId),
+      fetchGuildRoles(guildId),
+    ])
     if (!discordGuild) notFound()
+
+    // Pre-populate admin roles with Discord roles that have ADMINISTRATOR permission
+    const adminRoleIds = guildRoles
+      .filter(r => r.name !== '@everyone' && (BigInt(r.permissions || '0') & 8n) !== 0n)
+      .map(r => r.id)
+
     const now = new Date().toISOString()
     const newGuild: Guild = {
       guildId,
-      guildName:     discordGuild.name,
-      guildIcon:     discordGuild.icon ?? undefined,
-      ownerId:       session.user.id,
-      adminRoleIds:  [],
-      voterRoleIds:  [],
-      createdAt:     now,
-      updatedAt:     now,
+      guildName:      discordGuild.name,
+      guildIcon:      discordGuild.icon ?? undefined,
+      ownerId:        session.user.id,
+      adminRoleIds,
+      creatorRoleIds: [],
+      voterRoleIds:   [],
+      createdAt:      now,
+      updatedAt:      now,
     }
     await upsertGuild(newGuild)
     guild = newGuild
     sendWelcomeMessage(guildId, discordGuild.system_channel_id ?? null, session.user.id, discordGuild.name)
   }
 
-  // Single KV read for both polls and votes
   const [{ polls: allPolls, votesByPoll }, templates] = await Promise.all([
     getPollsAndVotes(guildId),
     getTemplates(guildId),
@@ -69,7 +90,8 @@ export default async function GuildDashboardPage({ params }: Props) {
   const closedPreview = allClosed.slice(0, 8)
   const activeTemplates = templates.filter(t => t.active)
 
-  const userId = session.user?.id ?? ''
+  const userId   = session.user?.id ?? ''
+  const canManage = userCanManage(guild, userId, []) || !!session.user.isBotAdmin
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -89,11 +111,15 @@ export default async function GuildDashboardPage({ params }: Props) {
             <ExternalLink size={14} />
             Add to another server
           </a>
+          <Link href={`/dashboard/${guildId}/templates`} className="btn-ghost text-sm">
+            <Clock size={14} />
+            Scheduled Polls
+          </Link>
           <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
             <Settings size={14} />
             Settings
           </Link>
-          <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} />
+          <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />
         </div>
       </div>
 
@@ -102,14 +128,14 @@ export default async function GuildDashboardPage({ params }: Props) {
         <div className="mb-8 flex items-start gap-3 p-4 rounded-xl border border-p-warning/30 bg-p-warning/5">
           <AlertTriangle size={16} className="text-p-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-p-text text-sm font-semibold">Polly needs a quick setup</p>
+            <p className="text-p-text text-sm font-semibold">One step left — pick an announcement channel</p>
             <p className="text-p-muted text-sm mt-0.5">
-              Set an announcement channel so polls are posted to Discord automatically, and optionally configure which roles can create polls or vote.
+              Set the channel where polls get posted in Discord. Once that&apos;s done, Polly is ready to go. All other settings are optional.
             </p>
           </div>
           <Link href={`/dashboard/${guildId}/settings`} className="btn-primary text-xs shrink-0">
             <Settings size={12} />
-            Set up now
+            Go to Settings
           </Link>
         </div>
       )}
@@ -117,18 +143,28 @@ export default async function GuildDashboardPage({ params }: Props) {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
         {[
-          { label: 'Active Polls',  value: active.length,          icon: Circle,       color: 'text-p-success' },
-          { label: 'Total Polls',   value: allPolls.length,         icon: BarChart3,    color: 'text-p-primary' },
-          { label: 'Closed Polls',  value: allClosed.length,        icon: CheckCircle2, color: 'text-p-muted'   },
-          { label: 'Templates',     value: activeTemplates.length,  icon: Clock,        color: 'text-p-warning' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card p-4">
-            <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
-              <Icon size={13} className={color} />
-              {label}
+          { label: 'Active Polls',  value: active.length,          icon: Circle,       color: 'text-p-success', href: null },
+          { label: 'Total Polls',   value: allPolls.length,         icon: BarChart3,    color: 'text-p-primary', href: null },
+          { label: 'Closed Polls',  value: allClosed.length,        icon: CheckCircle2, color: 'text-p-muted',   href: null },
+          { label: 'Scheduled',     value: activeTemplates.length,  icon: Clock,        color: 'text-p-warning', href: `/dashboard/${guildId}/templates` },
+        ].map(({ label, value, icon: Icon, color, href }) => (
+          href ? (
+            <Link key={label} href={href} className="card p-4 hover:border-p-border-2 transition-colors">
+              <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
+                <Icon size={13} className={color} />
+                {label}
+              </div>
+              <div className="font-display font-bold text-2xl text-p-text">{value}</div>
+            </Link>
+          ) : (
+            <div key={label} className="card p-4">
+              <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
+                <Icon size={13} className={color} />
+                {label}
+              </div>
+              <div className="font-display font-bold text-2xl text-p-text">{value}</div>
             </div>
-            <div className="font-display font-bold text-2xl text-p-text">{value}</div>
-          </div>
+          )
         ))}
       </div>
 
@@ -141,7 +177,7 @@ export default async function GuildDashboardPage({ params }: Props) {
         {active.length === 0 ? (
           <div className="card p-8 text-center text-p-muted">
             <p className="mb-4">No active polls. Create one to get started!</p>
-            <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} />
+            <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">

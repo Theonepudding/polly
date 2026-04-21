@@ -23,7 +23,8 @@ interface Props {
 }
 
 export default function PollCard({ poll, votes = [], guildId }: Props) {
-  const total      = votes.length
+  const uniqueVoters = new Set(votes.map(v => v.userId)).size
+  const total      = poll.allowMultiple ? uniqueVoters : votes.length
   const closed     = poll.isClosed
   const pollHref   = guildId ? `/dashboard/${guildId}/polls/${poll.id}` : `/p/${poll.id}`
   const voteCounts = poll.options.map(opt => votes.filter(v => v.optionId === opt.id).length)
@@ -55,38 +56,33 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
         <ChevronRight size={16} className="text-p-subtle group-hover:text-p-muted shrink-0 mt-1 transition-colors" />
       </div>
 
-      {/* Mini results bars / empty state */}
-      {total === 0 && !closed && (
-        <p className="text-xs text-p-subtle mb-3">No votes yet — be the first!</p>
-      )}
-      {total > 0 && (
-        <div className="space-y-2 mb-3">
-          {poll.options.slice(0, 4).map((opt, i) => {
-            const count = voteCounts[i]
-            const pct   = total > 0 ? Math.round((count / total) * 100) : 0
-            const isWin = closed && !isTied && i === leadingIdx && count > 0
-            return (
-              <div key={opt.id}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className={`truncate ${isWin ? 'text-p-accent font-semibold' : 'text-p-muted'}`}>
-                    {isWin ? '🏆 ' : ''}{opt.text}
-                  </span>
-                  <span className="text-p-muted shrink-0 ml-2">{pct}%</span>
-                </div>
-                <div className="progress-bar h-1.5">
-                  <div
-                    className={isWin ? 'progress-fill-winner' : 'progress-fill'}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+      {/* Options with live progress — always visible */}
+      <div className="space-y-2 mb-3">
+        {poll.options.slice(0, 4).map((opt, i) => {
+          const count = voteCounts[i]
+          const pct   = total > 0 ? Math.round((count / total) * 100) : 0
+          const isWin = closed && !isTied && i === leadingIdx && count > 0
+          return (
+            <div key={opt.id}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className={`truncate ${isWin ? 'text-p-accent font-semibold' : 'text-p-muted'}`}>
+                  {isWin ? '🏆 ' : ''}{opt.text}
+                </span>
+                <span className={`shrink-0 ml-2 font-medium ${count > 0 ? 'text-p-text' : 'text-p-subtle'}`}>{pct}%</span>
               </div>
-            )
-          })}
-          {poll.options.length > 4 && (
-            <p className="text-xs text-p-subtle">+{poll.options.length - 4} more options</p>
-          )}
-        </div>
-      )}
+              <div className="progress-bar h-1.5">
+                <div
+                  className={isWin ? 'progress-fill-winner' : 'progress-fill'}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+        {poll.options.length > 4 && (
+          <p className="text-xs text-p-subtle">+{poll.options.length - 4} more options</p>
+        )}
+      </div>
 
       <div className="flex items-center gap-4 text-xs text-p-muted">
         <span className="flex items-center gap-1"><Users size={11} />{total} vote{total !== 1 ? 's' : ''}</span>

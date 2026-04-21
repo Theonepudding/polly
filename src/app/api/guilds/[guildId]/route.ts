@@ -28,14 +28,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!guild) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
+  function ch(val: string | undefined | null, fallback: string | undefined): string | undefined {
+    return val !== undefined ? (val || undefined) : fallback
+  }
   const updated = {
     ...guild,
-    announceChannelId:  body.announceChannelId  ?? guild.announceChannelId,
-    pollyChannelId:     body.pollyChannelId     ?? guild.pollyChannelId,
-    dashboardChannelId: body.dashboardChannelId ?? guild.dashboardChannelId,
-    auditLogChannelId:  body.auditLogChannelId  !== undefined ? (body.auditLogChannelId || undefined) : guild.auditLogChannelId,
-    adminRoleIds:       body.adminRoleIds        ?? guild.adminRoleIds,
-    voterRoleIds:       body.voterRoleIds        ?? guild.voterRoleIds,
+    announceChannelId:  ch(body.announceChannelId,  guild.announceChannelId),
+    pollyChannelId:     ch(body.pollyChannelId,     guild.pollyChannelId),
+    dashboardChannelId: ch(body.dashboardChannelId, guild.dashboardChannelId),
+    auditLogChannelId:  ch(body.auditLogChannelId,  guild.auditLogChannelId),
+    adminRoleIds:       body.adminRoleIds   ?? guild.adminRoleIds,
+    creatorRoleIds:     body.creatorRoleIds ?? guild.creatorRoleIds ?? [],
+    voterRoleIds:       body.voterRoleIds   ?? guild.voterRoleIds,
   }
   await upsertGuild(updated)
   return NextResponse.json(updated)

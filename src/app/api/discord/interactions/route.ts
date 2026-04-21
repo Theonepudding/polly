@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { readData, writeData, createPoll, updatePoll } from '@/lib/polls'
-import { getGuild, upsertGuild } from '@/lib/guilds'
+import { getGuild, upsertGuild, userCanCreate } from '@/lib/guilds'
 import { getKV } from '@/lib/kv'
 import {
   buildTimeSlotComponents,
@@ -114,7 +114,7 @@ function buildTypeSelectMessage(gId: string): object {
   return {
     flags: 64,
     embeds: [{
-      title:       '📊 Create a Poll',
+      title:       'Create a Poll',
       description: 'What kind of poll do you want to make? Pick a type below.',
       color:       0x6366F1,
       fields: [
@@ -137,7 +137,7 @@ function buildTypeSelectMessage(gId: string): object {
 function buildModal(type: 's' | 'yn' | 'ts', customId: string, draft?: PollDraft): object {
   const t  = { type: 1, components: [{ type: 4, custom_id: 't', label: 'Question', style: 1, required: true,  max_length: 120, placeholder: 'e.g. Which day for the raid?',          ...(draft ? { value: draft.title }                        : {}) }] }
   const d  = { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description  (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] }
-  const o  = { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options  (one per line, min 2)', style: 2, required: true, max_length: 800, placeholder: 'Friday\nSaturday\nSunday', ...(draft?.options.length ? { value: draft.options.join('\n') } : {}) }] }
+  const o  = { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options  (one per line, 2–6 options)', style: 2, required: true, max_length: 600, placeholder: 'Option 1\nOption 2\nOption 3', ...(draft?.options.length ? { value: draft.options.join('\n') } : {}) }] }
   const ts = { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots  (HH:MM, comma-separated)', style: 1, required: false, max_length: 120, placeholder: '18:00, 19:00, 20:00, 21:00', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] }
 
   if (type === 'yn')  return { custom_id: customId, title: 'Quick Yes / No Poll',  components: [t, d] }
@@ -158,7 +158,7 @@ function buildSettingsMessage(draft: PollDraft, id: string): object {
   return {
     flags: 64,
     embeds: [{
-      title: '📊 Review & Settings',
+      title: 'Review & Settings',
       color: 0x6366F1,
       fields: [
         { name: '❓ Question', value: draft.title, inline: false },
@@ -300,6 +300,13 @@ export async function POST(req: NextRequest) {
       log('slash command', { cmd, guildId })
 
       if (cmd === 'poll') {
+        if (guildId) {
+          const guild = await getGuild(guildId)
+          const userRoles = (member?.roles as string[]) ?? []
+          if (guild && !userCanCreate(guild, userId, userRoles)) {
+            return Response.json({ type: 4, data: { content: 'You don\'t have permission to create polls on this server.', flags: 64 } })
+          }
+        }
         return Response.json({ type: 4, data: buildTypeSelectMessage(guildId ?? '') })
       }
 
@@ -341,7 +348,7 @@ export async function POST(req: NextRequest) {
         if (pType === 'yn') {
           options = ['Yes', 'No']
         } else {
-          options = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10)
+          options = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 6)
           if (options.length < 2) return Response.json({ type: 4, data: { content: '❌ At least 2 options required.', flags: 64 } })
         }
 
@@ -387,7 +394,7 @@ export async function POST(req: NextRequest) {
         draft.title       = title
         draft.description = get('d').trim()
         if (pType !== 'yn') {
-          const opts = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10)
+          const opts = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 6)
           if (opts.length >= 2) draft.options = opts
         }
         if (pType === 'ts') {

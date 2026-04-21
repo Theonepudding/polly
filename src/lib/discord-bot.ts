@@ -162,7 +162,7 @@ export function buildClosedPollComponents(poll: Poll): object[] {
     components: [{
       type:  2,
       style: 5,
-      label: '📊 View full results',
+      label: 'View full results',
       url:   pollPageUrl(poll.id),
     }],
   }]
@@ -184,7 +184,7 @@ export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
   }
 
   return {
-    title:       `📊 ${guild.guildName} — Polls`,
+    title:       `${guild.guildName} — Polls`,
     description: lines.join('\n') || '*No polls yet.*',
     color:       0x6366F1,
     image:       { url: dashboardImageUrl(guild.guildId) },
@@ -327,7 +327,7 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
   }).join('\n\n')
 
   const embed = {
-    title:       `📊 Results: ${poll.title}`,
+    title:       `Results: ${poll.title}`,
     url:         pollPageUrl(poll.id),
     description: results || '*No votes were cast.*',
     color:       COLOR_RESULT,
@@ -407,28 +407,33 @@ export async function postPollyGuide(channelId: string, guildId: string): Promis
   const dashboard = `${siteUrl}/dashboard/${guildId}`
 
   const embed = {
-    title:       '📋 How Polly works',
-    description: 'Polly lets admins create polls that appear right here in Discord. Members vote with the buttons on each poll message.',
+    title:       'How Polly Works',
+    description: 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.',
     color:       COLOR_ACTIVE,
     fields: [
       {
-        name:   '🗳️ Voting',
-        value:  'Click the option buttons on a poll message to cast your vote. You can vote or change your vote any time before the poll closes. You can also vote on the website using the **Vote on the website** button.',
+        name:   'Voting',
+        value:  'Click an option button on any poll to cast your vote. You can change your choice any time before the poll closes — just click a different option and your vote updates. Anonymous polls hide who voted for what; you\'ll still see the totals.',
         inline: false,
       },
       {
-        name:   '➕ Creating polls',
-        value:  `Admins can create polls via the [web dashboard](${dashboard}) or with the \`/poll\` command. New polls are automatically posted to this channel.`,
+        name:   'Multi-choice polls',
+        value:  'Some polls allow picking more than one option. When you vote on one of these, the bot will confirm all your selections. You can update them later the same way.',
         inline: false,
       },
       {
-        name:   '⚙️ Setup',
-        value:  `Use \`/setup\` to pick channels, or open [Dashboard Settings](${dashboard}/settings) for full configuration.`,
+        name:   'Time preference polls',
+        value:  'Some polls include a time preference step. After picking your option, a follow-up message asks which time slot works best for you. Select one or choose "No preference" to skip it.',
         inline: false,
       },
       {
-        name:   '📊 Results',
-        value:  'Results update live on both Discord and the website as votes come in. When a poll closes, results are announced automatically.',
+        name:   'Creating a poll',
+        value:  `Use the \`/poll\` command or open the [web dashboard](${dashboard}) to create a poll. New polls are posted here with voting buttons automatically. You need the appropriate role to create polls — ask an admin if needed.`,
+        inline: false,
+      },
+      {
+        name:   'Results',
+        value:  `Results update in real time on both the Discord embed and the website. When a poll closes, the final tally is announced and the embed updates to show the winner. Full results are always available on the [website](${siteUrl}).`,
         inline: false,
       },
     ],

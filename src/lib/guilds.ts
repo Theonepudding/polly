@@ -59,6 +59,14 @@ export function userCanManage(guild: Guild, userId: string, userRoleIds: string[
   return guild.adminRoleIds.some(r => userRoleIds.includes(r))
 }
 
+export function userCanCreate(guild: Guild, userId: string, userRoleIds: string[]): boolean {
+  if (userCanManage(guild, userId, userRoleIds)) return true
+  if (guild.creatorRoleIds?.length > 0) {
+    return guild.creatorRoleIds.some(r => userRoleIds.includes(r))
+  }
+  return false
+}
+
 export function userCanVote(guild: Guild, userRoleIds: string[]): boolean {
   if (guild.voterRoleIds.length === 0) return true
   return guild.voterRoleIds.some(r => userRoleIds.includes(r))
