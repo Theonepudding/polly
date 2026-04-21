@@ -11,6 +11,7 @@ import {
   buildPollEmbed,
   buildPollComponents,
   postPollToDiscord,
+  postPollResults,
   postAuditLog,
   refreshDashboard,
 } from '@/lib/discord-bot'
@@ -716,12 +717,30 @@ export async function POST(req: NextRequest) {
         const [, pollId] = customId.split(':')
         bg((async () => {
           try {
-            const data = await readData()
-            const idx  = data.polls.findIndex(p => p.id === pollId)
+            const data  = await readData()
+            const idx   = data.polls.findIndex(p => p.id === pollId)
             if (idx === -1) return
             data.polls[idx] = { ...data.polls[idx], isClosed: true }
             await writeData(data)
-            await updatePollInDiscord(data.polls[idx], data.votes.filter(v => v.pollId === pollId))
+            const closedPoll  = data.polls[idx]
+            const closedVotes = data.votes.filter(v => v.pollId === pollId)
+            await updatePollInDiscord(closedPoll, closedVotes)
+            const guild = await getGuild(closedPoll.guildId)
+            if (guild) {
+              postPollResults(closedPoll, closedVotes, guild).catch(() => {})
+              const winner = closedVotes.length > 0
+                ? closedPoll.options.reduce((b, o) =>
+                    closedVotes.filter(v => v.optionId === o.id).length > closedVotes.filter(v => v.optionId === b.id).length ? o : b,
+                    closedPoll.options[0])
+                : null
+              postAuditLog(
+                guild,
+                'Poll closed',
+                `**[${closedPoll.title}](${process.env.NEXTAUTH_URL}/p/${closedPoll.id})**\n${closedVotes.length} vote${closedVotes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
+                username,
+              ).catch(() => {})
+              refreshDashboard(closedPoll.guildId).catch(() => {})
+            }
           } catch (e) { console.error('Close poll error:', e) }
         })())
         return Response.json({ type: 6 })

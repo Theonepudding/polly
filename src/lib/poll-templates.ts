@@ -23,6 +23,11 @@ async function saveTemplates(templates: PollTemplate[]): Promise<void> {
   if (kv) await kv.put(KEY, JSON.stringify(templates))
 }
 
+export async function getTemplate(id: string): Promise<PollTemplate | null> {
+  const all = await getTemplates()
+  return all.find(t => t.id === id) ?? null
+}
+
 export async function createTemplate(template: PollTemplate): Promise<void> {
   const all = await getTemplates()
   all.push(template)

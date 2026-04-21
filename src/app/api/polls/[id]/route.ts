@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, updatePoll, deletePoll, getVotes } from '@/lib/polls'
-import { updatePollInDiscord, deletePollFromDiscord } from '@/lib/discord-bot'
+import { updatePollInDiscord, deletePollFromDiscord, postPollResults, postAuditLog } from '@/lib/discord-bot'
+import { getGuild } from '@/lib/guilds'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -31,9 +32,25 @@ export async function PATCH(req: Request, { params }: Params) {
   await updatePoll(id, patch)
 
   if (patch.isClosed) {
-    const updated = await getPoll(id)
-    const votes   = await getVotes(id)
-    if (updated) updatePollInDiscord(updated, votes).catch(() => {})
+    const [updated, votes] = await Promise.all([getPoll(id), getVotes(id)])
+    if (updated) {
+      updatePollInDiscord({ ...updated, isClosed: true }, votes).catch(() => {})
+      const guild = await getGuild(updated.guildId)
+      if (guild) {
+        postPollResults(updated, votes, guild).catch(() => {})
+        const winner = votes.length > 0
+          ? updated.options.reduce((b, o) =>
+              votes.filter(v => v.optionId === o.id).length > votes.filter(v => v.optionId === b.id).length ? o : b,
+              updated.options[0])
+          : null
+        postAuditLog(
+          guild,
+          'Poll closed',
+          `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
+          session.user.name ?? 'Unknown',
+        ).catch(() => {})
+      }
+    }
   }
 
   return NextResponse.json({ ok: true })
@@ -52,5 +69,14 @@ export async function DELETE(_: Request, { params }: Params) {
 
   await deletePollFromDiscord(poll).catch(() => {})
   await deletePoll(id)
+  const guild = await getGuild(poll.guildId)
+  if (guild) {
+    postAuditLog(
+      guild,
+      'Poll deleted',
+      `**${poll.title}**`,
+      session.user.name ?? 'Unknown',
+    ).catch(() => {})
+  }
   return NextResponse.json({ ok: true })
 }

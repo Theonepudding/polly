@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getTemplates, createTemplate } from '@/lib/poll-templates'
+import { getGuild } from '@/lib/guilds'
+import { postAuditLog } from '@/lib/discord-bot'
 import type { PollTemplate } from '@/types'
 
 type Params = { params: Promise<{ guildId: string }> }
@@ -49,5 +51,17 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   await createTemplate(template)
+
+  const guild = await getGuild(guildId)
+  if (guild) {
+    const interval = `every ${template.intervalDays === 1 ? 'day' : `${template.intervalDays} days`}`
+    postAuditLog(
+      guild,
+      'Schedule created',
+      `**${template.title}** — ${interval}, ${template.daysOpen}d open`,
+      session.user.name ?? 'Unknown',
+    ).catch(() => {})
+  }
+
   return NextResponse.json({ template }, { status: 201 })
 }
