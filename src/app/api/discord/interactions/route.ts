@@ -233,17 +233,23 @@ async function createFromDraft(draft: PollDraft): Promise<{ poll: Poll; posted: 
     isClosed:         false,
   }
 
-  await createPoll(poll)
+  // Post to Discord BEFORE writing to KV so the single createPoll() write
+  // includes discordMessageId. This closes the race where a vote fires between
+  // the old createPoll() and updatePoll() calls and sees a stale poll.
+  const guild = await getGuild(draft.guildId)
+  let posted  = false
 
-  const guild  = await getGuild(draft.guildId)
-  let posted   = false
   if (guild?.announceChannelId) {
     const msgId = await postPollToDiscord(poll).catch(() => null)
     if (msgId) {
-      await updatePoll(poll.id, { discordMessageId: msgId, discordChannelId: guild.announceChannelId })
+      poll.discordMessageId = msgId
+      poll.discordChannelId = guild.announceChannelId
       posted = true
     }
   }
+
+  // Single KV write — discordMessageId is included if posting succeeded
+  await createPoll(poll)
 
   if (guild) {
     postAuditLog(guild, 'Poll created', `**${poll.title}** (via /poll)`, draft.username).catch(() => {})

@@ -9,6 +9,7 @@ import type { Guild } from '@/types'
 import Link from 'next/link'
 import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, ExternalLink } from 'lucide-react'
 import PollCard from '@/components/PollCard'
+import ActivePollCard from '@/components/ActivePollCard'
 import CreatePollModal from '@/components/CreatePollModal'
 
 export const dynamic = 'force-dynamic'
@@ -182,7 +183,7 @@ export default async function GuildDashboardPage({ params }: Props) {
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
             {active.map(poll => (
-              <PollCard key={poll.id} poll={poll} votes={votesByPoll[poll.id] ?? []} guildId={guildId} />
+              <ActivePollCard key={poll.id} poll={poll} votes={votesByPoll[poll.id] ?? []} guildId={guildId} />
             ))}
           </div>
         )}
