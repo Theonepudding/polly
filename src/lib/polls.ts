@@ -1,33 +1,21 @@
-import fs from 'fs/promises'
-import path from 'path'
 import { Poll, Vote, PollsData } from '@/types'
 import { getKV } from './kv'
 
-const FILE = path.join(process.cwd(), 'src', 'data', 'polls.json')
-const KEY  = 'polls'
+const KEY = 'polls'
 
 const emptyData = (): PollsData => ({ polls: [], votes: [] })
 
 export async function readData(): Promise<PollsData> {
   const kv = await getKV()
-  if (kv) {
-    const raw = await kv.get(KEY)
-    return raw ? (JSON.parse(raw) as PollsData) : emptyData()
-  }
-  try {
-    return JSON.parse(await fs.readFile(FILE, 'utf-8')) as PollsData
-  } catch {
-    return emptyData()
-  }
+  if (!kv) return emptyData()
+  const raw = await kv.get(KEY)
+  return raw ? (JSON.parse(raw) as PollsData) : emptyData()
 }
 
 export async function writeData(data: PollsData): Promise<void> {
   const kv = await getKV()
-  if (kv) {
-    await kv.put(KEY, JSON.stringify(data))
-    return
-  }
-  await fs.writeFile(FILE, JSON.stringify(data, null, 2), 'utf-8')
+  if (!kv) throw new Error('KV not available')
+  await kv.put(KEY, JSON.stringify(data))
 }
 
 export async function getPolls(guildId?: string): Promise<Poll[]> {
@@ -79,23 +67,15 @@ export async function getUserVotes(pollId: string, userId: string): Promise<Vote
 export async function castVote(vote: Vote, allowMultiple: boolean): Promise<void> {
   const data = await readData()
   if (allowMultiple) {
-    // Replace existing vote for same option, or add new
     const idx = data.votes.findIndex(
       v => v.pollId === vote.pollId && v.userId === vote.userId && v.optionId === vote.optionId
     )
-    if (idx !== -1) {
-      data.votes[idx] = vote
-    } else {
-      data.votes.push(vote)
-    }
+    if (idx !== -1) data.votes[idx] = vote
+    else data.votes.push(vote)
   } else {
-    // Single choice — replace any existing vote for this poll
     const idx = data.votes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
-    if (idx !== -1) {
-      data.votes[idx] = vote
-    } else {
-      data.votes.push(vote)
-    }
+    if (idx !== -1) data.votes[idx] = vote
+    else data.votes.push(vote)
   }
   await writeData(data)
 }
