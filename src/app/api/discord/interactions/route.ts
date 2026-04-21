@@ -293,12 +293,16 @@ export async function POST(req: NextRequest) {
     if (body.type === 1) return Response.json({ type: 1 })
 
     const appId    = process.env.DISCORD_CLIENT_ID ?? ''
-    const token    = body.token as string
-    const guildId  = body.guild_id as string | undefined
-    const member   = body.member   as Record<string, unknown> | undefined
-    const user     = (member?.user ?? body.user) as Record<string, unknown> | undefined
-    const userId   = user?.id as string
-    const username = (member?.nick ?? user?.username ?? 'Unknown') as string
+    const token              = body.token as string
+    const guildId            = body.guild_id as string | undefined
+    const member             = body.member   as Record<string, unknown> | undefined
+    const user               = (member?.user ?? body.user) as Record<string, unknown> | undefined
+    const userId             = user?.id as string
+    const username           = (member?.nick ?? user?.username ?? 'Unknown') as string
+    // Present on component interactions — the message the button lives on
+    const interactionMessage   = body.message as Record<string, unknown> | undefined
+    const interactionMessageId = interactionMessage?.id as string | undefined
+    const interactionChannelId = body.channel_id as string | undefined
 
     // ── SLASH COMMANDS (type 2) ──────────────────────────────────────────────
     if (body.type === 2) {
@@ -599,14 +603,27 @@ export async function POST(req: NextRequest) {
         let voteChanged               = false
 
         try {
+          // If KV hasn't propagated discordMessageId yet, recover it from the interaction body.
+          // The interaction always arrives on the message that was clicked, so its ID is authoritative.
+          if (!poll.discordMessageId && interactionMessageId) {
+            poll = { ...poll, discordMessageId: interactionMessageId, discordChannelId: interactionChannelId }
+            bg(updatePoll(pollId, { discordMessageId: interactionMessageId, discordChannelId: interactionChannelId }).then(() => {}))
+          }
+
           // For polls with time slots: show the time picker first — vote is
           // saved only after the user picks a time (or clicks "No preference").
           if (poll.includeTimeSlots && poll.timeSlots.length > 0) {
             savedPoll = poll
           } else {
             const data = await readData()
-            // Use the blob's copy if present (most consistent with votes), else use individual key
-            const livePoll = data.polls.find(p => p.id === pollId) ?? poll
+            // Blob may lag behind the individual poll:{id} key for discordMessageId — always
+            // prefer the individual-key copy (poll) for message routing metadata.
+            const blobPoll  = data.polls.find(p => p.id === pollId)
+            const livePoll  = {
+              ...(blobPoll ?? poll),
+              discordMessageId: poll.discordMessageId,
+              discordChannelId: poll.discordChannelId,
+            }
             const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
             if (!livePoll.allowMultiple) {
               const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)

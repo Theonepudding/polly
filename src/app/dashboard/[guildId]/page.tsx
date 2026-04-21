@@ -11,6 +11,7 @@ import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, Extern
 import PollCard from '@/components/PollCard'
 import ActivePollCard from '@/components/ActivePollCard'
 import CreatePollModal from '@/components/CreatePollModal'
+import AutoRefresh from '@/components/AutoRefresh'
 
 export const dynamic = 'force-dynamic'
 
@@ -185,6 +186,8 @@ export default async function GuildDashboardPage({ params }: Props) {
           )
         ))}
       </div>
+
+      <AutoRefresh intervalMs={15000} />
 
       {/* Active polls */}
       <section className="mb-10">
