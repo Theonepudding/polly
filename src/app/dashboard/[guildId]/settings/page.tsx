@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle, Terminal } from 'lucide-react'
+import { Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2, AlertCircle, Terminal, Trash2, AlertTriangle } from 'lucide-react'
 
 interface Channel { id: string; name: string; type: number }
 interface Role    { id: string; name: string; color: number }
@@ -11,6 +11,7 @@ interface GuildConfig {
   announceChannelId?: string
   pollyChannelId?: string
   dashboardChannelId?: string
+  auditLogChannelId?: string
   adminRoleIds: string[]
   voterRoleIds: string[]
 }
@@ -23,12 +24,14 @@ export default function SettingsPage() {
   const [config,    setConfig]    = useState<GuildConfig | null>(null)
   const [channels,  setChannels]  = useState<Channel[]>([])
   const [roles,     setRoles]     = useState<Role[]>([])
-  const [saving,      setSaving]      = useState(false)
-  const [saved,       setSaved]       = useState(false)
-  const [error,       setError]       = useState('')
-  const [loading,     setLoading]     = useState(true)
+  const [saving,         setSaving]         = useState(false)
+  const [saved,          setSaved]          = useState(false)
+  const [error,          setError]          = useState('')
+  const [loading,        setLoading]        = useState(true)
   const [guideStatus,    setGuideStatus]    = useState<'idle' | 'posting' | 'ok' | 'fail'>('idle')
   const [cmdStatus,      setCmdStatus]      = useState<'idle' | 'registering' | 'ok' | 'fail'>('idle')
+  const [removeConfirm,  setRemoveConfirm]  = useState(false)
+  const [removing,       setRemoving]       = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,12 +79,6 @@ export default function SettingsPage() {
     })
   }
 
-  async function registerCommands() {
-    setCmdStatus('registering')
-    const res = await fetch('/api/guilds/register-commands', { method: 'POST' })
-    setCmdStatus(res.ok ? 'ok' : 'fail')
-  }
-
   async function postGuide() {
     setGuideStatus('posting')
     const res = await fetch(`/api/guilds/${guildId}/guide`, { method: 'POST' })
@@ -95,6 +92,24 @@ export default function SettingsPage() {
     setSaving(false)
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
     else setError('Failed to set up dashboard embed')
+  }
+
+  async function registerCommands() {
+    setCmdStatus('registering')
+    const res = await fetch('/api/guilds/register-commands', { method: 'POST' })
+    setCmdStatus(res.ok ? 'ok' : 'fail')
+  }
+
+  async function removeBot() {
+    setRemoving(true)
+    const res = await fetch(`/api/guilds/${guildId}`, { method: 'DELETE' })
+    setRemoving(false)
+    if (res.ok) {
+      router.push('/dashboard')
+    } else {
+      setError('Failed to remove bot. Try again or kick it manually from Discord.')
+      setRemoveConfirm(false)
+    }
   }
 
   if (loading) return (
@@ -144,7 +159,7 @@ export default function SettingsPage() {
               <h2 className="font-display font-semibold text-p-text">Polly Channel</h2>
             </div>
             <p className="text-p-muted text-sm mb-4">
-              A dedicated channel where Polly posts a pinned guide explaining how to vote and use polls. Great for a <code className="text-p-muted bg-p-surface-2 px-1 rounded">#polly</code> or <code className="text-p-muted bg-p-surface-2 px-1 rounded">#polls</code> channel.
+              A dedicated channel where Polly posts a pinned guide explaining how to vote and use polls.
             </p>
             <select
               value={config.pollyChannelId ?? ''}
@@ -167,7 +182,7 @@ export default function SettingsPage() {
                 )}
                 {guideStatus === 'fail' && (
                   <span className="flex items-center gap-1.5 text-p-warning text-xs">
-                    <AlertCircle size={13} /> Failed — check bot has Send Messages &amp; Manage Messages permission.
+                    <AlertCircle size={13} /> Failed — check bot permissions.
                   </span>
                 )}
               </div>
@@ -199,6 +214,24 @@ export default function SettingsPage() {
             )}
           </div>
 
+          {/* Audit log channel */}
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Hash size={16} className="text-p-muted" />
+              <h2 className="font-display font-semibold text-p-text">Audit Log Channel</h2>
+            </div>
+            <p className="text-p-muted text-sm mb-4">
+              Polly posts a log entry when polls are created, closed, or deleted. Leave empty to disable.
+            </p>
+            <select
+              value={config.auditLogChannelId ?? ''}
+              onChange={e => setConfig({ ...config, auditLogChannelId: e.target.value || undefined })}
+              className="input">
+              <option value="">— None —</option>
+              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+            </select>
+          </div>
+
           {/* Discord slash commands */}
           <div className="card p-6">
             <div className="flex items-center gap-2 mb-1">
@@ -206,7 +239,9 @@ export default function SettingsPage() {
               <h2 className="font-display font-semibold text-p-text">Discord Slash Commands</h2>
             </div>
             <p className="text-p-muted text-sm mb-4">
-              Register <code className="text-p-muted bg-p-surface-2 px-1 rounded">/poll</code> and <code className="text-p-muted bg-p-surface-2 px-1 rounded">/setup</code> as global slash commands. Run this once (or after any command changes).
+              Register <code className="text-p-muted bg-p-surface-2 px-1 rounded">/poll</code> and{' '}
+              <code className="text-p-muted bg-p-surface-2 px-1 rounded">/setup</code> as global slash commands.
+              Run this once (or after any command changes).
             </p>
             <div className="flex items-center gap-3">
               <button type="button" onClick={registerCommands} disabled={cmdStatus === 'registering'}
@@ -216,12 +251,12 @@ export default function SettingsPage() {
               </button>
               {cmdStatus === 'ok' && (
                 <span className="flex items-center gap-1.5 text-p-success text-xs">
-                  <CheckCircle2 size={13} /> Commands registered! May take up to 1 hour to appear globally.
+                  <CheckCircle2 size={13} /> Registered! May take up to 1 hour to appear globally.
                 </span>
               )}
               {cmdStatus === 'fail' && (
                 <span className="flex items-center gap-1.5 text-p-warning text-xs">
-                  <AlertCircle size={13} /> Failed — check DISCORD_BOT_TOKEN is set correctly.
+                  <AlertCircle size={13} /> Failed — check DISCORD_BOT_TOKEN.
                 </span>
               )}
             </div>
@@ -283,6 +318,43 @@ export default function SettingsPage() {
           </div>
         </form>
       )}
+
+      {/* Danger zone */}
+      <div className="mt-12 card p-6 border-p-danger/30">
+        <div className="flex items-center gap-2 mb-1">
+          <AlertTriangle size={16} className="text-p-danger" />
+          <h2 className="font-display font-semibold text-p-danger">Danger Zone</h2>
+        </div>
+        <p className="text-p-muted text-sm mb-5">
+          Permanently removes Polly from this server and deletes all poll data. This cannot be undone.
+        </p>
+
+        {!removeConfirm ? (
+          <button
+            type="button"
+            onClick={() => setRemoveConfirm(true)}
+            className="btn-secondary text-sm border-p-danger/40 text-p-danger hover:bg-p-danger/10">
+            <Trash2 size={14} />
+            Remove Polly from this server
+          </button>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-p-danger text-sm font-semibold">
+              Are you sure? This will delete all polls, votes, and settings for <strong>{config?.guildName}</strong> and kick Polly from the server.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setRemoveConfirm(false)} className="btn-secondary text-sm">
+                Cancel
+              </button>
+              <button type="button" onClick={removeBot} disabled={removing}
+                className="btn-primary text-sm bg-p-danger border-p-danger hover:bg-p-danger/80">
+                {removing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Yes, remove Polly
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

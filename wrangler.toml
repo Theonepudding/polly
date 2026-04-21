@@ -25,3 +25,7 @@ binding = "ASSETS"
 [[kv_namespaces]]
 binding = "POLLY_KV"
 id = "342a355a3dac4535afd7c20f1452b3a9"
+
+# Cron: runs every hour — closes expired polls, sends 24h reminders, fires templates
+[triggers]
+crons = ["0 * * * *"]

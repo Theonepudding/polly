@@ -2,8 +2,10 @@ import { Poll, Vote, Guild } from '@/types'
 import { getGuild } from './guilds'
 
 const DISCORD_API  = 'https://discord.com/api/v10'
-const COLOR_ACTIVE = 0x6366F1  // indigo
-const COLOR_CLOSED = 0x22D3EE  // cyan
+const COLOR_ACTIVE = 0x6366F1
+const COLOR_CLOSED = 0x22D3EE
+const COLOR_AUDIT  = 0x4B5563
+const COLOR_RESULT = 0xF59E0B
 
 function botHeaders() {
   return {
@@ -25,6 +27,10 @@ function shortDate(iso?: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
+function discordTimestamp(iso: string): string {
+  return `<t:${Math.floor(new Date(iso).getTime() / 1000)}:R>`
+}
+
 function utcHHMMtoDiscordTimestamp(hhMM: string): string {
   const [h, m] = hhMM.split(':').map(Number)
   const d = new Date()
@@ -40,13 +46,18 @@ function utcToLocal(hhMM: string): string {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
 }
 
+function roleMentions(roleIds?: string[]): string {
+  if (!roleIds?.length) return ''
+  return roleIds.map(id => `<@&${id}>`).join(' ')
+}
+
 // ─── Embed builders ──────────────────────────────────────────────────────────
 
 export function buildPollEmbed(poll: Poll, votes: Vote[]) {
   const total   = votes.length
   const siteUrl = pollPageUrl(poll.id)
   const flags   = [
-    poll.isAnonymous  ? '🔒 Anonymous' : null,
+    poll.isAnonymous   ? '🔒 Anonymous' : null,
     poll.allowMultiple ? '☑️ Multi-choice' : null,
   ].filter(Boolean).join('  ·  ')
 
@@ -60,7 +71,9 @@ export function buildPollEmbed(poll: Poll, votes: Vote[]) {
   return {
     title:       poll.title,
     url:         siteUrl,
-    description: poll.description ? `${poll.description}` : undefined,
+    description: poll.description
+      ? `${poll.description}${poll.closesAt ? `\n\nCloses ${discordTimestamp(poll.closesAt)}` : ''}`
+      : poll.closesAt ? `Closes ${discordTimestamp(poll.closesAt)}` : undefined,
     color:       COLOR_ACTIVE,
     image:       { url: pollImageUrl(poll.id) },
     footer:      { text: footerParts.join('  ·  ') },
@@ -71,7 +84,6 @@ export function buildPollEmbed(poll: Poll, votes: Vote[]) {
 export function buildPollComponents(poll: Poll) {
   const rows: object[] = []
 
-  // Up to 5 vote option buttons per row — split into rows of 5
   const optionButtons = poll.options.slice(0, 25).map(opt => ({
     type:      2,
     style:     1,
@@ -82,7 +94,6 @@ export function buildPollComponents(poll: Poll) {
     rows.push({ type: 1, components: optionButtons.slice(i, i + 5) })
   }
 
-  // Website link button
   rows.push({
     type: 1,
     components: [{
@@ -127,7 +138,7 @@ export function buildClosedEmbed(poll: Poll, votes: Vote[]) {
 
   const lines: string[] = []
   if (winner && total > 0) lines.push(`🏆 **${winner.text}** won with ${votes.filter(v => v.optionId === winner.id).length} vote${votes.filter(v => v.optionId === winner.id).length !== 1 ? 's' : ''}`)
-  if (slot)               lines.push(`⏰ Most popular time: ${utcHHMMtoDiscordTimestamp(slot)}`)
+  if (slot) lines.push(`⏰ Most popular time: ${utcHHMMtoDiscordTimestamp(slot)}`)
 
   return {
     title:       `${poll.title} — Closed`,
@@ -162,8 +173,7 @@ export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
     lines.push('*No active polls right now.*')
   } else {
     for (const p of activePolls.slice(0, 8)) {
-      const votes = 0 // placeholder — embed won't show counts (ephemeral detail)
-      const closing = p.closesAt ? ` · closes <t:${Math.floor(new Date(p.closesAt).getTime() / 1000)}:R>` : ''
+      const closing = p.closesAt ? ` · closes ${discordTimestamp(p.closesAt)}` : ''
       lines.push(`**[${p.title}](${baseUrl}/p/${p.id})**${closing}`)
     }
   }
@@ -200,23 +210,34 @@ export function buildDashboardComponents(guild: Guild) {
 
 // ─── API actions ──────────────────────────────────────────────────────────────
 
-async function getGuildAnnounceChannel(guildId: string): Promise<string | null> {
-  const guild = await getGuild(guildId)
+async function resolveChannelId(poll: Poll): Promise<string | null> {
+  if (poll.overrideChannelId) return poll.overrideChannelId
+  const guild = await getGuild(poll.guildId)
   return guild?.announceChannelId ?? null
 }
 
 export async function postPollToDiscord(poll: Poll): Promise<string | null> {
-  const channelId = await getGuildAnnounceChannel(poll.guildId)
+  const channelId = await resolveChannelId(poll)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId) return null
+
+  const pingContent = roleMentions(poll.pingRoleIds)
 
   try {
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method:  'POST',
       headers: botHeaders(),
-      body:    JSON.stringify({ embeds: [buildPollEmbed(poll, [])], components: buildPollComponents(poll) }),
+      body:    JSON.stringify({
+        content:    pingContent || undefined,
+        embeds:     [buildPollEmbed(poll, [])],
+        components: buildPollComponents(poll),
+        allowed_mentions: poll.pingRoleIds?.length
+          ? { roles: poll.pingRoleIds }
+          : { parse: [] },
+      }),
     })
     if (!res.ok) { console.error('Discord post failed:', await res.text()); return null }
-    return ((await res.json()) as { id: string }).id
+    const msg = await res.json() as { id: string }
+    return msg.id
   } catch (e) {
     console.error('Discord post error:', e)
     return null
@@ -224,7 +245,7 @@ export async function postPollToDiscord(poll: Poll): Promise<string | null> {
 }
 
 export async function deletePollFromDiscord(poll: Poll): Promise<void> {
-  const channelId = poll.discordChannelId ?? await getGuildAnnounceChannel(poll.guildId)
+  const channelId = poll.discordChannelId ?? await resolveChannelId(poll)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId || !poll.discordMessageId) return
   try {
     await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
@@ -234,7 +255,7 @@ export async function deletePollFromDiscord(poll: Poll): Promise<void> {
 }
 
 export async function updatePollInDiscord(poll: Poll, votes: Vote[]): Promise<boolean> {
-  const channelId = poll.discordChannelId ?? await getGuildAnnounceChannel(poll.guildId)
+  const channelId = poll.discordChannelId ?? await resolveChannelId(poll)
   if (!process.env.DISCORD_BOT_TOKEN || !channelId || !poll.discordMessageId) return false
 
   const embed      = poll.isClosed ? buildClosedEmbed(poll, votes) : buildPollEmbed(poll, votes)
@@ -269,7 +290,6 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
       })
       if (res.ok) return guild.dashboardMessageId
       if (res.status !== 404) return null
-      // message was deleted — fall through to create
     }
 
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
@@ -284,6 +304,95 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
   }
 }
 
+// ─── Poll results announcement ────────────────────────────────────────────────
+
+export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): Promise<string | null> {
+  const channelId = poll.overrideChannelId ?? guild.announceChannelId
+  if (!process.env.DISCORD_BOT_TOKEN || !channelId) return null
+
+  const total  = votes.length
+  const winner = total > 0 ? winnerOf(poll, votes) : null
+
+  const results = poll.options.map(opt => {
+    const count = votes.filter(v => v.optionId === opt.id).length
+    const pct   = total > 0 ? Math.round((count / total) * 100) : 0
+    const bar   = '█'.repeat(Math.round(pct / 10)) + '░'.repeat(10 - Math.round(pct / 10))
+    return `${opt.id === winner?.id && total > 0 ? '🏆 ' : ''}**${opt.text}** — ${count} vote${count !== 1 ? 's' : ''} (${pct}%)\n\`${bar}\``
+  }).join('\n\n')
+
+  const embed = {
+    title:       `📊 Results: ${poll.title}`,
+    url:         pollPageUrl(poll.id),
+    description: results || '*No votes were cast.*',
+    color:       COLOR_RESULT,
+    footer:      { text: `${total} total vote${total !== 1 ? 's' : ''}  ·  Created by ${poll.createdByName}  ·  Polly` },
+    timestamp:   new Date().toISOString(),
+  }
+
+  try {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({ embeds: [embed] }),
+    })
+    if (!res.ok) return null
+    return ((await res.json()) as { id: string }).id
+  } catch (e) {
+    console.error('Results post error:', e)
+    return null
+  }
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────────────
+
+export async function postAuditLog(
+  guild: Guild,
+  action: string,
+  detail: string,
+  actorName?: string,
+): Promise<void> {
+  if (!guild.auditLogChannelId || !process.env.DISCORD_BOT_TOKEN) return
+  try {
+    await fetch(`${DISCORD_API}/channels/${guild.auditLogChannelId}/messages`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({
+        embeds: [{
+          title:       `📋 ${action}`,
+          description: detail,
+          color:       COLOR_AUDIT,
+          footer:      { text: actorName ? `By ${actorName}  ·  Polly` : 'Polly' },
+          timestamp:   new Date().toISOString(),
+        }],
+      }),
+    })
+  } catch { /* ignore — audit failures are non-critical */ }
+}
+
+// ─── 24h reminder ping ────────────────────────────────────────────────────────
+
+export async function sendReminderPing(poll: Poll, guild: Guild): Promise<void> {
+  const channelId = poll.overrideChannelId ?? guild.announceChannelId
+  if (!process.env.DISCORD_BOT_TOKEN || !channelId) return
+
+  const pingContent = roleMentions(poll.pingRoleIds)
+
+  try {
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method:  'POST',
+      headers: botHeaders(),
+      body:    JSON.stringify({
+        content: `${pingContent ? pingContent + ' ' : ''}⏰ **Less than 24 hours left to vote!**`,
+        embeds:  [buildPollEmbed(poll, [])],
+        components: buildPollComponents(poll),
+        allowed_mentions: poll.pingRoleIds?.length
+          ? { roles: poll.pingRoleIds }
+          : { parse: [] },
+      }),
+    })
+  } catch (e) { console.error('Reminder error:', e) }
+}
+
 // ─── Polly guide message ─────────────────────────────────────────────────────
 
 export async function postPollyGuide(channelId: string, guildId: string): Promise<string | null> {
@@ -294,26 +403,26 @@ export async function postPollyGuide(channelId: string, guildId: string): Promis
   const embed = {
     title:       '📋 How Polly works',
     description: 'Polly lets admins create polls that appear right here in Discord. Members vote with the buttons on each poll message.',
-    color:       0x6366F1,
+    color:       COLOR_ACTIVE,
     fields: [
       {
         name:   '🗳️ Voting',
-        value:  'Click the option buttons on a poll message to cast your vote. You can also vote on the website using the **Vote on the website** button.',
+        value:  'Click the option buttons on a poll message to cast your vote. You can vote or change your vote any time before the poll closes. You can also vote on the website using the **Vote on the website** button.',
         inline: false,
       },
       {
         name:   '➕ Creating polls',
-        value:  `Admins can create polls from the [web dashboard](${dashboard}). New polls are automatically posted to the announcement channel.`,
+        value:  `Admins can create polls via the [web dashboard](${dashboard}) or with the \`/poll\` command. New polls are automatically posted to this channel.`,
+        inline: false,
+      },
+      {
+        name:   '⚙️ Setup',
+        value:  `Use \`/setup\` to pick channels, or open [Dashboard Settings](${dashboard}/settings) for full configuration.`,
         inline: false,
       },
       {
         name:   '📊 Results',
-        value:  'Results update live on both Discord and the website as votes come in. The poll closes automatically on the set date, or an admin can close it early.',
-        inline: false,
-      },
-      {
-        name:   '⚙️ Settings',
-        value:  `Server admins can configure announcement channels, voter roles, and more from the [dashboard settings](${dashboard}/settings).`,
+        value:  'Results update live on both Discord and the website as votes come in. When a poll closes, results are announced automatically.',
         inline: false,
       },
     ],
@@ -329,7 +438,6 @@ export async function postPollyGuide(channelId: string, guildId: string): Promis
     if (!res.ok) return null
     const msg = await res.json() as { id: string }
 
-    // Pin the guide message
     await fetch(`${DISCORD_API}/channels/${channelId}/pins/${msg.id}`, {
       method:  'PUT',
       headers: botHeaders(),
@@ -342,7 +450,7 @@ export async function postPollyGuide(channelId: string, guildId: string): Promis
   }
 }
 
-// ─── Welcome / setup ─────────────────────────────────────────────────────────
+// ─── Welcome / setup (admin-targeted) ────────────────────────────────────────
 
 export async function sendWelcomeMessage(
   guildId: string,
@@ -354,20 +462,32 @@ export async function sendWelcomeMessage(
   const siteUrl  = process.env.NEXTAUTH_URL ?? ''
   const settings = `${siteUrl}/dashboard/${guildId}/settings`
 
-  const embed = {
+  const setupEmbed = {
     title:       `👋 Polly has joined ${guildName}!`,
-    description: `Polly is ready to run polls in this server.\n\nAn admin needs to do a one-time setup before polls can be posted automatically.`,
+    description: `Thanks for adding Polly! Here's a quick setup guide to get polls running in under a minute.`,
     color:       0x6366F1,
     fields: [
       {
-        name:  '⚙️ Setup (takes 30 seconds)',
-        value: `[Open Server Settings](${settings})\n• Pick an **announcement channel** — polls will be posted there\n• Optionally restrict who can create polls or vote with **roles**`,
+        name:  '**Step 1** — Pick an announcement channel',
+        value: 'Use the dropdown below to choose which channel polls get posted in automatically.',
+      },
+      {
+        name:  '**Step 2** — (Optional) Restrict who can create polls',
+        value: `Open [Settings](${settings}) to configure admin roles and voter roles.`,
+      },
+      {
+        name:  '**Step 3** — Create your first poll!',
+        value: `Visit the [dashboard](${siteUrl}/dashboard/${guildId}) or use \`/poll\` in any channel.`,
+      },
+      {
+        name:  '**Step 4** — Register slash commands',
+        value: `Go to [Settings](${settings}) → "Register Discord Commands" to enable \`/poll\` and \`/setup\`.`,
       },
     ],
-    footer: { text: 'Only you can see this message — Polly' },
+    footer: { text: `This message is visible to the whole server — Polly` },
   }
 
-  // DM the owner (only they can see it — fulfils "admin only")
+  // DM the owner
   try {
     const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
       method:  'POST',
@@ -379,19 +499,40 @@ export async function sendWelcomeMessage(
       await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
         method:  'POST',
         headers: botHeaders(),
-        body:    JSON.stringify({ embeds: [embed] }),
+        body:    JSON.stringify({ embeds: [setupEmbed] }),
       })
     }
   } catch (e) { console.error('DM welcome error:', e) }
 
-  // Also post to the system channel (brief public notice)
+  // Post to system channel with channel_select for instant setup
   if (systemChannelId) {
     try {
       await fetch(`${DISCORD_API}/channels/${systemChannelId}/messages`, {
         method:  'POST',
         headers: botHeaders(),
         body:    JSON.stringify({
-          content: `👋 **Polly** has been added to this server! Check your DMs for setup instructions, or visit [the dashboard](${settings}).`,
+          content: `<@${ownerId}> 👋 **Polly** is here! Pick your announcement channel to get started:`,
+          embeds:  [setupEmbed],
+          components: [
+            {
+              type: 1,
+              components: [{
+                type:          8,
+                custom_id:     `setup:announce:${guildId}`,
+                placeholder:   'Select announcement channel…',
+                channel_types: [0],
+              }],
+            },
+            {
+              type: 1,
+              components: [{
+                type:  2,
+                style: 5,
+                label: '⚙️ Full Settings',
+                url:   settings,
+              }],
+            },
+          ],
         }),
       })
     } catch (e) { console.error('System channel welcome error:', e) }

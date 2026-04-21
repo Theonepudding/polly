@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, updatePoll, deletePoll, getVotes } from '@/lib/polls'
-import { updatePollInDiscord, deletePollFromDiscord } from '@/lib/discord-bot'
+import { updatePollInDiscord, deletePollFromDiscord, postPollResults, postAuditLog } from '@/lib/discord-bot'
+import { getGuild } from '@/lib/guilds'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
 
@@ -27,12 +28,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   delete patch.id
   delete patch.guildId
 
+  const wasClosing = patch.isClosed === true && !poll.isClosed
+
   await updatePoll(id, patch)
   const updated = await getPoll(id)
 
-  if (patch.isClosed !== undefined && updated) {
+  if (updated) {
     const votes = await getVotes(id)
-    await updatePollInDiscord(updated, votes).catch(() => {})
+
+    // Update the existing Discord embed
+    updatePollInDiscord(updated, votes).catch(() => {})
+
+    if (wasClosing) {
+      const guild = await getGuild(guildId)
+      if (guild) {
+        // Post results announcement to announce channel
+        postPollResults(updated, votes, guild).catch(() => {})
+        // Audit log
+        const winner = votes.length > 0
+          ? updated.options.reduce((b, o) =>
+              votes.filter(v => v.optionId === o.id).length > votes.filter(v => v.optionId === b.id).length ? o : b,
+              updated.options[0])
+          : null
+        postAuditLog(
+          guild,
+          'Poll closed',
+          `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
+          session.user.name ?? 'Unknown',
+        ).catch(() => {})
+      }
+    }
   }
 
   return NextResponse.json({ poll: updated })
@@ -47,6 +72,17 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!poll || poll.guildId !== guildId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await deletePollFromDiscord(poll).catch(() => {})
+
+  const guild = await getGuild(guildId)
+  if (guild) {
+    postAuditLog(
+      guild,
+      'Poll deleted',
+      `**${poll.title}**`,
+      session.user.name ?? 'Unknown',
+    ).catch(() => {})
+  }
+
   await deletePoll(id)
   return NextResponse.json({ ok: true })
 }

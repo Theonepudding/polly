@@ -280,8 +280,9 @@ export async function POST(req: NextRequest) {
         const [, pollId, optionId] = customId.split(':')
         if (!userId) return Response.json({ type: 4, data: { content: '❌ Could not identify you.', flags: 64 } })
 
-        let savedVotes: Vote[] | null = null
-        let savedPoll:  Poll  | null = null
+        let savedVotes:  Vote[] | null = null
+        let savedPoll:   Poll   | null = null
+        let voteChanged              = false
 
         try {
           const data = await readData()
@@ -307,7 +308,7 @@ export async function POST(req: NextRequest) {
           const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
           if (!poll.allowMultiple) {
             const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
-            if (vIdx !== -1) data.votes[vIdx] = vote
+            if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
             else             data.votes.push(vote)
           } else {
             const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId && v.optionId === optionId)
@@ -339,7 +340,11 @@ export async function POST(req: NextRequest) {
           })())
         }
 
-        return Response.json({ type: 4, data: { content: '✅ Vote registered!', flags: 64 } })
+        const optionText = savedPoll?.options.find(o => o.id === optionId)?.text ?? optionId
+        const voteMsg = voteChanged
+          ? `🔄 Vote changed to **${optionText}**!`
+          : `✅ Voted for **${optionText}**!`
+        return Response.json({ type: 4, data: { content: voteMsg, flags: 64 } })
       }
 
       // ── Time slot: t:{pollId}:{optionId}:{timeSlot} ─────────────────────────

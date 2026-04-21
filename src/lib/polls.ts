@@ -93,6 +93,40 @@ export async function getUserVotes(pollId: string, userId: string): Promise<Vote
   return data.votes.filter(v => v.pollId === pollId && v.userId === userId)
 }
 
+export async function deleteGuildPolls(guildId: string): Promise<number> {
+  const data = await readData()
+  const ids  = new Set(data.polls.filter(p => p.guildId === guildId).map(p => p.id))
+  const before = data.polls.length
+  data.polls = data.polls.filter(p => p.guildId !== guildId)
+  data.votes = data.votes.filter(v => !ids.has(v.pollId))
+  await writeData(data)
+  return before - data.polls.length
+}
+
+export async function closeExpiredPolls(): Promise<Poll[]> {
+  const data  = await readData()
+  const now   = new Date()
+  const closed: Poll[] = []
+  for (const p of data.polls) {
+    if (!p.isClosed && p.closesAt && new Date(p.closesAt) <= now) {
+      p.isClosed = true
+      closed.push(p)
+    }
+  }
+  if (closed.length) await writeData(data)
+  return closed
+}
+
+export async function getPollsNeedingReminder(): Promise<Poll[]> {
+  const data   = await readData()
+  const now    = new Date()
+  const in24h  = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  return data.polls.filter(p =>
+    !p.isClosed && !p.reminderSent && p.closesAt &&
+    new Date(p.closesAt) <= in24h && new Date(p.closesAt) > now
+  )
+}
+
 export async function castVote(vote: Vote, allowMultiple: boolean): Promise<void> {
   const data = await readData()
   if (allowMultiple) {

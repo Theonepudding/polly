@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPolls, createPoll, updatePoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
-import { postPollToDiscord } from '@/lib/discord-bot'
+import { postPollToDiscord, postAuditLog } from '@/lib/discord-bot'
 import type { Poll } from '@/types'
 
 type Params = { params: Promise<{ guildId: string }> }
@@ -44,20 +44,34 @@ export async function POST(req: NextRequest, { params }: Params) {
     createdAt:        new Date().toISOString(),
     closesAt:         body.closesAt,
     isClosed:         false,
+    pingRoleIds:      body.pingRoleIds?.length ? body.pingRoleIds : undefined,
+    overrideChannelId: body.overrideChannelId || undefined,
   }
 
   await createPoll(poll)
 
-  // Auto-post to Discord if an announce channel is configured
   const guild = await getGuild(guildId)
-  const hasChannel = !!guild?.announceChannelId
+  const hasChannel = !!(guild?.announceChannelId || poll.overrideChannelId)
   let posted = false
   if (hasChannel) {
     const messageId = await postPollToDiscord(poll)
     if (messageId) {
-      await updatePoll(poll.id, { discordMessageId: messageId })
+      await updatePoll(poll.id, {
+        discordMessageId: messageId,
+        discordChannelId: poll.overrideChannelId ?? guild?.announceChannelId,
+      })
       posted = true
     }
+  }
+
+  // Audit log
+  if (guild) {
+    postAuditLog(
+      guild,
+      'Poll created',
+      `**[${poll.title}](${process.env.NEXTAUTH_URL}/p/${poll.id})**\n${poll.options.length} options · ${poll.closesAt ? `closes <t:${Math.floor(new Date(poll.closesAt).getTime() / 1000)}:R>` : 'no close date'}`,
+      session.user.name ?? 'Unknown',
+    ).catch(() => {})
   }
 
   return NextResponse.json({ poll, posted, hasChannel }, { status: 201 })
