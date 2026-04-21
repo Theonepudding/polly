@@ -25,11 +25,7 @@ export async function GET(
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : ''
 
-  const cacheHeaders = {
-    'Cache-Control': 'public, max-age=15, stale-while-revalidate=30',
-  }
-
-  return new ImageResponse(
+  const img = new ImageResponse(
     (
       <div
         style={{
@@ -139,6 +135,12 @@ export async function GET(
       </div>
     ),
     { width: W, height: H },
-    { headers: cacheHeaders },
   )
+  return new Response(img.body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=15, stale-while-revalidate=30',
+    },
+  })
 }
