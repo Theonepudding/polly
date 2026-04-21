@@ -15,7 +15,10 @@ function fmtTime(hhMM: string): string {
 
 async function fetchAsBase64(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 3500)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(tid)
     if (!res.ok) return null
     const buf  = await res.arrayBuffer()
     const u8   = new Uint8Array(buf)
@@ -124,7 +127,7 @@ export async function GET(
     )
   }
 
-  const statusLabel = closed ? 'CLOSED' : needsP2 ? (page === 0 ? 'OPEN 1/2' : 'OPEN 2/2') : 'OPEN'
+  const statusLabel = closed ? 'CLOSED' : 'OPEN'
 
   const img = new ImageResponse(
     (

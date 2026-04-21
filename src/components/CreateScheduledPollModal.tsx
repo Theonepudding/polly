@@ -47,6 +47,21 @@ interface Props {
   userName: string
 }
 
+function EmojiPreview({ text }: { text: string }) {
+  if (!/<a?:\w+:\d+>/.test(text)) return null
+  const parts = text.split(/(<a?:\w+:\d+>)/g)
+  return (
+    <div className="flex items-center flex-wrap gap-1 px-0.5 pt-1.5">
+      <span className="text-[10px] text-p-subtle mr-0.5">preview:</span>
+      {parts.map((part, i) => {
+        const m = part.match(/^<(a?):(\w+):(\d+)>$/)
+        if (m) return <img key={i} src={`https://cdn.discordapp.com/emojis/${m[3]}.${m[1]==='a'?'gif':'png'}?size=32`} alt={m[2]} className="w-4 h-4 object-contain inline-block" />
+        return part ? <span key={i} className="text-xs text-p-muted">{part}</span> : null
+      })}
+    </div>
+  )
+}
+
 export default function CreateScheduledPollModal({ guildId, userId, userName }: Props) {
   const [open,          setOpen]          = useState(false)
   const [title,         setTitle]         = useState('')
@@ -232,6 +247,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
                 <Smile size={14} />
               </button>
             </div>
+            <EmojiPreview text={title} />
           </div>
 
           {/* Options */}
@@ -242,30 +258,33 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
             </div>
             <div className="space-y-2">
               {options.map((opt, i) => (
-                <div key={i} className="flex items-center gap-2 group">
-                  <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
-                    {i + 1}
-                  </span>
-                  <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
-                    placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
-                    maxLength={80} />
-                  <button
-                    type="button" data-emoji-btn=""
-                    onClick={e => openEmojiPicker(i, e)}
-                    title="Insert emoji"
-                    className={`p-1.5 rounded-md transition-all shrink-0 ${
-                      emojiPickerFor === i
-                        ? 'text-p-primary bg-p-primary-b opacity-100'
-                        : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
-                    }`}>
-                    <Smile size={14} />
-                  </button>
-                  {options.length > 2 && (
-                    <button type="button" onClick={() => removeOption(i)}
-                      className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
-                      <Trash2 size={14} />
+                <div key={i}>
+                  <div className="flex items-center gap-2 group">
+                    <span className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center text-[11px] font-bold text-p-primary shrink-0">
+                      {i + 1}
+                    </span>
+                    <input className="input flex-1 py-2" value={opt} onChange={e => setOption(i, e.target.value)}
+                      placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
+                      maxLength={80} />
+                    <button
+                      type="button" data-emoji-btn=""
+                      onClick={e => openEmojiPicker(i, e)}
+                      title="Insert emoji"
+                      className={`p-1.5 rounded-md transition-all shrink-0 ${
+                        emojiPickerFor === i
+                          ? 'text-p-primary bg-p-primary-b opacity-100'
+                          : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
+                      }`}>
+                      <Smile size={14} />
                     </button>
-                  )}
+                    {options.length > 2 && (
+                      <button type="button" onClick={() => removeOption(i)}
+                        className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <EmojiPreview text={opt} />
                 </div>
               ))}
               {options.length < 12 && (

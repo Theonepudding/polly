@@ -72,7 +72,7 @@ function extractDiscordEmoji(text: string): {
     const label = text.replace(/<a?:\w+:\d+>/g, '').trim().slice(0, 80)
     return {
       emoji: { animated: match[1] === 'a', name: match[2], id: match[3] },
-      label: label || match[2],
+      label,  // empty string when text is purely the emoji — button will omit label
     }
   }
   return { label: text.slice(0, 80) }
@@ -80,30 +80,29 @@ function extractDiscordEmoji(text: string): {
 
 // ─── Embed builders ──────────────────────────────────────────────────────────
 
-export function buildPollEmbed(poll: Poll, votes: Vote[]) {
-  const total   = votes.length
-  const siteUrl = pollPageUrl(poll.id)
-  const flags   = [
+function pollFooter(poll: Poll) {
+  const flags = [
     poll.isAnonymous   ? '🔒 Anonymous' : null,
     poll.allowMultiple ? '☑️ Multi-choice' : null,
   ].filter(Boolean).join('  ·  ')
-
-  const footerParts = [
+  const parts = [
     poll.closesAt ? `Closes ${shortDate(poll.closesAt)}` : 'No end date',
     poll.createdByName,
   ]
-  if (flags) footerParts.push(flags)
+  if (flags) parts.push(flags)
+  return { text: parts.join('  ·  ') }
+}
 
+export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true) {
   return {
     title:       poll.title,
-    url:         siteUrl,
+    url:         pollPageUrl(poll.id),
     description: poll.description
       ? `${poll.description}${poll.closesAt ? `\n\nCloses ${discordTimestamp(poll.closesAt)}` : ''}`
       : poll.closesAt ? `Closes ${discordTimestamp(poll.closesAt)}` : undefined,
     color:       COLOR_ACTIVE,
     image:       { url: pollImageUrl(poll.id) },
-    footer:      { text: footerParts.join('  ·  ') },
-    timestamp:   new Date().toISOString(),
+    ...(includeFooter ? { footer: pollFooter(poll), timestamp: new Date().toISOString() } : {}),
   }
 }
 
@@ -116,7 +115,7 @@ export function buildPollComponents(poll: Poll) {
     return {
       type:      2,
       style:     1,
-      label,
+      ...(label ? { label } : {}),
       ...(emoji ? { emoji } : {}),
       custom_id: `v:${poll.id}:${opt.id}`,
     }
@@ -161,11 +160,10 @@ export function buildTimeSlotFollowupContent(poll: Poll): string {
   return `🕐 Pick a time preference:\n${lines.join('\n')}`
 }
 
-export function buildClosedEmbed(poll: Poll, votes: Vote[]) {
-  const total   = votes.length
-  const siteUrl = pollPageUrl(poll.id)
-  const winner  = winnerOf(poll, votes)
-  const slot    = topTimeSlot(poll, votes)
+export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true) {
+  const total  = votes.length
+  const winner = winnerOf(poll, votes)
+  const slot   = topTimeSlot(poll, votes)
 
   const lines: string[] = []
   if (winner && total > 0) lines.push(`🏆 **${winner.text}** won with ${votes.filter(v => v.optionId === winner.id).length} vote${votes.filter(v => v.optionId === winner.id).length !== 1 ? 's' : ''}`)
@@ -173,12 +171,11 @@ export function buildClosedEmbed(poll: Poll, votes: Vote[]) {
 
   return {
     title:       `${poll.title} — Closed`,
-    url:         siteUrl,
+    url:         pollPageUrl(poll.id),
     description: lines.length ? lines.join('\n') : '*No votes were cast.*',
     color:       COLOR_CLOSED,
     image:       { url: pollImageUrl(poll.id) },
-    footer:      { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` },
-    timestamp:   new Date().toISOString(),
+    ...(includeFooter ? { footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() } : {}),
   }
 }
 
@@ -195,15 +192,20 @@ export function buildClosedPollComponents(poll: Poll): object[] {
 }
 
 export function buildPollEmbeds(poll: Poll, votes: Vote[]): object[] {
-  const e1 = buildPollEmbed(poll, votes)
-  if (!needsTwoImages(poll)) return [e1]
-  return [e1, { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1) } }]
+  if (!needsTwoImages(poll)) return [buildPollEmbed(poll, votes)]
+  return [
+    buildPollEmbed(poll, votes, false),
+    { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1) }, footer: pollFooter(poll), timestamp: new Date().toISOString() },
+  ]
 }
 
 export function buildClosedEmbeds(poll: Poll, votes: Vote[]): object[] {
-  const e1 = buildClosedEmbed(poll, votes)
-  if (!needsTwoImages(poll)) return [e1]
-  return [e1, { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1) } }]
+  const total = votes.length
+  if (!needsTwoImages(poll)) return [buildClosedEmbed(poll, votes)]
+  return [
+    buildClosedEmbed(poll, votes, false),
+    { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1) }, footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() },
+  ]
 }
 
 // ─── Dashboard embed ──────────────────────────────────────────────────────────

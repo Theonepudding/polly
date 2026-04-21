@@ -51,7 +51,8 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   const [timeSlot,  setTimeSlot]  = useState(initMyVotes[0]?.timeSlot ?? '')
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
-  const [expanded,  setExpanded]  = useState<string | null>(null)
+  const [expanded,     setExpanded]     = useState<string | null>(null)
+  const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
   const [live,      setLive]      = useState(false)
   const effectiveUserId = userId ?? session?.user?.id
 
@@ -217,24 +218,62 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           )
         })}
 
-        {poll.includeTimeSlots && votes.some(v => v.timeSlot) && (
+        {poll.includeTimeSlots && (
           <div className="mt-4 pt-4 border-t border-p-border">
             <p className="text-xs font-semibold text-p-muted mb-3 flex items-center gap-1.5">
               <Clock size={11} /> Preferred times
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-2">
               {poll.timeSlots.map(ts => {
-                const count = votes.filter(v => v.timeSlot === ts).length
+                const slotVoters = votes.filter(v => v.timeSlot === ts)
+                const count      = slotVoters.length
+                const isExp      = expandedSlot === ts
                 return (
-                  <span key={ts} className={clsx(
-                    'badge text-xs',
-                    count > 0 ? 'badge-primary' : 'badge-muted text-p-subtle'
-                  )}>
+                  <button key={ts} type="button"
+                    onClick={() => !poll.isAnonymous && count > 0 && setExpandedSlot(isExp ? null : ts)}
+                    className={clsx(
+                      'badge text-xs transition-all',
+                      count > 0 ? 'badge-primary' : 'badge-muted text-p-subtle',
+                      count > 0 && !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
+                      isExp && 'ring-1 ring-p-primary/50',
+                    )}>
                     {utcToLocal(ts)}{count > 0 ? ` ×${count}` : ''}
-                  </span>
+                  </button>
                 )
               })}
+              {(() => {
+                const noSlotVoters = votes.filter(v => poll.includeTimeSlots && !v.timeSlot)
+                const count = noSlotVoters.length
+                if (count === 0) return null
+                const isExp = expandedSlot === '__none__'
+                return (
+                  <button type="button"
+                    onClick={() => !poll.isAnonymous && setExpandedSlot(isExp ? null : '__none__')}
+                    className={clsx(
+                      'badge badge-muted text-xs transition-all',
+                      !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
+                      isExp && 'ring-1 ring-p-border',
+                    )}>
+                    No preference ×{count}
+                  </button>
+                )
+              })()}
             </div>
+            {expandedSlot && !poll.isAnonymous && (() => {
+              const slotVoters = expandedSlot === '__none__'
+                ? votes.filter(v => !v.timeSlot)
+                : votes.filter(v => v.timeSlot === expandedSlot)
+              return slotVoters.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {slotVoters.slice(0, 20).map((v, i) => (
+                    <span key={i} className="badge badge-muted text-[11px]">{v.username}</span>
+                  ))}
+                  {slotVoters.length > 20 && (
+                    <span className="badge badge-muted text-[11px] text-p-muted">+{slotVoters.length - 20} more</span>
+                  )}
+                </div>
+              ) : null
+            })()}
           </div>
         )}
 
