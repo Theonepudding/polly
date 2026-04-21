@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes, castVote } from '@/lib/polls'
-import { updatePollInDiscord } from '@/lib/discord-bot'
+import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import type { Vote } from '@/types'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const votes = await getVotes(id)
 
-  // Update Discord embed in background (non-blocking)
-  updatePollInDiscord(poll, votes).catch(() => {})
+  await updatePollInDiscord(poll, votes).catch(() => {})
+  refreshDashboard(guildId).catch(() => {})
 
   return NextResponse.json({ votes })
 }

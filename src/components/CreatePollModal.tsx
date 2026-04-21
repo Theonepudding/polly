@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown, Smile } from 'lucide-react'
+import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { Poll, PollTemplate } from '@/types'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
@@ -338,30 +338,17 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           {/* Title */}
           <div>
             <label className="label">Question *</label>
-            <div className="flex items-center gap-2 group">
-              <EmojiInput
-                ref={titleRef}
-                key={`title-${syncKey}`}
-                initialValue={title}
-                onChange={setTitle}
-                placeholder="e.g. Raid night: Friday or Saturday?"
-                maxLength={120}
-                className="flex-1"
-                inputClass="py-2"
-              />
-              <button
-                type="button"
-                data-emoji-btn=""
-                onClick={e => openEmojiPicker(-1, e)}
-                title="Insert emoji"
-                className={`p-1.5 rounded-md transition-all shrink-0 ${
-                  emojiPickerFor === -1
-                    ? 'text-p-primary bg-p-primary-b opacity-100'
-                    : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
-                }`}>
-                <Smile size={14} />
-              </button>
-            </div>
+            <EmojiInput
+              ref={titleRef}
+              key={`title-${syncKey}`}
+              initialValue={title}
+              onChange={setTitle}
+              placeholder="e.g. Raid night: Friday or Saturday?"
+              maxLength={120}
+              onEmojiButtonClick={e => openEmojiPicker(-1, e)}
+              emojiButtonActive={emojiPickerFor === -1}
+              inputClass="py-2"
+            />
           </div>
 
           {/* Options */}
@@ -376,71 +363,59 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 const btnNum   = optBtnNums[i] ?? (i + 1)
                 const btnEmojiMatch = btnEmoji.match(/^<(a?):(\w+):(\d+)>$/)
                 return (
-                <div key={`${i}-${syncKey}`} className="space-y-1">
-                  <div className="flex items-center gap-2 group">
-                    {/* Editable Discord button number badge */}
-                    <div className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/25 flex items-center justify-center shrink-0"
-                         title="Discord button number">
-                      <input
-                        type="number" min={1} max={25}
-                        value={btnNum}
-                        onChange={e => {
-                          const n = parseInt(e.target.value)
-                          setOptBtnNums(nums => nums.map((v, idx) => idx === i ? (isNaN(n) ? undefined : Math.min(25, Math.max(1, n))) : v))
-                        }}
-                        className="w-5 h-5 text-[11px] font-bold text-p-primary bg-transparent text-center border-none outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                    <EmojiInput
-                      ref={el => { optionRefsMap.current[i] = el }}
-                      key={`opt-${i}-${syncKey}`}
-                      initialValue={opt}
-                      onChange={val => setOption(i, val)}
-                      placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
-                      maxLength={80}
-                      className="flex-1"
-                      inputClass="py-2"
+                <div key={`${i}-${syncKey}`} className="flex items-center gap-2">
+                  {/* Editable Discord button number badge */}
+                  <div className="w-6 h-6 rounded-md bg-p-primary-b border border-p-primary/30 flex items-center justify-center shrink-0"
+                       title="Discord button number">
+                    <input
+                      type="number" min={1} max={25}
+                      value={btnNum}
+                      onChange={e => {
+                        const n = parseInt(e.target.value)
+                        setOptBtnNums(nums => nums.map((v, idx) => idx === i ? (isNaN(n) ? undefined : Math.min(25, Math.max(1, n))) : v))
+                      }}
+                      className="w-5 h-5 text-[11px] font-bold text-p-primary bg-transparent text-center border-none outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    {/* Button emoji picker */}
-                    <button
-                      type="button"
-                      data-btn-emoji-btn=""
-                      onClick={e => openBtnEmojiPicker(i, e)}
-                      title="Discord button emoji"
-                      className={`p-1.5 rounded-md transition-all shrink-0 ${
-                        btnEmojiPickerFor === i
-                          ? 'text-p-accent bg-p-accent/10 opacity-100'
-                          : btnEmoji
-                            ? 'opacity-100 text-p-accent bg-p-accent/5'
-                            : 'text-p-subtle hover:text-p-accent hover:bg-p-accent/10 opacity-0 group-hover:opacity-100'
-                      }`}>
-                      {btnEmojiMatch
-                        ? <img src={`https://cdn.discordapp.com/emojis/${btnEmojiMatch[3]}.${btnEmojiMatch[1]==='a'?'gif':'png'}?size=32`} alt={btnEmojiMatch[2]} className="w-3.5 h-3.5 object-contain" />
-                        : btnEmoji
-                          ? <span className="text-xs leading-none">{btnEmoji}</span>
-                          : <Smile size={14} />
-                      }
-                    </button>
-                    {/* Option text emoji picker */}
-                    <button
-                      type="button"
-                      data-emoji-btn=""
-                      onClick={e => openEmojiPicker(i, e)}
-                      title="Insert emoji into text"
-                      className={`p-1.5 rounded-md transition-all shrink-0 ${
-                        emojiPickerFor === i
-                          ? 'text-p-primary bg-p-primary-b opacity-100'
-                          : 'text-p-subtle hover:text-p-primary hover:bg-p-primary-b opacity-0 group-hover:opacity-100'
-                      }`}>
-                      <Smile size={14} />
-                    </button>
-                    {options.length > 2 && (
-                      <button type="button" onClick={() => removeOption(i)}
-                        className="p-1.5 text-p-subtle hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-all opacity-0 group-hover:opacity-100 shrink-0">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
                   </div>
+                  <EmojiInput
+                    ref={el => { optionRefsMap.current[i] = el }}
+                    key={`opt-${i}-${syncKey}`}
+                    initialValue={opt}
+                    onChange={val => setOption(i, val)}
+                    placeholder={i === 0 ? 'First option…' : i === 1 ? 'Second option…' : `Option ${i + 1}…`}
+                    maxLength={80}
+                    className="flex-1"
+                    inputClass="py-2"
+                    onEmojiButtonClick={e => openEmojiPicker(i, e)}
+                    emojiButtonActive={emojiPickerFor === i}
+                  />
+                  {/* Discord vote button emoji */}
+                  <button
+                    type="button"
+                    data-btn-emoji-btn=""
+                    onClick={e => openBtnEmojiPicker(i, e)}
+                    title="Set Discord vote button emoji"
+                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-md transition-colors shrink-0 ${
+                      btnEmojiPickerFor === i
+                        ? 'text-p-accent bg-p-accent/15'
+                        : btnEmoji
+                          ? 'text-p-accent bg-p-accent/8'
+                          : 'text-p-muted hover:text-p-accent hover:bg-p-accent/10'
+                    }`}>
+                    {btnEmojiMatch
+                      ? <img src={`https://cdn.discordapp.com/emojis/${btnEmojiMatch[3]}.${btnEmojiMatch[1]==='a'?'gif':'png'}?size=32`} alt={btnEmojiMatch[2]} className="w-3.5 h-3.5 object-contain" />
+                      : btnEmoji
+                        ? <span className="text-xs leading-none">{btnEmoji}</span>
+                        : <span className="text-[11px] leading-none font-semibold">🎮</span>
+                    }
+                    <span className="text-[9px] leading-none font-medium opacity-75">btn</span>
+                  </button>
+                  {options.length > 2 && (
+                    <button type="button" onClick={() => removeOption(i)}
+                      className="p-1.5 text-p-muted hover:text-p-danger hover:bg-p-danger/10 rounded-md transition-colors shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
                 )
               })}

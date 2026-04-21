@@ -73,7 +73,9 @@ export async function GET(
   const hasTimeSlots = isLastPage && poll.includeTimeSlots && poll.timeSlots.length > 0
   const shownSlots   = hasTimeSlots ? poll.timeSlots : []
 
-  const allTexts = [poll.title, ...pageOpts.map(o => o.text)]
+  // Include buttonEmoji codes so they get fetched alongside text emojis
+  const btnEmojiCodes = pageOpts.map(o => o.buttonEmoji ?? '').filter(Boolean)
+  const allTexts = [poll.title, ...pageOpts.map(o => o.text), ...btnEmojiCodes]
   const emojiMap = await buildEmojiMap(allTexts)
 
   const uniqueVoters = new Set(votes.map(v => v.userId)).size
@@ -93,10 +95,12 @@ export async function GET(
   // Dynamic height: measure each option row rather than using a fixed perOptH estimate.
   // This eliminates empty whitespace when some rows are short (e.g. emoji-only options).
   const isAnon = poll.isAnonymous
+  const BADGE_H = 30
   function optRowH(opt: (typeof pageOpts)[0]): number {
     const voterCount = isAnon ? 0 : votes.filter(v => v.optionId === opt.id).length
-    // name row (emoji img or text) + gap-below-name + bar + optional voter names
-    return (optFSize + 4) + 7 + barH_px + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
+    // badge/text line height is the taller of the badge or text; + bar + optional voter names
+    const lineH = Math.max(optFSize + 4, BADGE_H)
+    return lineH + 7 + barH_px + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
   }
   const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
 
@@ -174,16 +178,36 @@ export async function GET(
         <div style={{ height: 1.5, background: `${accent}55`, marginBottom: 14 }} />
 
         {/* Options */}
-        {pageOpts.map((opt) => {
+        {pageOpts.map((opt, optIdx) => {
           const count  = votes.filter(v => v.optionId === opt.id).length
           const pct    = totalForPct > 0 ? Math.round((count / totalForPct) * 100) : 0
           const voters = poll.isAnonymous ? [] : votes.filter(v => v.optionId === opt.id).map(v => v.username)
           const names  = voters.slice(0, 4).join(' · ') + (voters.length > 4 ? ` +${voters.length - 4}` : '')
 
+          // Button badge: custom emoji > custom number > default 1-based index
+          const btnEmojiCode  = opt.buttonEmoji ?? ''
+          const btnEmojiId    = btnEmojiCode.match(/^<a?:\w+:(\d+)>$/)?.[1]
+          const btnEmojiUri   = btnEmojiId ? emojiMap.get(btnEmojiId) : null
+          const btnLabel      = String(opt.buttonNum ?? (optIdx + 1))
+
           return (
             <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: optGap }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                <SegText text={opt.text} fontSize={optFSize} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                  {/* Button number / emoji badge */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                    background: 'rgba(99,102,241,0.22)',
+                    border: '1.5px solid rgba(129,140,248,0.4)',
+                  }}>
+                    {btnEmojiUri
+                      ? <img src={btnEmojiUri} width={16} height={16} />
+                      : <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 800 }}>{btnLabel}</span>
+                    }
+                  </div>
+                  <SegText text={opt.text} fontSize={optFSize} />
+                </div>
                 <span style={{ color: count > 0 ? accent : '#5555aa', fontSize: stFSize, fontWeight: 800, marginLeft: 12, flexShrink: 0 }}>
                   {pct}%{count > 0 ? ` · ${count}` : ''}
                 </span>

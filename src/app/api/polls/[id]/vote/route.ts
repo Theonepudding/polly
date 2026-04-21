@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes, castVote } from '@/lib/polls'
-import { updatePollInDiscord } from '@/lib/discord-bot'
+import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import type { Vote } from '@/types'
 
 type Params = { params: Promise<{ id: string }> }
@@ -44,6 +44,7 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const votes = await getVotes(id)
-  updatePollInDiscord(poll, votes).catch(() => {})
+  await updatePollInDiscord(poll, votes).catch(() => {})
+  refreshDashboard(poll.guildId).catch(() => {})
   return NextResponse.json({ votes })
 }

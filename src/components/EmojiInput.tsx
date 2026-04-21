@@ -1,5 +1,6 @@
 'use client'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { Smile } from 'lucide-react'
 
 export interface EmojiInputHandle {
   insertEmoji(code: string): void
@@ -11,8 +12,10 @@ interface Props {
   onChange: (value: string) => void
   placeholder?: string
   maxLength?: number
-  className?: string      // wrapper div (e.g. flex-1)
-  inputClass?: string     // extra classes on the editable area
+  className?: string          // wrapper div (e.g. flex-1)
+  inputClass?: string         // extra classes on the editable area
+  onEmojiButtonClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
+  emojiButtonActive?: boolean
 }
 
 function discordEmojiToImg(code: string): HTMLImageElement {
@@ -55,7 +58,8 @@ function domToText(el: HTMLElement): string {
 }
 
 const EmojiInput = forwardRef<EmojiInputHandle, Props>(
-  ({ initialValue = '', onChange, placeholder, maxLength, className = '', inputClass = '' }, ref) => {
+  ({ initialValue = '', onChange, placeholder, maxLength, className = '', inputClass = '',
+     onEmojiButtonClick, emojiButtonActive }, ref) => {
     const divRef      = useRef<HTMLDivElement>(null)
     const savedRange  = useRef<Range | null>(null)
     const [isEmpty,   setIsEmpty] = useState(!initialValue)
@@ -144,10 +148,12 @@ const EmojiInput = forwardRef<EmojiInputHandle, Props>(
       if (e.key === 'Enter') e.preventDefault()
     }
 
+    const hasEmojiBtn = !!onEmojiButtonClick
+
     return (
       <div className={`relative ${className}`}>
         {isEmpty && placeholder && (
-          <div className="absolute inset-0 flex items-center px-3 pointer-events-none select-none">
+          <div className={`absolute inset-0 flex items-center px-3 pointer-events-none select-none ${hasEmojiBtn ? 'pr-9' : ''}`}>
             <span className="text-sm text-p-muted/60 truncate w-full">{placeholder}</span>
           </div>
         )}
@@ -159,9 +165,23 @@ const EmojiInput = forwardRef<EmojiInputHandle, Props>(
           onBlur={handleBlur}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          className={`input outline-none ${inputClass}`}
+          className={`input outline-none ${hasEmojiBtn ? 'pr-9' : ''} ${inputClass}`}
           style={{ lineHeight: 1.6 }}
         />
+        {hasEmojiBtn && (
+          <button
+            type="button"
+            data-emoji-btn=""
+            onClick={onEmojiButtonClick}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors ${
+              emojiButtonActive
+                ? 'text-p-primary'
+                : 'text-p-muted hover:text-p-primary'
+            }`}
+          >
+            <Smile size={14} />
+          </button>
+        )}
       </div>
     )
   }
