@@ -72,10 +72,16 @@ function extractDiscordEmoji(text: string): {
     const label = text.replace(/<a?:\w+:\d+>/g, '').trim().slice(0, 80)
     return {
       emoji: { animated: match[1] === 'a', name: match[2], id: match[3] },
-      label,  // empty string when text is purely the emoji — button will omit label
+      label,
     }
   }
   return { label: text.slice(0, 80) }
+}
+
+function emojiFromCode(code: string): { id: string; name: string; animated: boolean } | undefined {
+  const m = code.match(/^<(a?):(\w+):(\d+)>$/)
+  if (m) return { animated: m[1] === 'a', name: m[2], id: m[3] }
+  return undefined
 }
 
 // ─── Embed builders ──────────────────────────────────────────────────────────
@@ -110,12 +116,17 @@ export function buildPollComponents(poll: Poll) {
   const rows: object[] = []
 
   // Cap at 12: 3 option rows of 5 + 1 website button row = 4 rows (Discord max is 5)
-  const optionButtons = poll.options.slice(0, 12).map(opt => {
-    const { emoji, label } = extractDiscordEmoji(opt.text)
+  const optionButtons = poll.options.slice(0, 12).map((opt, i) => {
+    // Button emoji: explicit override > extracted from option text
+    const emoji = opt.buttonEmoji
+      ? emojiFromCode(opt.buttonEmoji)
+      : extractDiscordEmoji(opt.text).emoji
+    // Button label: explicit number override > default 1-based index
+    const label = String(opt.buttonNum ?? (i + 1))
     return {
       type:      2,
       style:     1,
-      ...(label ? { label } : {}),
+      label,
       ...(emoji ? { emoji } : {}),
       custom_id: `v:${poll.id}:${opt.id}`,
     }
@@ -147,7 +158,7 @@ export function buildTimeSlotComponents(poll: Poll, optionId: string) {
 
   return [
     { type: 1, components: timeButtons },
-    { type: 1, components: [{ type: 2, style: 2, label: 'No preference', custom_id: `skip:${poll.id}` }] },
+    { type: 1, components: [{ type: 2, style: 2, label: 'No preference', custom_id: `skip:${poll.id}:${optionId}` }] },
   ]
 }
 

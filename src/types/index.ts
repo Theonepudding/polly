@@ -29,6 +29,8 @@ export interface GuildWithMeta extends Guild {
 export interface PollOption {
   id: string
   text: string
+  buttonNum?: number    // Discord button label number (1-25); defaults to 1-indexed order
+  buttonEmoji?: string  // Discord button emoji code e.g. "<:name:id>"; defaults to emoji extracted from text
 }
 
 export interface Poll {

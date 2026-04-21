@@ -2,6 +2,24 @@ import Link from 'next/link'
 import { Poll, Vote } from '@/types'
 import { Clock, Users, ChevronRight, Lock, EyeOff, CheckSquare } from 'lucide-react'
 
+function RenderText({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/(<a?:\w+:\d+>)/g)
+  return (
+    <span className={className}>
+      {parts.map((part, i) => {
+        const m = part.match(/^<(a?):(\w+):(\d+)>$/)
+        if (m) return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={i}
+            src={`https://cdn.discordapp.com/emojis/${m[3]}.${m[1]==='a'?'gif':'png'}?size=32`}
+            alt={m[2]} className="inline-block w-4 h-4 align-text-bottom mx-0.5" />
+        )
+        return part ? <span key={i}>{part}</span> : null
+      })}
+    </span>
+  )
+}
+
 function timeLeft(iso?: string) {
   if (!iso) return 'No end date'
   const ms = new Date(iso).getTime() - Date.now()
@@ -47,7 +65,7 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
             {poll.includeTimeSlots && <span className="badge badge-muted">+ Times</span>}
           </div>
           <h3 className="font-display font-semibold text-p-text group-hover:text-p-primary transition-colors leading-snug">
-            {poll.title}
+            <RenderText text={poll.title} />
           </h3>
           {poll.description && (
             <p className="text-xs text-p-muted mt-1 line-clamp-2">{poll.description}</p>
@@ -66,7 +84,7 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
             <div key={opt.id}>
               <div className="flex justify-between text-xs mb-1">
                 <span className={`truncate ${isWin ? 'text-p-accent font-semibold' : 'text-p-muted'}`}>
-                  {isWin ? '🏆 ' : ''}{opt.text}
+                  {isWin ? '🏆 ' : ''}<RenderText text={opt.text} />
                 </span>
                 <span className={`shrink-0 ml-2 font-medium ${count > 0 ? 'text-p-text' : 'text-p-subtle'}`}>{pct}%</span>
               </div>

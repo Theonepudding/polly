@@ -5,6 +5,7 @@ import GuildCard from '@/components/GuildCard'
 import type { GuildWithMeta } from '@/types'
 import { ExternalLink, Plus } from 'lucide-react'
 import Image from 'next/image'
+import { getAllGuilds } from '@/lib/guilds'
 
 const BOT_INVITE_URL = process.env.DISCORD_CLIENT_ID
   ? `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
@@ -83,12 +84,18 @@ export default async function DashboardPage() {
     )
   }
 
-  const [userGuilds, botGuildIds] = await Promise.all([
+  const [userGuilds, botGuildIds, kvGuilds] = await Promise.all([
     getUserGuilds(accessToken),
     getBotGuilds(),
+    getAllGuilds(),
   ])
 
-  const sharedGuilds = userGuilds.filter(g => botGuildIds.includes(g.id))
+  // Fall back to KV-stored guild list if Discord API returns nothing (rate limit / outage)
+  const effectiveBotIds = botGuildIds.length > 0
+    ? botGuildIds
+    : kvGuilds.map(g => g.guildId)
+
+  const sharedGuilds = userGuilds.filter(g => effectiveBotIds.includes(g.id))
 
   const guildsWithMeta: GuildWithMeta[] = sharedGuilds.map(g => ({
     guildId:        g.id,

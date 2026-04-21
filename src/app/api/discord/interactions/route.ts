@@ -588,35 +588,46 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
-          if (!poll.allowMultiple) {
-            const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
-            if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
-            else data.votes.push(vote)
+          // For single-vote polls with time slots: show the time picker first — vote is
+          // saved only after the user picks a time (or clicks "No preference").
+          if (!poll.allowMultiple && poll.includeTimeSlots && poll.timeSlots.length > 0) {
+            savedPoll = poll
           } else {
-            const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId && v.optionId === optionId)
-            if (vIdx !== -1) data.votes[vIdx] = vote
-            else data.votes.push(vote)
+            const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
+            if (!poll.allowMultiple) {
+              const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
+              if (vIdx !== -1) { voteChanged = data.votes[vIdx].optionId !== optionId; data.votes[vIdx] = vote }
+              else data.votes.push(vote)
+            } else {
+              const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId && v.optionId === optionId)
+              if (vIdx !== -1) data.votes[vIdx] = vote
+              else data.votes.push(vote)
+            }
+            await writeData(data)
+            savedVotes = data.votes.filter(v => v.pollId === pollId)
+            savedPoll  = poll
           }
-          await writeData(data)
-          savedVotes = data.votes.filter(v => v.pollId === pollId)
-          savedPoll  = poll
         } catch (e) { console.error('Vote error:', e) }
+
+        // Single-vote + time slots: respond directly with the time picker (no prior vote saved)
+        if (savedPoll && !savedPoll.allowMultiple && savedPoll.includeTimeSlots && savedPoll.timeSlots.length > 0 && !savedVotes) {
+          bg((async () => {
+            await sleep(20_000)
+            await deleteMessage(appId, token)
+          })())
+          return Response.json({ type: 4, data: {
+            content: buildTimeSlotFollowupContent(savedPoll),
+            components: buildTimeSlotComponents(savedPoll, optionId),
+            flags: 64,
+          }})
+        }
 
         if (savedPoll && savedVotes) {
           const poll = savedPoll; const votes = savedVotes
           bg((async () => {
             updatePollInDiscord(poll, votes).catch(() => {})
-            const hasSlots = poll.includeTimeSlots && poll.timeSlots.length > 0
-            let followupId: string | null = null
-            if (hasSlots) {
-              followupId = await sendFollowup(token, appId, {
-                content: buildTimeSlotFollowupContent(poll), components: buildTimeSlotComponents(poll, optionId), flags: 64,
-              })
-            }
             await sleep(5_000)
             await deleteMessage(appId, token)
-            if (followupId) { await sleep(20_000); await deleteMessage(appId, token, followupId) }
           })())
         }
 
@@ -630,8 +641,10 @@ export async function POST(req: NextRequest) {
             flags: 64,
           }})
         }
-        const optTxt  = savedPoll?.options.find(o => o.id === optionId)?.text ?? optionId
-        const voteMsg = voteChanged ? `🔄 Vote changed to **${optTxt}**!` : `✅ Voted for **${optTxt}**!`
+        const optIdx  = savedPoll?.options.findIndex(o => o.id === optionId) ?? 0
+        const btnNum  = savedPoll?.options[optIdx]?.buttonNum ?? (optIdx + 1)
+        const optTxt  = savedPoll?.options[optIdx]?.text ?? optionId
+        const voteMsg = voteChanged ? `🔄 Vote changed to **#${btnNum}** — ${optTxt}!` : `✅ Voted **#${btnNum}** — ${optTxt}!`
         return Response.json({ type: 4, data: { content: voteMsg, flags: 64 } })
       }
 
@@ -664,10 +677,27 @@ export async function POST(req: NextRequest) {
         return Response.json({ type: 6 })
       }
 
-      // ── Skip time: skip:{pollId} ──────────────────────────────────────────
+      // ── Skip time: skip:{pollId}:{optionId} ──────────────────────────────
       if (customId.startsWith('skip:')) {
+        const parts      = customId.split(':')
+        const skipPollId = parts[1]
+        const skipOptId  = parts[2] // present for new-style buttons; absent for legacy
+        if (skipOptId && userId) {
+          try {
+            const data = await readData()
+            const poll = data.polls.find(p => p.id === skipPollId)
+            if (poll && !poll.isClosed) {
+              const vote: Vote = { pollId: skipPollId, userId, username, optionId: skipOptId, votedAt: new Date().toISOString() }
+              const vIdx = data.votes.findIndex(v => v.pollId === skipPollId && v.userId === userId)
+              if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
+              await writeData(data)
+              const votes = data.votes.filter(v => v.pollId === skipPollId)
+              updatePollInDiscord(poll, votes).catch(() => {})
+            }
+          } catch (e) { console.error('Skip time vote error:', e) }
+        }
         bg((async () => {
-          await patchMessage(appId, token, { content: '✅ No time preference — noted!', components: [] })
+          await patchMessage(appId, token, { content: '✅ Voted! (No time preference)', components: [] })
           await sleep(5_000); await deleteMessage(appId, token)
         })())
         return Response.json({ type: 6 })

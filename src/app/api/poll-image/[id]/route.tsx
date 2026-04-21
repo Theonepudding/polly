@@ -103,7 +103,8 @@ export async function GET(
   const HEADER_H  = 88
   const FOOTER_H  = 50
   const slotRows  = hasTimeSlots ? Math.ceil(shownSlots.length / 5) : 0
-  const TS_H      = hasTimeSlots ? 22 + 10 + slotRows * 36 + 8 : 0
+  // 26 = separator(13) + label(13); 30 per row = chip height(22) + gap(8); last row has no trailing gap
+  const TS_H      = hasTimeSlots ? 26 + slotRows * 30 - 8 : 0
   const TS_SEP_H  = hasTimeSlots ? 16 : 0
   const H = PAD_V * 2 + HEADER_H + optsAreaH + TS_SEP_H + TS_H + FOOTER_H
 

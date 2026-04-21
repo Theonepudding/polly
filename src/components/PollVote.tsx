@@ -309,7 +309,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
             </span>
           )}
         </div>
-        <h1 className="font-display font-bold text-2xl text-p-text mb-2">{poll.title}</h1>
+        <h1 className="font-display font-bold text-2xl text-p-text mb-2">{renderOptionText(poll.title)}</h1>
         {poll.description && <p className="text-p-muted">{poll.description}</p>}
         <p className="text-xs text-p-muted mt-2">by {poll.createdByName}</p>
       </div>
