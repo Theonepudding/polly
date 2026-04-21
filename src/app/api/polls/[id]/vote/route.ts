@@ -31,6 +31,7 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: 'Invalid option' }, { status: 400 })
 
   const now = new Date().toISOString()
+  let votes: Vote[] = []
   for (const optionId of optionIds) {
     const vote: Vote = {
       pollId:   id,
@@ -40,10 +41,8 @@ export async function POST(req: Request, { params }: Params) {
       timeSlot: poll.includeTimeSlots ? body.timeSlot : undefined,
       votedAt:  now,
     }
-    await castVote(vote, poll.allowMultiple)
+    ;({ votes } = await castVote(vote, poll.allowMultiple))
   }
-
-  const votes = await getVotes(id)
   await updatePollInDiscord(poll, votes).catch(() => {})
   refreshDashboard(poll.guildId).catch(() => {})
   return NextResponse.json({ votes })

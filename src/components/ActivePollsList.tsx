@@ -26,6 +26,7 @@ export default function ActivePollsList({ polls, initialVotes, guildId, userId, 
   }, [guildId])
 
   useEffect(() => {
+    fetchVotes()
     const id = setInterval(fetchVotes, 3000)
     return () => clearInterval(id)
   }, [fetchVotes])

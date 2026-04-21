@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPoll, getVotes, castVote } from '@/lib/polls'
+import { getPoll, castVote } from '@/lib/polls'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import type { Vote } from '@/types'
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const now = new Date().toISOString()
+  let votes: Vote[] = []
   if (poll.allowMultiple) {
     for (const optionId of optionIds) {
       const vote: Vote = {
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         timeSlot: body.timeSlot,
         votedAt:  now,
       }
-      await castVote(vote, true)
+      ;({ votes } = await castVote(vote, true))
     }
   } else {
     const vote: Vote = {
@@ -47,10 +48,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       timeSlot: body.timeSlot,
       votedAt:  now,
     }
-    await castVote(vote, false)
+    ;({ votes } = await castVote(vote, false))
   }
-
-  const votes = await getVotes(id)
 
   await updatePollInDiscord(poll, votes).catch(() => {})
   refreshDashboard(guildId).catch(() => {})
