@@ -15,13 +15,31 @@ function botHeaders() {
   }
 }
 
-function pollImageUrl(pollId: string, page = 0): string {
+function pollImageUrl(pollId: string, page = 0, maxH?: number): string {
   const base = `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?t=${Date.now()}`
-  return page > 0 ? `${base}&p=${page}` : base
+  const p = page > 0 ? `&p=${page}` : ''
+  const h = maxH ? `&h=${maxH}` : ''
+  return `${base}${p}${h}`
 }
 
 function needsTwoImages(poll: Poll): boolean {
   return poll.options.length > 6
+}
+
+// Mirror of the height formula in poll-image/[id]/route.tsx (vote-independent baseline).
+// Both page URLs must carry the same ?h= so Discord renders them at the same display size.
+function computePollImageH(poll: Poll): number {
+  const PAD_V = 26, HEADER_H = 88, FOOTER_H = 50, MIN_H = 460
+  const OPT_ROW = 54 // lineH(30) + gap(7) + bar(9) + optGap(8)
+  const hasSlots = poll.includeTimeSlots && poll.timeSlots.length > 0
+  const slotRows = hasSlots ? Math.ceil(poll.timeSlots.length / 5) : 0
+  const tsH = hasSlots ? 26 + slotRows * 30 - 8 : 0
+  const sepH = hasSlots ? 16 : 0
+  function h(n: number, slots: boolean) {
+    return Math.max(MIN_H, PAD_V * 2 + HEADER_H + n * OPT_ROW + (slots ? sepH + tsH : 0) + FOOTER_H)
+  }
+  if (!needsTwoImages(poll)) return h(poll.options.length, hasSlots)
+  return Math.max(h(6, false), h(Math.max(0, poll.options.length - 6), hasSlots))
 }
 
 function pollPageUrl(pollId: string): string {
@@ -99,7 +117,7 @@ function pollFooter(poll: Poll) {
   return { text: parts.join('  ·  ') }
 }
 
-export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true) {
+export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true, maxH?: number) {
   return {
     title:       poll.title,
     url:         pollPageUrl(poll.id),
@@ -107,7 +125,7 @@ export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true) 
       ? `${poll.description}${poll.closesAt ? `\n\nCloses ${discordTimestamp(poll.closesAt)}` : ''}`
       : poll.closesAt ? `Closes ${discordTimestamp(poll.closesAt)}` : undefined,
     color:       COLOR_ACTIVE,
-    image:       { url: pollImageUrl(poll.id) },
+    image:       { url: pollImageUrl(poll.id, 0, maxH) },
     ...(includeFooter ? { footer: pollFooter(poll), timestamp: new Date().toISOString() } : {}),
   }
 }
@@ -117,10 +135,8 @@ export function buildPollComponents(poll: Poll) {
 
   // Cap at 12: 3 option rows of 5 + 1 website button row = 4 rows (Discord max is 5)
   const optionButtons = poll.options.slice(0, 12).map((opt, i) => {
-    // Button emoji: explicit override > extracted from option text
-    const emoji = opt.buttonEmoji
-      ? emojiFromCode(opt.buttonEmoji)
-      : extractDiscordEmoji(opt.text).emoji
+    // Only use explicitly set button emoji — never fall back to text emoji
+    const emoji = opt.buttonEmoji ? emojiFromCode(opt.buttonEmoji) : undefined
     // Button label: explicit number override > default 1-based index
     const label = String(opt.buttonNum ?? (i + 1))
     return {
@@ -171,7 +187,7 @@ export function buildTimeSlotFollowupContent(poll: Poll): string {
   return `🕐 Pick a time preference:\n${lines.join('\n')}`
 }
 
-export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true) {
+export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true, maxH?: number) {
   const total  = votes.length
   const winner = winnerOf(poll, votes)
   const slot   = topTimeSlot(poll, votes)
@@ -185,7 +201,7 @@ export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true
     url:         pollPageUrl(poll.id),
     description: lines.length ? lines.join('\n') : '*No votes were cast.*',
     color:       COLOR_CLOSED,
-    image:       { url: pollImageUrl(poll.id) },
+    image:       { url: pollImageUrl(poll.id, 0, maxH) },
     ...(includeFooter ? { footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() } : {}),
   }
 }
@@ -204,18 +220,20 @@ export function buildClosedPollComponents(poll: Poll): object[] {
 
 export function buildPollEmbeds(poll: Poll, votes: Vote[]): object[] {
   if (!needsTwoImages(poll)) return [buildPollEmbed(poll, votes)]
+  const maxH = computePollImageH(poll)
   return [
-    buildPollEmbed(poll, votes, false),
-    { color: COLOR_ACTIVE, image: { url: pollImageUrl(poll.id, 1) }, footer: pollFooter(poll), timestamp: new Date().toISOString() },
+    buildPollEmbed(poll, votes, false, maxH),
+    { color: COLOR_ACTIVE, url: pollPageUrl(poll.id), image: { url: pollImageUrl(poll.id, 1, maxH) }, footer: pollFooter(poll), timestamp: new Date().toISOString() },
   ]
 }
 
 export function buildClosedEmbeds(poll: Poll, votes: Vote[]): object[] {
   const total = votes.length
   if (!needsTwoImages(poll)) return [buildClosedEmbed(poll, votes)]
+  const maxH = computePollImageH(poll)
   return [
-    buildClosedEmbed(poll, votes, false),
-    { color: COLOR_CLOSED, image: { url: pollImageUrl(poll.id, 1) }, footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() },
+    buildClosedEmbed(poll, votes, false, maxH),
+    { color: COLOR_CLOSED, url: pollPageUrl(poll.id), image: { url: pollImageUrl(poll.id, 1, maxH) }, footer: { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` }, timestamp: new Date().toISOString() },
   ]
 }
 

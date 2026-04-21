@@ -588,9 +588,9 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // For single-vote polls with time slots: show the time picker first — vote is
+          // For polls with time slots: show the time picker first — vote is
           // saved only after the user picks a time (or clicks "No preference").
-          if (!poll.allowMultiple && poll.includeTimeSlots && poll.timeSlots.length > 0) {
+          if (poll.includeTimeSlots && poll.timeSlots.length > 0) {
             savedPoll = poll
           } else {
             const vote: Vote = { pollId, userId, username, optionId, votedAt: new Date().toISOString() }
@@ -609,8 +609,8 @@ export async function POST(req: NextRequest) {
           }
         } catch (e) { console.error('Vote error:', e) }
 
-        // Single-vote + time slots: respond directly with the time picker (no prior vote saved)
-        if (savedPoll && !savedPoll.allowMultiple && savedPoll.includeTimeSlots && savedPoll.timeSlots.length > 0 && !savedVotes) {
+        // Any poll with time slots: respond with the time picker (vote saved after user picks time)
+        if (savedPoll && savedPoll.includeTimeSlots && savedPoll.timeSlots.length > 0 && !savedVotes) {
           bg((async () => {
             await sleep(20_000)
             await deleteMessage(appId, token)
@@ -623,29 +623,24 @@ export async function POST(req: NextRequest) {
         }
 
         if (savedPoll && savedVotes) {
-          const poll = savedPoll; const votes = savedVotes
+          const poll = savedPoll; const votes = savedVotes; const changed = voteChanged
           bg((async () => {
             updatePollInDiscord(poll, votes).catch(() => {})
-            await sleep(5_000)
-            await deleteMessage(appId, token)
+            if (changed) {
+              await sleep(5_000)
+              await deleteMessage(appId, token)
+            }
           })())
         }
 
-        if (savedPoll?.allowMultiple && savedVotes) {
-          const userOptIds   = [...new Set(savedVotes.filter(v => v.userId === userId).map(v => v.optionId))]
-          const userOptTexts = userOptIds.map(oid => savedPoll!.options.find(o => o.id === oid)?.text ?? oid)
-          const listed       = userOptTexts.map(t => `**${t}**`).join(', ')
-          const siteUrl      = process.env.NEXTAUTH_URL ?? ''
-          return Response.json({ type: 4, data: {
-            content: `☑️ Your selections: ${listed}\n*Click more options to add them, or [manage on the website](${siteUrl}/p/${pollId}) to deselect.*`,
-            flags: 64,
-          }})
+        // Only show a message when the vote actually changed; first votes are silent
+        if (voteChanged) {
+          const optIdx = savedPoll?.options.findIndex(o => o.id === optionId) ?? 0
+          const btnNum = savedPoll?.options[optIdx]?.buttonNum ?? (optIdx + 1)
+          const optTxt = savedPoll?.options[optIdx]?.text ?? optionId
+          return Response.json({ type: 4, data: { content: `🔄 Vote changed to **#${btnNum}** — ${optTxt}!`, flags: 64 } })
         }
-        const optIdx  = savedPoll?.options.findIndex(o => o.id === optionId) ?? 0
-        const btnNum  = savedPoll?.options[optIdx]?.buttonNum ?? (optIdx + 1)
-        const optTxt  = savedPoll?.options[optIdx]?.text ?? optionId
-        const voteMsg = voteChanged ? `🔄 Vote changed to **#${btnNum}** — ${optTxt}!` : `✅ Voted **#${btnNum}** — ${optTxt}!`
-        return Response.json({ type: 4, data: { content: voteMsg, flags: 64 } })
+        return Response.json({ type: 6 })
       }
 
       // ── Time slot: t:{pollId}:{optionId}:{ts} ────────────────────────────
@@ -660,7 +655,11 @@ export async function POST(req: NextRequest) {
           const poll = data.polls.find(p => p.id === pollId)
           if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) return Response.json({ type: 6 })
           const vote: Vote = { pollId, userId, username, optionId, timeSlot, votedAt: new Date().toISOString() }
-          const vIdx = data.votes.findIndex(v => v.pollId === pollId && v.userId === userId)
+          // Multi-choice: match by optionId too so each option gets its own time slot vote
+          const isMulti = poll.allowMultiple
+          const vIdx = data.votes.findIndex(v =>
+            v.pollId === pollId && v.userId === userId && (!isMulti || v.optionId === optionId)
+          )
           if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
           await writeData(data)
           savedVotes = data.votes.filter(v => v.pollId === pollId); savedPoll = poll
@@ -688,7 +687,10 @@ export async function POST(req: NextRequest) {
             const poll = data.polls.find(p => p.id === skipPollId)
             if (poll && !poll.isClosed) {
               const vote: Vote = { pollId: skipPollId, userId, username, optionId: skipOptId, votedAt: new Date().toISOString() }
-              const vIdx = data.votes.findIndex(v => v.pollId === skipPollId && v.userId === userId)
+              const isMulti = poll.allowMultiple
+              const vIdx = data.votes.findIndex(v =>
+                v.pollId === skipPollId && v.userId === userId && (!isMulti || v.optionId === skipOptId)
+              )
               if (vIdx !== -1) data.votes[vIdx] = vote; else data.votes.push(vote)
               await writeData(data)
               const votes = data.votes.filter(v => v.pollId === skipPollId)

@@ -8,9 +8,11 @@ const PAD_H  = 26
 const PAD_V  = 26
 
 function fmtTime(hhMM: string): string {
-  const [h, m] = hhMM.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return hhMM
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const parts = hhMM.match(/^(\d{2}):(\d{2})$/)
+  if (!parts) return hhMM
+  const d = new Date()
+  d.setUTCHours(parseInt(parts[1]), parseInt(parts[2]), 0, 0)
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
 }
 
 async function fetchAsBase64(url: string): Promise<string | null> {
@@ -57,7 +59,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const page = parseInt(new URL(req.url).searchParams.get('p') ?? '0', 10)
+  const urlObj  = new URL(req.url)
+  const page    = parseInt(urlObj.searchParams.get('p') ?? '0', 10)
+  const forcedH = parseInt(urlObj.searchParams.get('h') ?? '0', 10) || 0
 
   const [poll, votes] = await Promise.all([getPoll(id), getVotes(id)])
   if (!poll) return new Response('Not found', { status: 404 })
@@ -92,29 +96,46 @@ export async function GET(
   const nameFSz  = 13
   const optGap   = 8
 
-  // Dynamic height: measure each option row rather than using a fixed perOptH estimate.
-  // This eliminates empty whitespace when some rows are short (e.g. emoji-only options).
-  const isAnon = poll.isAnonymous
+  const isAnon  = poll.isAnonymous
   const BADGE_H = 30
-  function optRowH(opt: (typeof pageOpts)[0]): number {
+  const HEADER_H = 88
+  const FOOTER_H = 50
+  const MIN_H    = 460
+
+  function optRowH(opt: { id: string }): number {
     const voterCount = isAnon ? 0 : votes.filter(v => v.optionId === opt.id).length
-    // badge/text line height is the taller of the badge or text; + bar + optional voter names
     const lineH = Math.max(optFSize + 4, BADGE_H)
     return lineH + 7 + barH_px + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
   }
-  const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
 
-  const HEADER_H  = 88
-  const FOOTER_H  = 50
+  // Calculate the canvas height for ANY set of options + whether time slots appear.
+  // Used for both pages so we can pick the SAME height for the whole poll — otherwise
+  // Discord sees different aspect ratios per page and renders them at different widths.
+  const allTimeSlots = poll.timeSlots
+  function calcH(opts: typeof pageOpts, showTimeSlots: boolean): number {
+    const optsH  = opts.reduce((sum, o) => sum + optRowH(o), 0)
+    const _rows  = showTimeSlots ? Math.ceil(allTimeSlots.length / 5) : 0
+    const _TS_H  = showTimeSlots ? 26 + _rows * 30 - 8 : 0
+    const _SEP_H = showTimeSlots ? 16 : 0
+    return Math.max(MIN_H, PAD_V * 2 + HEADER_H + optsH + _SEP_H + _TS_H + FOOTER_H)
+  }
+
+  // For 2-page polls both pages must have the same H so Discord scales them identically.
+  // discord-bot.ts pre-computes the max height and passes it as ?h=NNN so both pages
+  // always get the same canvas height even when rendered in separate requests.
+  const pollHasTimeSlots = poll.includeTimeSlots && allTimeSlots.length > 0
+  const computedH = needsP2
+    ? Math.max(
+        calcH(poll.options.slice(0, 6), false),
+        calcH(poll.options.slice(6),    pollHasTimeSlots),
+      )
+    : calcH(pageOpts, hasTimeSlots)
+  const H = forcedH > 0 ? Math.max(forcedH, MIN_H) : computedH
+
+  const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
   const slotRows  = hasTimeSlots ? Math.ceil(shownSlots.length / 5) : 0
-  // 26 = separator(13) + label(13); 30 per row = chip height(22) + gap(8); last row has no trailing gap
   const TS_H      = hasTimeSlots ? 26 + slotRows * 30 - 8 : 0
   const TS_SEP_H  = hasTimeSlots ? 16 : 0
-  // MIN_H keeps aspect ratio consistent across polls so Discord always scales to the same width.
-  // Discord constrains embed image height at ~300px displayed; below ~460px natural height the
-  // image fits without squeezing, so polls with few options stay at the same rendered width.
-  const MIN_H     = 460
-  const H = Math.max(MIN_H, PAD_V * 2 + HEADER_H + optsAreaH + TS_SEP_H + TS_H + FOOTER_H)
 
   const closesLabel = poll.closesAt
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -198,17 +219,16 @@ export async function GET(
             <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: optGap }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                  {/* Button number / emoji badge */}
+                  {/* Button number / emoji badge — always shows the number, emoji alongside if set */}
                   <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    minWidth: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+                    minWidth: btnEmojiUri ? 40 : 28, height: 28, borderRadius: 6, flexShrink: 0,
+                    padding: '0 6px',
                     background: 'rgba(99,102,241,0.22)',
                     border: '1.5px solid rgba(129,140,248,0.4)',
                   }}>
-                    {btnEmojiUri
-                      ? <img src={btnEmojiUri} width={16} height={16} />
-                      : <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 800 }}>{btnLabel}</span>
-                    }
+                    <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 800 }}>{btnLabel}</span>
+                    {btnEmojiUri && <img src={btnEmojiUri} width={14} height={14} />}
                   </div>
                   <SegText text={opt.text} fontSize={optFSize} />
                 </div>
@@ -278,7 +298,7 @@ export async function GET(
 
       </div>
     ),
-    { width: W, height: H },
+    { width: W, height: H, emoji: 'twemoji' },
   )
 
   return new Response(img.body, {
