@@ -576,14 +576,18 @@ export async function POST(req: NextRequest) {
         const [, pollId, optionId] = customId.split(':')
         if (!userId) return Response.json({ type: 4, data: { content: '❌ Could not identify you.', flags: 64 } })
 
-        // Fast individual-key lookup — avoids reading the heavy polls+votes blob
-        // for existence check, and handles KV eventual-consistency lag with a retry.
+        // Fast individual-key lookup with progressive back-off to absorb KV propagation lag.
+        // KV writes from one edge can take 1-5s to reach a different edge location.
+        // Total wait budget ~2.1s keeps us safely under Discord's 3s interaction deadline.
         let poll: Poll | null = await getPoll(pollId)
         if (!poll) {
-          await sleep(400)
-          poll = await getPoll(pollId)
+          for (const delay of [500, 500, 500, 600]) {
+            await sleep(delay)
+            poll = await getPoll(pollId)
+            if (poll) break
+          }
         }
-        if (!poll) return Response.json({ type: 4, data: { content: '❌ Poll not found.', flags: 64 } })
+        if (!poll) return Response.json({ type: 4, data: { content: '❌ Poll not found — it may still be loading. Try again in a moment!', flags: 64 } })
         if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) {
           return Response.json({ type: 4, data: { content: '❌ This poll is no longer open.', flags: 64 } })
         }
