@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { getPoll, getVotes } from '@/lib/polls'
+import type { Poll, Vote } from '@/types'
 
 const W      = 600
 const INDIGO = '#818cf8'
@@ -54,6 +55,228 @@ function stripLeadingEmoji(s: string): string {
   return s.replace(/^[\u{2000}-\u{27FF}\u{1F000}-\u{1FAFF}]+\s*/u, '').trim() || s
 }
 
+// ─── Results image (winner announcement style) ───────────────────────────────
+
+async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> {
+  const RW   = 600
+  const CYAN = '#22d3ee'
+  const PAD_H = 26
+  const PAD_V = 24
+
+  const totalVotes  = votes.length
+  const uniqueVoters = new Set(votes.map(v => v.userId)).size
+  const totalForPct  = poll.allowMultiple ? uniqueVoters : totalVotes
+  const noVotes      = totalVotes === 0
+
+  const sortedOpts = [...poll.options].sort((a, b) =>
+    votes.filter(v => v.optionId === b.id).length - votes.filter(v => v.optionId === a.id).length
+  )
+  const topCount = noVotes ? 0 : votes.filter(v => v.optionId === sortedOpts[0]?.id).length
+  const winners  = topCount > 0
+    ? sortedOpts.filter(o => votes.filter(v => v.optionId === o.id).length === topCount)
+    : []
+  const runnerUps = sortedOpts.filter(o => !winners.some(w => w.id === o.id)).slice(0, 5)
+  const hasRunnerUps = runnerUps.length > 0 && !noVotes
+
+  const emojiMap = await buildEmojiMap([...winners.map(o => o.text), ...runnerUps.map(o => o.text)])
+
+  function RSegText({ text, fontSize, fontWeight = 700, color = '#f0f0ff' }: {
+    text: string; fontSize: number; fontWeight?: number; color?: string
+  }) {
+    const cleaned  = stripLeadingEmoji(text)
+    const segments = cleaned.split(/(<a?:\w+:\d+>)/g)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
+        {segments.map((seg, i) => {
+          const m = seg.match(/^<(a?):(\w+):(\d+)>$/)
+          if (m) {
+            const uri = emojiMap.get(m[3])
+            return uri
+              ? <img key={i} src={uri} width={fontSize + 4} height={fontSize + 4} />
+              : <span key={i} style={{ color: '#8888bb', fontSize: Math.round(fontSize * 0.75), fontWeight }}>:{m[2]}:</span>
+          }
+          return seg ? <span key={i} style={{ color, fontSize, fontWeight, lineHeight: 1.2 }}>{seg}</span> : null
+        })}
+      </div>
+    )
+  }
+
+  // Height calculation
+  const HEADER_H       = 40 + 14 + 1 + 20   // row + margin + divider + margin
+  const WINNER_LABEL_H = 20 + 10
+  function winnerCardH(w: Poll['options'][0]): number {
+    const voterCount = !poll.isAnonymous ? votes.filter(v => v.optionId === w.id).length : 0
+    return 28 + 32 + 10 + 12 + 8 + 18 + (voterCount > 0 ? 18 + 6 : 0) // padding + text + gap + bar + gap + count + optional voters
+  }
+  const winnersH    = noVotes ? 0 : winners.reduce((s, w, i) => s + winnerCardH(w) + (i > 0 ? 10 : 0), 0)
+  const runnerUpsH  = hasRunnerUps ? 18 + 18 + 10 + runnerUps.length * 41 : 0
+  const FOOTER_H    = 12 + 20 + PAD_V
+  const NO_VOTES_H  = 80
+  const contentH    = HEADER_H + (noVotes ? NO_VOTES_H : WINNER_LABEL_H + winnersH + runnerUpsH) + FOOTER_H
+  const H           = Math.max(340, 3 + PAD_V + contentH)
+
+  const img = new ImageResponse(
+    (
+      <div style={{
+        display: 'flex', flexDirection: 'column',
+        width: RW, height: H,
+        background: '#0c0c1e',
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        {/* Cyan accent bar */}
+        <div style={{
+          display: 'flex', height: 3,
+          background: `linear-gradient(90deg, transparent, ${CYAN}bb, ${CYAN}, ${CYAN}bb, transparent)`,
+        }} />
+
+        {/* Top glow */}
+        <div style={{
+          position: 'absolute', display: 'flex',
+          width: RW, height: 260,
+          background: `radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.13) 0%, transparent 65%)`,
+          top: 0, left: 0,
+        }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: `${PAD_V}px ${PAD_H}px` }}>
+
+          {/* Header: title + CLOSED badge */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span style={{ color: 'rgba(180,180,220,0.5)', fontSize: 14, fontWeight: 600, flex: 1 }}>
+              {poll.title.length > 55 ? poll.title.slice(0, 55) + '…' : poll.title}
+            </span>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+              background: 'rgba(34,211,238,0.09)',
+              border: '1px solid rgba(34,211,238,0.3)',
+              borderRadius: 20, padding: '4px 12px', marginLeft: 12,
+            }}>
+              <div style={{ display: 'flex', width: 5, height: 5, borderRadius: '50%', background: CYAN }} />
+              <span style={{ color: CYAN, fontSize: 11, fontWeight: 800, letterSpacing: '0.1em' }}>CLOSED</span>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', height: 1, background: 'rgba(34,211,238,0.18)', marginBottom: 20 }} />
+
+          {noVotes ? (
+            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'rgba(140,140,190,0.5)', fontSize: 18, fontWeight: 600 }}>No votes were cast</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {/* WINNER label */}
+              <span style={{ color: CYAN, fontSize: 11, fontWeight: 800, letterSpacing: '0.22em', marginBottom: 10 }}>
+                {winners.length > 1 ? 'TIED WINNERS' : 'WINNER'}
+              </span>
+
+              {/* Winner card(s) */}
+              {winners.map((winner, i) => {
+                const count      = votes.filter(v => v.optionId === winner.id).length
+                const pct        = totalForPct > 0 ? Math.round((count / totalForPct) * 100) : 0
+                const allVoters  = !poll.isAnonymous ? votes.filter(v => v.optionId === winner.id).map(v => v.username) : []
+                const shown      = allVoters.slice(0, 5)
+                const extra      = allVoters.length > 5 ? ` +${allVoters.length - 5}` : ''
+                const voterStr   = shown.join(' · ') + extra
+                return (
+                  <div key={winner.id} style={{
+                    display: 'flex', flexDirection: 'column',
+                    background: 'rgba(34,211,238,0.07)',
+                    border: '1.5px solid rgba(34,211,238,0.28)',
+                    borderRadius: 12,
+                    padding: '14px 16px',
+                    marginBottom: i < winners.length - 1 ? 10 : 0,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+                        <RSegText text={winner.text} fontSize={24} />
+                      </div>
+                      <span style={{ color: CYAN, fontSize: 26, fontWeight: 800, marginLeft: 16, flexShrink: 0, letterSpacing: '-0.5px' }}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'flex', height: 12,
+                      background: 'rgba(34,211,238,0.12)',
+                      borderRadius: 6, overflow: 'hidden', marginBottom: 8,
+                    }}>
+                      <div style={{
+                        display: 'flex', width: `${pct}%`,
+                        background: `linear-gradient(90deg, rgba(34,211,238,0.65), ${CYAN})`,
+                        borderRadius: 6,
+                      }} />
+                    </div>
+                    {shown.length > 0 && (
+                      <span style={{ color: 'rgba(140,195,210,0.7)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                        {voterStr}
+                      </span>
+                    )}
+                    <span style={{ color: 'rgba(34,211,238,0.5)', fontSize: 12, fontWeight: 700 }}>
+                      {count} {count !== 1 ? 'votes' : 'vote'}
+                    </span>
+                  </div>
+                )
+              })}
+
+              {/* Runner-ups */}
+              {hasRunnerUps && (
+                <div style={{ display: 'flex', flexDirection: 'column', marginTop: 18 }}>
+                  <span style={{ color: 'rgba(120,120,175,0.4)', fontSize: 10, fontWeight: 800, letterSpacing: '0.18em', marginBottom: 10 }}>
+                    OTHER RESULTS
+                  </span>
+                  {runnerUps.map(opt => {
+                    const count = votes.filter(v => v.optionId === opt.id).length
+                    const pct   = totalForPct > 0 ? Math.round((count / totalForPct) * 100) : 0
+                    return (
+                      <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: 11 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <RSegText text={opt.text} fontSize={14} fontWeight={600} color="rgba(160,160,210,0.62)" />
+                          <span style={{ color: 'rgba(120,120,175,0.55)', fontSize: 13, fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>
+                            {pct}%{count > 0 ? ` · ${count}` : ''}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                          {pct > 0 && <div style={{ display: 'flex', width: `${pct}%`, background: 'rgba(129,140,248,0.4)', borderRadius: 2 }} />}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            paddingTop: 12, marginTop: 'auto',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <span style={{ color: 'rgba(100,100,160,0.6)', fontSize: 12, fontWeight: 600 }}>
+              {totalVotes} {totalVotes !== 1 ? 'votes' : 'vote'} · Polly
+            </span>
+            <span style={{ color: 'rgba(34,211,238,0.3)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em' }}>
+              polly.pudding.vip
+            </span>
+          </div>
+
+        </div>
+      </div>
+    ),
+    { width: RW, height: H, emoji: 'twemoji' },
+  )
+
+  return new Response(img.body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, s-maxage=300, max-age=300',
+    },
+  })
+}
+
+// ─── Active poll image ────────────────────────────────────────────────────────
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -65,6 +288,10 @@ export async function GET(
 
   const [poll, votes] = await Promise.all([getPoll(id), getVotes(id)])
   if (!poll) return new Response('Not found', { status: 404 })
+
+  if (urlObj.searchParams.get('results') === '1') {
+    return renderResultsImage(poll, votes)
+  }
 
   const closed     = poll.isClosed || (poll.closesAt ? new Date(poll.closesAt) <= new Date() : false)
   const accent     = closed ? CYAN : INDIGO

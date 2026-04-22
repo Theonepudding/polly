@@ -22,6 +22,10 @@ function pollImageUrl(pollId: string, page = 0, version = 0, maxH?: number): str
   return `${base}${p}${h}`
 }
 
+function pollResultsImageUrl(pollId: string, version = 0): string {
+  return `${process.env.NEXTAUTH_URL}/api/poll-image/${pollId}?v=${version}&results=1`
+}
+
 // Version key that changes on every vote action, including vote changes.
 // votes.length alone stays the same when a user switches options.
 function pollVersion(votes: Vote[]): number {
@@ -430,15 +434,16 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
     }
   }
 
-  // Use the closed poll image embeds (cyan accent, final vote counts)
-  const baseEmbeds = buildClosedEmbeds(poll, votes) as Record<string, unknown>[]
-  const firstEmbed = {
-    ...baseEmbeds[0],
+  // Results embed: winner-announcement image (single image, no pagination)
+  const embeds = [{
     title:       `Results: ${poll.title}`,
+    url:         pollPageUrl(poll.id),
     description: lines.join('\n'),
     color:       COLOR_RESULT,
-  }
-  const embeds = [firstEmbed, ...baseEmbeds.slice(1)]
+    image:       { url: pollResultsImageUrl(poll.id, pollVersion(votes)) },
+    footer:      { text: `Poll closed  ·  ${total} vote${total !== 1 ? 's' : ''}  ·  ${poll.createdByName}` },
+    timestamp:   new Date().toISOString(),
+  }]
 
   const components = [{
     type: 1,
