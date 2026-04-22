@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
-import { getPolls, getVotesByPoll } from '@/lib/polls'
+import { getPoll, getPolls, getVotesByPoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
+import type { Poll } from '@/types'
 
 const W      = 600
 const PAD_H  = 26
@@ -42,19 +43,34 @@ async function buildEmojiMap(texts: string[]): Promise<Map<string, string>> {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ guildId: string }> },
 ) {
   const { guildId } = await params
-  const [guild, polls, votesByPoll] = await Promise.all([
+  const url     = new URL(req.url)
+  const idParam = url.searchParams.get('ids') ?? ''
+  const pollIds = idParam.split(',').map(s => s.trim()).filter(Boolean)
+
+  // When poll IDs are embedded in the URL (normal case), fetch them individually
+  // so we don't rely on the eventually-consistent `polls` list key being up to date.
+  // Fall back to getPolls() for legacy/direct URL access.
+  let activePolls: Poll[]
+  if (pollIds.length > 0) {
+    const fetched = await Promise.all(pollIds.map(id => getPoll(id)))
+    activePolls = fetched.filter((p): p is Poll =>
+      !!p && !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date())
+    )
+  } else {
+    const allPolls = await getPolls(guildId)
+    activePolls = allPolls
+      .filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date()))
+      .slice(0, 7)
+  }
+
+  const [guild, votesByPoll] = await Promise.all([
     getGuild(guildId),
-    getPolls(guildId),
     getVotesByPoll(guildId),
   ])
-
-  const activePolls = polls
-    .filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date()))
-    .slice(0, 7)
 
   const guildName = guild?.guildName ?? 'Polls'
   const count     = activePolls.length

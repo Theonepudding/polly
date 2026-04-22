@@ -57,8 +57,9 @@ function pollPageUrl(pollId: string): string {
   return `${process.env.NEXTAUTH_URL}/p/${pollId}`
 }
 
-function dashboardImageUrl(guildId: string): string {
-  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}?t=${Date.now()}`
+function dashboardImageUrl(guildId: string, activePollIds: string[]): string {
+  const ids = activePollIds.slice(0, 7).join(',')
+  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}?ids=${encodeURIComponent(ids)}&t=${Date.now()}`
 }
 
 function shortDate(iso?: string) {
@@ -272,7 +273,7 @@ export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
     title:       `${guild.guildName} — Polls`,
     description: lines.join('\n') || '*No polls yet.*',
     color:       0x6366F1,
-    image:       { url: dashboardImageUrl(guild.guildId) },
+    image:       { url: dashboardImageUrl(guild.guildId, activePolls.map(p => p.id)) },
     footer: {
       text: `${activePolls.length} active poll${activePolls.length !== 1 ? 's' : ''}  ·  Polly`,
     },
