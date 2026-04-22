@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Poll, Vote } from '@/types'
-import { Clock, Users, ChevronRight, Lock, EyeOff, CheckSquare } from 'lucide-react'
+import { Clock, Users, ChevronRight, Lock, EyeOff, CheckSquare, Ghost } from 'lucide-react'
 
 function RenderText({ text, className }: { text: string; className?: string }) {
   const parts = text.split(/(<a?:\w+:\d+>)/g)
@@ -42,13 +42,14 @@ interface Props {
 
 export default function PollCard({ poll, votes = [], guildId }: Props) {
   const uniqueVoters = new Set(votes.map(v => v.userId)).size
-  const total      = poll.allowMultiple ? uniqueVoters : votes.length
-  const closed     = poll.isClosed
-  const pollHref   = guildId ? `/dashboard/${guildId}/polls/${poll.id}` : `/p/${poll.id}`
-  const voteCounts = poll.options.map(opt => votes.filter(v => v.optionId === opt.id).length)
-  const maxVotes   = Math.max(...voteCounts, 1)
-  const leadingIdx = voteCounts.indexOf(Math.max(...voteCounts))
-  const isTied     = voteCounts.filter(c => c === maxVotes).length > 1 || maxVotes === 0
+  const total       = poll.allowMultiple ? uniqueVoters : votes.length
+  const closed      = poll.isClosed
+  const ghostActive = poll.isGhost && !closed
+  const pollHref    = guildId ? `/dashboard/${guildId}/polls/${poll.id}` : `/p/${poll.id}`
+  const voteCounts  = poll.options.map(opt => votes.filter(v => v.optionId === opt.id).length)
+  const maxVotes    = Math.max(...voteCounts, 1)
+  const leadingIdx  = voteCounts.indexOf(Math.max(...voteCounts))
+  const isTied      = voteCounts.filter(c => c === maxVotes).length > 1 || maxVotes === 0
 
   return (
     <Link href={pollHref} className="card-hover block p-5 group">
@@ -62,6 +63,7 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
             )}
             {poll.isAnonymous   && <span className="badge badge-muted gap-1"><EyeOff size={9} />Anon</span>}
             {poll.allowMultiple && <span className="badge badge-muted gap-1"><CheckSquare size={9} />Multi</span>}
+            {ghostActive        && <span className="badge badge-muted gap-1"><Ghost size={9} />Ghost</span>}
             {poll.includeTimeSlots && <span className="badge badge-muted">+ Times</span>}
           </div>
           <h3 className="font-display font-semibold text-p-text group-hover:text-p-primary transition-colors leading-snug">
@@ -74,13 +76,17 @@ export default function PollCard({ poll, votes = [], guildId }: Props) {
         <ChevronRight size={16} className="text-p-subtle group-hover:text-p-muted shrink-0 mt-1 transition-colors" />
       </div>
 
-      {/* Options with live progress — always visible */}
+      {/* Options — ghost hides bars/percentages until closed */}
       <div className="space-y-2 mb-3">
         {poll.options.slice(0, 4).map((opt, i) => {
           const count = voteCounts[i]
           const pct   = total > 0 ? Math.round((count / total) * 100) : 0
           const isWin = closed && !isTied && i === leadingIdx && count > 0
-          return (
+          return ghostActive ? (
+            <div key={opt.id} className="text-xs text-p-muted truncate">
+              <RenderText text={opt.text} />
+            </div>
+          ) : (
             <div key={opt.id}>
               <div className="flex justify-between text-xs mb-1">
                 <span className={`truncate ${isWin ? 'text-p-accent font-semibold' : 'text-p-muted'}`}>
