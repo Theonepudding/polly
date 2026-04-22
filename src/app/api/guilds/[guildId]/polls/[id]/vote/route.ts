@@ -9,9 +9,7 @@ type Params = { params: Promise<{ guildId: string; id: string }> }
 
 function bgDiscordUpdate(poll: Poll, votes: Vote[], guildId: string) {
   const work = (async () => {
-    // Small delay so the per-poll KV write has time to propagate to other edges
-    // before Discord fetches the updated image from our server.
-    await new Promise(r => setTimeout(r, 1500))
+    await new Promise(r => setTimeout(r, 500))
     await updatePollInDiscord(poll, votes).catch(() => {})
     refreshDashboard(guildId).catch(() => {})
   })()

@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> }
 
 function bgDiscordUpdate(poll: Poll, votes: Vote[]) {
   const work = (async () => {
-    await new Promise(r => setTimeout(r, 1500))
+    await new Promise(r => setTimeout(r, 500))
     await updatePollInDiscord(poll, votes).catch(() => {})
     refreshDashboard(poll.guildId).catch(() => {})
   })()

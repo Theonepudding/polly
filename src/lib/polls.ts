@@ -1,9 +1,26 @@
 import { Poll, Vote, PollsData } from '@/types'
 import { getKV } from './kv'
+import { getD1 } from './d1'
 
 const KEY            = 'polls'
 const POLL_KEY       = (id: string)     => `poll:${id}`
 const POLL_VOTES_KEY = (pollId: string) => `pv:${pollId}`
+
+type VoteRow = {
+  poll_id: string; user_id: string; option_id: string
+  username: string; time_slot: string | null; voted_at: string
+}
+
+function rowToVote(r: VoteRow): Vote {
+  return {
+    pollId:   r.poll_id,
+    userId:   r.user_id,
+    optionId: r.option_id,
+    username: r.username,
+    timeSlot: r.time_slot ?? undefined,
+    votedAt:  r.voted_at,
+  }
+}
 
 
 // ── Polls (read/write polls key only) ─────────────────────────────────────────
@@ -21,12 +38,15 @@ async function writePollsToKV(polls: Poll[]): Promise<void> {
   await kv.put(KEY, JSON.stringify({ polls }))
 }
 
-// ── Per-poll vote keys  pv:{pollId} ───────────────────────────────────────────
-// Each poll has its own key so concurrent votes on DIFFERENT polls never race.
-// Same-poll concurrent votes are still a theoretical race, but extremely rare
-// for a Discord poll bot and require Durable Objects to fully prevent.
+// ── Vote reads/writes — D1 primary, KV fallback ───────────────────────────────
 
 async function readPollVotes(pollId: string): Promise<Vote[]> {
+  const d1 = await getD1()
+  if (d1) {
+    const { results } = await d1.prepare('SELECT * FROM votes WHERE poll_id = ?').bind(pollId).all<VoteRow>()
+    return results.map(rowToVote)
+  }
+  // KV fallback when D1 binding is unavailable (local dev, etc.)
   const kv = await getKV()
   if (!kv) return []
   const raw = await kv.get(POLL_VOTES_KEY(pollId))
@@ -44,7 +64,7 @@ async function readPollVotes(pollId: string): Promise<Vote[]> {
   return []
 }
 
-async function writePollVotes(pollId: string, votes: Vote[]): Promise<void> {
+async function writePollVotesKV(pollId: string, votes: Vote[]): Promise<void> {
   const kv = await getKV()
   if (!kv) throw new Error('KV not available')
   await kv.put(POLL_VOTES_KEY(pollId), JSON.stringify({ votes }))
@@ -53,7 +73,7 @@ async function writePollVotes(pollId: string, votes: Vote[]): Promise<void> {
 // ── Public poll API ───────────────────────────────────────────────────────────
 
 export async function getPolls(guildId?: string): Promise<Poll[]> {
-  const polls   = await readPollsFromKV()
+  const polls    = await readPollsFromKV()
   const filtered = guildId ? polls.filter(p => p.guildId === guildId) : polls
   return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
@@ -71,8 +91,6 @@ export async function getPoll(id: string): Promise<Poll | null> {
 export async function createPoll(poll: Poll): Promise<void> {
   const kv = await getKV()
   if (!kv) throw new Error('KV not available')
-  // Individual key first — vote/image handlers can find the poll immediately
-  // even before the blob propagates to other edges.
   await kv.put(POLL_KEY(poll.id), JSON.stringify(poll))
   const polls = await readPollsFromKV()
   polls.push(poll)
@@ -91,31 +109,30 @@ export async function updatePoll(id: string, patch: Partial<Poll>): Promise<bool
 }
 
 export async function deletePoll(id: string): Promise<boolean> {
-  const polls = await readPollsFromKV()
-  const len   = polls.length
+  const polls    = await readPollsFromKV()
+  const len      = polls.length
   const newPolls = polls.filter(p => p.id !== id)
   if (newPolls.length === len) return false
-  const kv = await getKV()
+  const [kv, d1] = await Promise.all([getKV(), getD1()])
   await Promise.all([
     writePollsToKV(newPolls),
-    kv ? kv.delete(POLL_VOTES_KEY(id)) : Promise.resolve(),
-    kv ? kv.delete(POLL_KEY(id))       : Promise.resolve(),
+    kv ? kv.delete(POLL_KEY(id))                                                   : Promise.resolve(),
+    kv ? kv.delete(POLL_VOTES_KEY(id))                                             : Promise.resolve(),
+    d1 ? d1.prepare('DELETE FROM votes WHERE poll_id = ?').bind(id).run()          : Promise.resolve(),
   ])
   return true
 }
 
 export async function deleteGuildPolls(guildId: string): Promise<number> {
-  const polls  = await readPollsFromKV()
-  const ids    = new Set(polls.filter(p => p.guildId === guildId).map(p => p.id))
-  const before = polls.length
+  const polls    = await readPollsFromKV()
+  const ids      = new Set(polls.filter(p => p.guildId === guildId).map(p => p.id))
+  const before   = polls.length
   const newPolls = polls.filter(p => p.guildId !== guildId)
-  const kv = await getKV()
+  const [kv, d1] = await Promise.all([getKV(), getD1()])
   await Promise.all([
     writePollsToKV(newPolls),
-    kv ? Promise.all([...ids].flatMap(id => [
-      kv.delete(POLL_VOTES_KEY(id)),
-      kv.delete(POLL_KEY(id)),
-    ])) : Promise.resolve(),
+    kv ? Promise.all([...ids].flatMap(id => [kv.delete(POLL_KEY(id)), kv.delete(POLL_VOTES_KEY(id))])) : Promise.resolve(),
+    d1 ? Promise.all([...ids].map(id => d1.prepare('DELETE FROM votes WHERE poll_id = ?').bind(id).run())) : Promise.resolve(),
   ])
   return before - newPolls.length
 }
@@ -156,6 +173,13 @@ export async function getVotes(pollId: string, cachedData?: PollsData): Promise<
 }
 
 export async function getUserVotes(pollId: string, userId: string): Promise<Vote[]> {
+  const d1 = await getD1()
+  if (d1) {
+    const { results } = await d1.prepare(
+      'SELECT * FROM votes WHERE poll_id = ? AND user_id = ?'
+    ).bind(pollId, userId).all<VoteRow>()
+    return results.map(rowToVote)
+  }
   const votes = await readPollVotes(pollId)
   return votes.filter(v => v.userId === userId)
 }
@@ -175,14 +199,66 @@ export async function getPollsAndVotes(guildId: string): Promise<{ polls: Poll[]
 export async function getVotesByPoll(guildId: string): Promise<Record<string, Vote[]>> {
   const polls = await readPollsFromKV()
   const ids   = polls.filter(p => p.guildId === guildId).map(p => p.id)
+
+  const d1 = await getD1()
+  if (d1 && ids.length) {
+    const placeholders = ids.map(() => '?').join(', ')
+    const { results } = await d1.prepare(
+      `SELECT * FROM votes WHERE poll_id IN (${placeholders})`
+    ).bind(...ids).all<VoteRow>()
+    const out: Record<string, Vote[]> = Object.fromEntries(ids.map(id => [id, []]))
+    for (const row of results) {
+      out[row.poll_id] ??= []
+      out[row.poll_id].push(rowToVote(row))
+    }
+    return out
+  }
+
   const out: Record<string, Vote[]> = {}
   await Promise.all(ids.map(async id => { out[id] = await readPollVotes(id) }))
   return out
 }
 
-// ── castVote: reads/writes pv:{pollId} only — never touches the polls key ─────
+// ── castVote — D1 primary, KV fallback ────────────────────────────────────────
 
 export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ voteChanged: boolean; votes: Vote[] }> {
+  const d1 = await getD1()
+
+  if (d1) {
+    let voteChanged = false
+
+    if (allowMultiple) {
+      await d1.prepare(`
+        INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(poll_id, user_id, option_id) DO UPDATE SET
+          username  = excluded.username,
+          time_slot = excluded.time_slot,
+          voted_at  = excluded.voted_at
+      `).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
+    } else {
+      const existing = await d1.prepare(
+        'SELECT option_id FROM votes WHERE poll_id = ? AND user_id = ?'
+      ).bind(vote.pollId, vote.userId).first<{ option_id: string }>()
+
+      voteChanged = !!existing && existing.option_id !== vote.optionId
+
+      if (existing) {
+        await d1.prepare(
+          'UPDATE votes SET option_id = ?, username = ?, time_slot = ?, voted_at = ? WHERE poll_id = ? AND user_id = ?'
+        ).bind(vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt, vote.pollId, vote.userId).run()
+      } else {
+        await d1.prepare(
+          'INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
+      }
+    }
+
+    const votes = await readPollVotes(vote.pollId)
+    return { voteChanged, votes }
+  }
+
+  // KV fallback
   const votes     = await readPollVotes(vote.pollId)
   let voteChanged = false
 
@@ -202,7 +278,7 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
     }
   }
 
-  await writePollVotes(vote.pollId, votes)
+  await writePollVotesKV(vote.pollId, votes)
   return { voteChanged, votes }
 }
 

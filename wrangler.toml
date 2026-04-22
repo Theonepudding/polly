@@ -26,6 +26,12 @@ binding = "ASSETS"
 binding = "POLLY_KV"
 id = "342a355a3dac4535afd7c20f1452b3a9"
 
+# Run: npx wrangler d1 create polly-votes  — then paste the database_id below
+[[d1_databases]]
+binding     = "POLLY_D1"
+database_name = "polly-votes"
+database_id = "2ddb5a1a-5e87-463d-934a-5119b34bbbae"
+
 # Cron: runs every hour — closes expired polls, sends 24h reminders, fires templates
 [triggers]
 crons = ["0 * * * *"]
