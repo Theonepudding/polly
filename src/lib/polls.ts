@@ -237,21 +237,18 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
           voted_at  = excluded.voted_at
       `).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
     } else {
+      // Atomic DELETE + INSERT so concurrent double-votes can't create two rows.
+      // D1 batch is serialised — the second request cleanly replaces the first.
       const existing = await d1.prepare(
         'SELECT option_id FROM votes WHERE poll_id = ? AND user_id = ?'
       ).bind(vote.pollId, vote.userId).first<{ option_id: string }>()
-
       voteChanged = !!existing && existing.option_id !== vote.optionId
-
-      if (existing) {
-        await d1.prepare(
-          'UPDATE votes SET option_id = ?, username = ?, time_slot = ?, voted_at = ? WHERE poll_id = ? AND user_id = ?'
-        ).bind(vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt, vote.pollId, vote.userId).run()
-      } else {
-        await d1.prepare(
-          'INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
-      }
+      await d1.batch([
+        d1.prepare('DELETE FROM votes WHERE poll_id = ? AND user_id = ?')
+          .bind(vote.pollId, vote.userId),
+        d1.prepare('INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt),
+      ])
     }
 
     const votes = await readPollVotes(vote.pollId)
