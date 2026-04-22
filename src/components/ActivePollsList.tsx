@@ -11,9 +11,10 @@ interface Props {
   userId:       string
   userName:     string
   canManage:    boolean
+  canCreate?:   boolean
 }
 
-export default function ActivePollsList({ polls, initialVotes, guildId, userId, userName, canManage }: Props) {
+export default function ActivePollsList({ polls, initialVotes, guildId, userId, userName, canManage, canCreate = true }: Props) {
   const [votesByPoll, setVotesByPoll] = useState<Record<string, Vote[]>>(initialVotes)
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function ActivePollsList({ polls, initialVotes, guildId, userId, 
     return (
       <div className="card p-8 text-center text-p-muted">
         <p className="mb-4">No active polls. Create one to get started!</p>
-        <CreatePollModal guildId={guildId} userId={userId} userName={userName} canManage={canManage} />
+        {canCreate && <CreatePollModal guildId={guildId} userId={userId} userName={userName} canManage={canManage} />}
       </div>
     )
   }

@@ -3281,13 +3281,13 @@
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
-      "bytes": 13851,
+    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js": {
+      "bytes": 11739,
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js": {
-      "bytes": 11739,
+    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
+      "bytes": 13851,
       "imports": [],
       "format": "cjs"
     },
@@ -3490,14 +3490,14 @@
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\dashboard-image\\[guildId]\\route_client-reference-manifest.js"
         },
         {
-          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\polls\\[id]\\page_client-reference-manifest.js"
-        },
-        {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\channels\\route_client-reference-manifest.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\polls\\[id]\\page_client-reference-manifest.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route_client-reference-manifest.js",
@@ -4143,7 +4143,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/chunks/3296.js": {
-      "bytes": 19969,
+      "bytes": 19972,
       "imports": [],
       "format": "cjs"
     },
@@ -5098,73 +5098,6 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js": {
-      "bytes": 721044,
-      "imports": [
-        {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/resvg.wasm?module",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/yoga.wasm?module",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf.bin",
-          "kind": "dynamic-import",
-          "external": true
-        }
-      ],
-      "format": "esm"
-    },
-    ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js": {
-      "bytes": 18838,
-      "imports": [
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/router/utils/app-paths"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
-          "kind": "require-call",
-          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js",
-          "kind": "require-call",
-          "original": "next/dist/compiled/next-server/app-route.runtime.prod.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js",
-          "kind": "dynamic-import",
-          "original": "next/dist/compiled/@vercel/og/index.edge.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/no-fallback-error.external"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
-          "kind": "require-call",
-          "original": "../../../../webpack-runtime.js"
-        }
-      ],
-      "format": "cjs"
-    },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route.js": {
       "bytes": 10490,
       "imports": [
@@ -5266,8 +5199,75 @@
       ],
       "format": "cjs"
     },
+    ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js": {
+      "bytes": 721044,
+      "imports": [
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/resvg.wasm?module",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/yoga.wasm?module",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf.bin",
+          "kind": "dynamic-import",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js": {
+      "bytes": 18841,
+      "imports": [
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/router/utils/app-paths"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
+          "kind": "require-call",
+          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js",
+          "kind": "require-call",
+          "original": "next/dist/compiled/next-server/app-route.runtime.prod.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js",
+          "kind": "dynamic-import",
+          "original": "next/dist/compiled/@vercel/og/index.edge.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/no-fallback-error.external"
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
+          "kind": "require-call",
+          "original": "../../../../webpack-runtime.js"
+        }
+      ],
+      "format": "cjs"
+    },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page.js": {
-      "bytes": 27957,
+      "bytes": 27960,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -5697,7 +5697,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/route.js": {
-      "bytes": 11270,
+      "bytes": 11703,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -5940,7 +5940,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/me/route.js": {
-      "bytes": 11657,
+      "bytes": 11660,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -6628,7 +6628,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page.js": {
-      "bytes": 54653,
+      "bytes": 54725,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -7165,7 +7165,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/page.js": {
-      "bytes": 42499,
+      "bytes": 42502,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -8002,14 +8002,14 @@
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\dashboard\\route.js"
         },
         {
-          "path": ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\dashboard-image\\[guildId]\\route.js"
-        },
-        {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\channels\\route.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\dashboard-image\\[guildId]\\route.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page.js",
@@ -9736,21 +9736,6 @@
           "external": true
         },
         {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/resvg.wasm?module",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/yoga.wasm?module",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf.bin",
-          "kind": "dynamic-import",
-          "external": true
-        },
-        {
           "path": "querystring",
           "kind": "require-call",
           "external": true
@@ -9798,6 +9783,21 @@
         {
           "path": "events",
           "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/resvg.wasm?module",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/yoga.wasm?module",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "C:/Users/Pudding/Documents/GitHub/polly/.open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf.bin",
+          "kind": "dynamic-import",
           "external": true
         },
         {
@@ -11542,11 +11542,11 @@
         ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route_client-reference-manifest.js": {
           "bytesInOutput": 10674
         },
-        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
-          "bytesInOutput": 12877
-        },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js": {
           "bytesInOutput": 10767
+        },
+        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
+          "bytesInOutput": 12877
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route_client-reference-manifest.js": {
           "bytesInOutput": 10672
@@ -11702,7 +11702,7 @@
           "bytesInOutput": 7858
         },
         ".open-next/server-functions/default/.next/server/chunks/3296.js": {
-          "bytesInOutput": 21266
+          "bytesInOutput": 21269
         },
         ".open-next/server-functions/default/.next/server/chunks/3994.js": {
           "bytesInOutput": 10349
@@ -11752,17 +11752,17 @@
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route.js": {
           "bytesInOutput": 10279
         },
+        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route.js": {
+          "bytesInOutput": 10771
+        },
         ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js": {
           "bytesInOutput": 534903
         },
         ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js": {
-          "bytesInOutput": 19817
-        },
-        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route.js": {
-          "bytesInOutput": 10772
+          "bytesInOutput": 19821
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page.js": {
-          "bytesInOutput": 28663
+          "bytesInOutput": 28666
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route.js": {
           "bytesInOutput": 11009
@@ -11777,7 +11777,7 @@
           "bytesInOutput": 10232
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/route.js": {
-          "bytesInOutput": 11604
+          "bytesInOutput": 12050
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/route.js": {
           "bytesInOutput": 15893
@@ -11786,7 +11786,7 @@
           "bytesInOutput": 24804
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/me/route.js": {
-          "bytesInOutput": 12040
+          "bytesInOutput": 12043
         },
         ".open-next/server-functions/default/.next/server/app/api/auth/[...nextauth]/route.js": {
           "bytesInOutput": 10847
@@ -11810,7 +11810,7 @@
           "bytesInOutput": 15003
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page.js": {
-          "bytesInOutput": 56165
+          "bytesInOutput": 56242
         },
         ".open-next/server-functions/default/.next/server/app/api/admin/admins/route.js": {
           "bytesInOutput": 10722
@@ -11831,7 +11831,7 @@
           "bytesInOutput": 18269
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/page.js": {
-          "bytesInOutput": 43791
+          "bytesInOutput": 43794
         },
         ".open-next/server-functions/default/node_modules/react/cjs/react-jsx-runtime.production.js": {
           "bytesInOutput": 744
@@ -12002,7 +12002,7 @@
           "bytesInOutput": 64695
         }
       },
-      "bytes": 4792140
+      "bytes": 4792678
     }
   }
 }

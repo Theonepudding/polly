@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPollsAndVotes } from '@/lib/polls'
 import { getScheduledPolls } from '@/lib/scheduled-polls'
-import { getGuild, upsertGuild, userCanManage } from '@/lib/guilds'
+import { getGuild, upsertGuild, userCanManage, userCanCreate } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
@@ -110,6 +110,7 @@ export default async function GuildDashboardPage({ params }: Props) {
   const activeScheduledPolls = scheduledPolls.filter(t => t.active)
 
   const canManage = userCanManage(guild, userId, memberRoles) || !!session.user.isBotAdmin
+  const canCreate = userCanCreate(guild, userId, memberRoles) || !!session.user.isBotAdmin
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -139,7 +140,7 @@ export default async function GuildDashboardPage({ params }: Props) {
               Settings
             </Link>
           )}
-          <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />
+          {canCreate && <CreatePollModal guildId={guildId} userId={userId} userName={session.user?.name ?? ''} canManage={canManage} />}
         </div>
       </div>
 
@@ -204,6 +205,7 @@ export default async function GuildDashboardPage({ params }: Props) {
           userId={userId}
           userName={session.user?.name ?? ''}
           canManage={canManage}
+          canCreate={canCreate}
         />
       </section>
 

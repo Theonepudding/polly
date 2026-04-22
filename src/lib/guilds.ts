@@ -64,7 +64,7 @@ export function userCanCreate(guild: Guild, userId: string, userRoleIds: string[
   if (guild.creatorRoleIds?.length > 0) {
     return guild.creatorRoleIds.some(r => userRoleIds.includes(r))
   }
-  return false
+  return true // no creator roles configured = everyone can create
 }
 
 export function userCanVote(guild: Guild, userRoleIds: string[]): boolean {
