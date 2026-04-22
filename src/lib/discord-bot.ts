@@ -204,7 +204,7 @@ export function buildTimeSlotComponents(poll: Poll, optionId: string) {
 export function buildTimeSlotFollowupContent(poll: Poll): string {
   const lines = poll.timeSlots.slice(0, 5).map((ts, i) =>
     /^\d{2}:\d{2}$/.test(ts)
-      ? `**${i + 1}** — ${ts} UTC · ${utcHHMMtoDiscordTimestamp(ts)} your time`
+      ? `**${i + 1}** — ${utcHHMMtoDiscordTimestamp(ts)}`
       : `**${ts}**`
   )
   return `🕐 Pick a time preference:\n${lines.join('\n')}`
