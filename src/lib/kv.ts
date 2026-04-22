@@ -5,7 +5,7 @@ interface KVListResult {
 }
 
 interface KVStore {
-  get(key: string): Promise<string | null>
+  get(key: string, options?: { cacheTtl?: number }): Promise<string | null>
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<KVListResult>

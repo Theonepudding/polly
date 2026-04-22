@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import ActivePollCard from './ActivePollCard'
 import CreatePollModal from './CreatePollModal'
 import type { Poll, Vote } from '@/types'
@@ -16,20 +16,33 @@ interface Props {
 export default function ActivePollsList({ polls, initialVotes, guildId, userId, userName, canManage }: Props) {
   const [votesByPoll, setVotesByPoll] = useState<Record<string, Vote[]>>(initialVotes)
 
-  const fetchVotes = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/guilds/${guildId}/votes`)
-      if (!res.ok) return
-      const data = (await res.json()) as { votesByPoll: Record<string, Vote[]> }
-      setVotesByPoll(data.votesByPoll)
-    } catch { /* network hiccup — keep stale data */ }
-  }, [guildId])
-
   useEffect(() => {
-    fetchVotes()
-    const id = setInterval(fetchVotes, 2000)
-    return () => clearInterval(id)
-  }, [fetchVotes])
+    let es: EventSource
+    let retryTimer: ReturnType<typeof setTimeout>
+
+    function connect() {
+      es = new EventSource(`/api/guilds/${guildId}/votes/stream`)
+
+      es.onmessage = (e: MessageEvent) => {
+        try {
+          const { votesByPoll: fresh } = JSON.parse(e.data) as { votesByPoll: Record<string, Vote[]> }
+          if (fresh) setVotesByPoll(fresh)
+        } catch { /* ignore malformed */ }
+      }
+
+      es.onerror = () => {
+        es.close()
+        // Back off 3 seconds before reconnecting
+        retryTimer = setTimeout(connect, 3000)
+      }
+    }
+
+    connect()
+    return () => {
+      clearTimeout(retryTimer)
+      es?.close()
+    }
+  }, [guildId])
 
   if (polls.length === 0) {
     return (
