@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger poll cron
         run: |
-          curl -X POST https://polly.pudding.vip/api/cron/polls \
+          curl -sS -X POST https://polly.pudding.vip/api/cron/polls \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            --fail
+            --fail-with-body

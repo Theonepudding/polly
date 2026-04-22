@@ -9,9 +9,24 @@ const INDIGO = '#818cf8'
 const CYAN   = '#22d3ee'
 const BG     = '#0a0a10'
 
+async function loadAvatarDataUrl(baseUrl: string): Promise<string> {
+  try {
+    const res = await fetch(`${baseUrl}/avatar.png`)
+    const buf = await res.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.length; i += 1024) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 1024))
+    }
+    return `data:image/png;base64,${btoa(binary)}`
+  } catch {
+    return `${baseUrl}/avatar.png`
+  }
+}
+
 export default async function OGImage() {
   const baseUrl = process.env.NEXTAUTH_URL ?? 'https://polly.pudding.vip'
-  const avatarSrc = `${baseUrl}/avatar.png`
+  const avatarSrc = await loadAvatarDataUrl(baseUrl)
 
   return new ImageResponse(
     (
