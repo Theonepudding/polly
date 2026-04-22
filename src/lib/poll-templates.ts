@@ -128,7 +128,7 @@ export async function runTemplate(template: PollTemplate): Promise<Poll> {
 export async function processDueTemplates(): Promise<{ ran: number; pollIds: string[] }> {
   const now       = new Date()
   const templates = await getTemplates()
-  const due       = templates.filter(t => t.active && t.isScheduled !== false && new Date(t.nextRunAt) <= now)
+  const due       = templates.filter(t => t.active && new Date(t.nextRunAt) <= now)
 
   const pollIds: string[] = []
   for (const t of due) {

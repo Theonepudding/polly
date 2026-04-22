@@ -93,7 +93,6 @@ export interface PollTemplate {
   lastRunAt: string | null
   active: boolean
   postToDiscord: boolean
-  isScheduled?: boolean  // false = quick template (saved structure, no auto-run)
 }
 
 // ─── Bot Admin ───────────────────────────────────────────────────────────────

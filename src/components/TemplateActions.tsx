@@ -16,6 +16,7 @@ export default function TemplateActions({ guildId, userId, userName, template }:
   const router = useRouter()
   const [busy,    setBusy]    = useState(false)
   const [confirm, setConfirm] = useState(false)
+  const [runMsg,  setRunMsg]  = useState('')
 
   async function toggle() {
     setBusy(true)
@@ -26,6 +27,25 @@ export default function TemplateActions({ guildId, userId, userName, template }:
     })
     router.refresh()
     setBusy(false)
+  }
+
+  async function runNow() {
+    setBusy(true)
+    setRunMsg('')
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/templates/${template.id}`, { method: 'POST' })
+      if (res.ok) {
+        setRunMsg('Posted!')
+        setTimeout(() => setRunMsg(''), 3000)
+        router.refresh()
+      } else {
+        setRunMsg('Failed')
+        setTimeout(() => setRunMsg(''), 3000)
+      }
+    } catch {
+      setRunMsg('Error')
+      setTimeout(() => setRunMsg(''), 3000)
+    } finally { setBusy(false) }
   }
 
   async function remove() {
@@ -39,28 +59,28 @@ export default function TemplateActions({ guildId, userId, userName, template }:
     <>
       {confirm && (
         <ConfirmModal
-          title={template.isScheduled === false ? 'Delete template' : 'Delete schedule'}
-          message={template.isScheduled === false ? 'Delete this saved template? This cannot be undone.' : 'Delete this scheduled poll? This cannot be undone.'}
+          title="Delete schedule"
+          message="Delete this scheduled poll? This cannot be undone."
           confirm="Delete"
           danger
           onConfirm={() => { setConfirm(false); remove() }}
           onCancel={() => setConfirm(false)}
         />
       )}
-      <div className="flex gap-2 shrink-0">
-        {template.isScheduled !== false && (
-          <CreateScheduledPollModal
-            guildId={guildId}
-            userId={userId}
-            userName={userName}
-            initialTemplate={template}
-          />
-        )}
-        {template.isScheduled !== false && (
-          <button onClick={toggle} disabled={busy} className="btn-secondary text-xs py-1.5">
-            {template.active ? 'Pause' : 'Resume'}
-          </button>
-        )}
+      <div className="flex gap-2 shrink-0 items-center flex-wrap justify-end">
+        {runMsg && <span className="text-xs text-p-success font-medium">{runMsg}</span>}
+        <button onClick={runNow} disabled={busy} className="btn-ghost text-xs py-1.5" title="Post this poll immediately">
+          Run now
+        </button>
+        <CreateScheduledPollModal
+          guildId={guildId}
+          userId={userId}
+          userName={userName}
+          initialTemplate={template}
+        />
+        <button onClick={toggle} disabled={busy} className="btn-secondary text-xs py-1.5">
+          {template.active ? 'Pause' : 'Resume'}
+        </button>
         <button onClick={() => setConfirm(true)} disabled={busy} className="btn-danger text-xs py-1.5">
           Delete
         </button>

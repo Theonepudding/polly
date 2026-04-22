@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, CheckCircle2, AlertCircle, Vote, Settings, Hash, Bell, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
-import { Poll, PollTemplate } from '@/types'
+import { Poll } from '@/types'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
 
@@ -68,7 +68,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [times,            setTimes]            = useState<string[]>([])
   const [customTime,       setCustomTime]       = useState('')
   const [customSlotText,   setCustomSlotText]   = useState('')
-  const [saveAsTemplate,   setSaveAsTemplate]   = useState(false)
   const [durSel,           setDurSel]           = useState<number | 'custom'>(DEFAULT_PRESET)
   const [customDurVal,     setCustomDurVal]     = useState('')
   const [customDurUnit,    setCustomDurUnit]    = useState<'hours' | 'days' | 'weeks'>('days')
@@ -83,7 +82,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [postedChannelId,  setPostedChannelId]  = useState<string | null>(null)
   const [channels,         setChannels]         = useState<Channel[]>([])
   const [roles,            setRoles]            = useState<Role[]>([])
-  const [templates,        setTemplates]        = useState<PollTemplate[]>([])
   const [overrideChannel,  setOverrideChannel]  = useState('')
   const [pingRoleIds,      setPingRoleIds]      = useState<string[]>([])
   const [showAdvanced,     setShowAdvanced]     = useState(false)
@@ -107,12 +105,10 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     Promise.all([
       fetch(`/api/guilds/${guildId}/channels`).then(r => r.ok ? r.json() : []),
       fetch(`/api/guilds/${guildId}/channels?type=roles`).then(r => r.ok ? r.json() : []),
-      fetch(`/api/guilds/${guildId}/templates`).then(r => r.ok ? r.json() : { templates: [] }),
       fetch(`/api/guilds/${guildId}/emojis`).then(r => r.ok ? r.json() : []),
-    ]).then(([ch, rl, tmpl, em]) => {
+    ]).then(([ch, rl, em]) => {
       setChannels((ch as { id: string; name: string; type: number }[]).filter(c => c.type === 0))
       setRoles((rl as Role[]).filter((r: Role) => r.name !== '@everyone'))
-      setTemplates(((tmpl as { templates: PollTemplate[] }).templates ?? []).filter((t: PollTemplate) => t.active))
       const filteredEmojis = (em as DiscordEmoji[]).filter(e => e.available !== false)
       setEmojis(filteredEmojis)
       if (filteredEmojis.length === 0) setEmojiTab('smileys')
@@ -155,7 +151,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
     setTimes([]); setCustomTime(''); setCustomSlotText('')
-    setSaveAsTemplate(false)
     setDurSel(DEFAULT_PRESET); setCustomDurVal(''); setCustomDurUnit('days')
     setCloseAtTime(nowTimeString())
     setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
@@ -164,21 +159,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
     setOptBtnEmojis(['', ''])
     setBtnEmojiPickerFor(null); setBtnEmojiPickerPos(null)
-    setSyncKey(k => k + 1)
-  }
-
-  function loadTemplate(t: PollTemplate) {
-    setTitle(t.title)
-    setDescription(t.description ?? '')
-    setOptions(t.options.map(o => o.text))
-    setIsAnonymous(t.isAnonymous)
-    setAllowMultiple(t.allowMultiple)
-    setUseTimes(t.includeTimeSlots)
-    setTimes(t.includeTimeSlots ? t.timeSlots : [])
-    const idx = DURATION_PRESETS.findIndex(p => p.days === t.daysOpen)
-    if (idx !== -1) { setDurSel(idx); setCustomDurVal('') }
-    else { setDurSel('custom'); setCustomDurVal(String(t.daysOpen)); setCustomDurUnit('days') }
-    setOptBtnEmojis(t.options.map(o => o.buttonEmoji ?? ''))
     setSyncKey(k => k + 1)
   }
 
@@ -282,35 +262,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create poll')
       const data = await res.json()
 
-      if (saveAsTemplate) {
-        await fetch(`/api/guilds/${guildId}/templates`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim() || undefined,
-            options: cleanOpts.map((text, i) => ({
-              id: `opt-${i}`,
-              text,
-              ...(optBtnEmojis[i] ? { buttonEmoji: optBtnEmojis[i] } : {}),
-            })),
-            includeTimeSlots: useTimes,
-            timeSlots: useTimes ? times : [],
-            isAnonymous,
-            allowMultiple,
-            isScheduled: false,
-            active: true,
-            intervalDays: 0,
-            daysOpen: 7,
-            atHour: 0,
-            nextRunAt: '2099-01-01T00:00:00.000Z',
-            postToDiscord: false,
-            createdBy: userId,
-            createdByName: userName,
-          }),
-        }).catch(() => {})
-      }
-
       setCreatedPoll(data.poll)
       setPosted(data.posted ?? false)
       setHasChannel(data.hasChannel ?? false)
@@ -388,22 +339,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-
-          {/* Load template */}
-          {templates.length > 0 && (
-            <div>
-              <label className="label">Load from template</label>
-              <select className="input" defaultValue=""
-                onChange={e => {
-                  const t = templates.find(x => x.id === e.target.value)
-                  if (t) loadTemplate(t)
-                  e.target.value = ''
-                }}>
-                <option value="">— Select a template —</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-              </select>
-            </div>
-          )}
 
           {/* Title */}
           <div>
@@ -699,18 +634,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
               )}
             </div>
           )}
-
-          {/* Save as template */}
-          <div className="flex items-center justify-between py-1 border-t border-p-border/50 pt-3">
-            <div>
-              <p className="text-xs font-medium text-p-text">Save as template</p>
-              <p className="text-xs text-p-muted">Reuse this poll structure from &quot;Load from template&quot;.</p>
-            </div>
-            <button type="button" onClick={() => setSaveAsTemplate(v => !v)}
-              className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all shrink-0 ml-4 ${saveAsTemplate ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
-              {saveAsTemplate ? 'On' : 'Off'}
-            </button>
-          </div>
 
           {error && <p className="text-p-danger text-sm">{error}</p>}
 

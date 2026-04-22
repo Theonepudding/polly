@@ -14,6 +14,7 @@ export default function LocalTime({ iso, dateStyle, timeStyle, className }: Prop
   const opts = {
     ...(dateStyle ? { dateStyle } : {}),
     ...(timeStyle ? { timeStyle } : {}),
+    ...(timeStyle ? { hourCycle: 'h23' as const } : {}),
   } as Intl.DateTimeFormatOptions
 
   const [text, setText] = useState(() =>

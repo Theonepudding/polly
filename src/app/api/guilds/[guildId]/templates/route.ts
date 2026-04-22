@@ -58,9 +58,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     ...(body.timezone    ? { timezone:    body.timezone    } : {}),
     nextRunAt,
     lastRunAt:        null,
-    active:           body.isScheduled === false ? false : true,
+    active:           true,
     postToDiscord:    body.postToDiscord ?? true,
-    ...(body.isScheduled === false ? { isScheduled: false } : {}),
   }
 
   await createTemplate(template)
