@@ -254,7 +254,7 @@ async function createFromDraft(draft: PollDraft): Promise<{ poll: Poll; posted: 
 
   if (guild) {
     postAuditLog(guild, 'Poll created', `**${poll.title}** (via /poll)`, draft.username).catch(() => {})
-    refreshDashboard(draft.guildId).catch(() => {})
+    refreshDashboard(draft.guildId, { newPoll: poll }).catch(() => {})
   }
 
   return { poll, posted }
@@ -771,7 +771,7 @@ export async function POST(req: NextRequest) {
                 `**[${closedPoll.title}](${process.env.NEXTAUTH_URL}/p/${closedPoll.id})**\n${closedVotes.length} vote${closedVotes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
                 username,
               ).catch(() => {})
-              refreshDashboard(closedPoll.guildId).catch(() => {})
+              refreshDashboard(closedPoll.guildId, { closedPollIds: [closedPoll.id] }).catch(() => {})
             }
           } catch (e) { console.error('Close poll error:', e) }
         })())

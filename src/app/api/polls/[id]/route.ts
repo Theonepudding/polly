@@ -50,7 +50,7 @@ export async function PATCH(req: Request, { params }: Params) {
             `**[${updated.title}](${process.env.NEXTAUTH_URL}/p/${updated.id})**\n${votes.length} vote${votes.length !== 1 ? 's' : ''}${winner ? ` · winner: **${winner.text}**` : ''}`,
             session.user.name ?? 'Unknown',
           ),
-          refreshDashboard(updated.guildId),
+          refreshDashboard(updated.guildId, { closedPollIds: [id] }),
         ])
       }
     }
@@ -81,7 +81,7 @@ export async function DELETE(_: Request, { params }: Params) {
         `**${poll.title}**`,
         session.user.name ?? 'Unknown',
       ),
-      refreshDashboard(poll.guildId),
+      refreshDashboard(poll.guildId, { deletedPollIds: [poll.id] }),
     ])
   }
   return NextResponse.json({ ok: true })

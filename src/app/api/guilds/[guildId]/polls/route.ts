@@ -94,7 +94,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       `**[${poll.title}](${process.env.NEXTAUTH_URL}/p/${poll.id})**\n${poll.options.length} options · ${poll.closesAt ? `closes <t:${Math.floor(new Date(poll.closesAt).getTime() / 1000)}:R>` : 'no close date'}`,
       session.user.name ?? 'Unknown',
     ),
-    refreshDashboard(guildId),
+    refreshDashboard(guildId, { newPoll: poll }),
   ])
 
   const postedChannelId = posted ? (poll.overrideChannelId ?? guild.announceChannelId ?? null) : null

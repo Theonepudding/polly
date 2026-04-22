@@ -687,12 +687,33 @@ export async function sendWelcomeMessage(
 
 // ─── Dashboard refresh ────────────────────────────────────────────────────────
 
-export async function refreshDashboard(guildId: string): Promise<void> {
+interface RefreshHints {
+  closedPollIds?:  string[]   // treat these polls as closed regardless of KV state
+  deletedPollIds?: string[]   // exclude these polls entirely
+  newPoll?:        Poll       // ensure this poll is included if not already present
+}
+
+export async function refreshDashboard(guildId: string, hints?: RefreshHints): Promise<void> {
   const guild = await getGuild(guildId)
   if (!guild?.dashboardChannelId) return
 
-  const allPolls    = await getPolls(guildId)
-  const activePolls = allPolls.filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date()))
+  let polls = await getPolls(guildId)
+
+  // Apply hints to compensate for KV eventual consistency
+  if (hints?.closedPollIds?.length) {
+    const ids = new Set(hints.closedPollIds)
+    polls = polls.map(p => ids.has(p.id) ? { ...p, isClosed: true } : p)
+  }
+  if (hints?.deletedPollIds?.length) {
+    const ids = new Set(hints.deletedPollIds)
+    polls = polls.filter(p => !ids.has(p.id))
+  }
+  if (hints?.newPoll && !polls.some(p => p.id === hints.newPoll!.id)) {
+    polls = [...polls, hints.newPoll]
+  }
+
+  const now         = new Date()
+  const activePolls = polls.filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > now))
 
   const newMsgId = await postOrUpdateDashboard(guild, activePolls)
   if (newMsgId && newMsgId !== guild.dashboardMessageId) {

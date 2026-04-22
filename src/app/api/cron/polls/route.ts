@@ -19,7 +19,6 @@ export async function POST(req: Request) {
   // 2. Close expired polls
   const expiredPolls = await closeExpiredPolls()
   const closedIds: string[] = []
-  const guildIdsToRefresh = new Set<string>()
   for (const poll of expiredPolls) {
     try {
       const [votes, guild] = await Promise.all([
@@ -27,18 +26,25 @@ export async function POST(req: Request) {
         getGuild(poll.guildId),
       ])
       if (guild) {
-        // postPollResults deletes the original embed and posts the results message
         await postPollResults(poll, votes, guild).catch(() => {})
         await postAuditLog(guild, 'Poll auto-closed', `**${poll.title}** — ${votes.length} vote${votes.length !== 1 ? 's' : ''}`).catch(() => {})
       }
       closedIds.push(poll.id)
-      guildIdsToRefresh.add(poll.guildId)
     } catch (e) {
       console.error(`Failed to process expired poll ${poll.id}:`, e)
     }
   }
-  // Refresh Polly Status embed for every guild that had polls close
-  await Promise.allSettled([...guildIdsToRefresh].map(id => refreshDashboard(id)))
+  // Refresh dashboard for every guild that had polls close, passing IDs so
+  // stale KV reads don't resurrect the just-closed polls as still active
+  const closedByGuild = new Map<string, string[]>()
+  for (const poll of expiredPolls) {
+    const arr = closedByGuild.get(poll.guildId) ?? []
+    arr.push(poll.id)
+    closedByGuild.set(poll.guildId, arr)
+  }
+  await Promise.allSettled(
+    [...closedByGuild.entries()].map(([gid, ids]) => refreshDashboard(gid, { closedPollIds: ids }))
+  )
 
   // 3. Send 24h reminders
   const pollsForReminder = await getPollsNeedingReminder()
