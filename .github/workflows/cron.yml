@@ -2,7 +2,7 @@ name: Poll Scheduler
 
 on:
   schedule:
-    - cron: '0 * * * *'   # runs every hour — adjust as needed
+    - cron: '*/5 * * * *'  # runs every 5 minutes
   workflow_dispatch:        # allows manual trigger from GitHub Actions tab
 
 jobs:

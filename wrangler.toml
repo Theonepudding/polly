@@ -32,6 +32,6 @@ binding     = "POLLY_D1"
 database_name = "polly-votes"
 database_id = "2ddb5a1a-5e87-463d-934a-5119b34bbbae"
 
-# Cron: runs every hour — closes expired polls, sends 24h reminders, fires templates
+# Cron: runs every 5 minutes — closes expired polls, sends 24h reminders, fires templates
 [triggers]
-crons = ["0 * * * *"]
+crons = ["*/5 * * * *"]
