@@ -65,6 +65,8 @@ export default function ActivePollsList({ polls, initialVotes, guildId, userId, 
           poll={poll}
           votes={votesByPoll[poll.id] ?? []}
           guildId={guildId}
+          userId={userId}
+          canManage={canManage}
         />
       ))}
     </div>

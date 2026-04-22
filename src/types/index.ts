@@ -54,6 +54,7 @@ export interface Poll {
   pingRoleIds?: string[]
   overrideChannelId?: string
   reminderSent?: boolean
+  lastReminderAt?: string  // ISO — manual reminder cooldown
 }
 
 export interface Vote {
