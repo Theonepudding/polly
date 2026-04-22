@@ -3231,193 +3231,193 @@
       "imports": [],
       "format": "cjs"
     },
+    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route_client-reference-manifest.js": {
+      "bytes": 11872,
+      "imports": [],
+      "format": "cjs"
+    },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/discord/route_client-reference-manifest.js": {
-      "bytes": 11958,
+      "bytes": 11963,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/stream/route_client-reference-manifest.js": {
-      "bytes": 11956,
+      "bytes": 11961,
+      "imports": [],
+      "format": "cjs"
+    },
+    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route_client-reference-manifest.js": {
+      "bytes": 11753,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/vote/route_client-reference-manifest.js": {
-      "bytes": 11952,
+      "bytes": 11957,
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route_client-reference-manifest.js": {
-      "bytes": 11849,
+    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page_client-reference-manifest.js": {
+      "bytes": 13920,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/stream/route_client-reference-manifest.js": {
-      "bytes": 11841,
+      "bytes": 11846,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/route_client-reference-manifest.js": {
-      "bytes": 11837,
-      "imports": [],
-      "format": "cjs"
-    },
-    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route_client-reference-manifest.js": {
-      "bytes": 11736,
+      "bytes": 11842,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route_client-reference-manifest.js": {
-      "bytes": 11736,
+      "bytes": 11741,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route_client-reference-manifest.js": {
-      "bytes": 11642,
+      "bytes": 11647,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
-      "bytes": 13846,
+      "bytes": 13851,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js": {
-      "bytes": 11734,
-      "imports": [],
-      "format": "cjs"
-    },
-    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page_client-reference-manifest.js": {
-      "bytes": 13861,
+      "bytes": 11739,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route_client-reference-manifest.js": {
-      "bytes": 11640,
+      "bytes": 11645,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/settings/page_client-reference-manifest.js": {
-      "bytes": 13361,
+      "bytes": 13366,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/emojis/route_client-reference-manifest.js": {
-      "bytes": 11730,
+      "bytes": 11735,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/route_client-reference-manifest.js": {
-      "bytes": 11728,
+      "bytes": 11733,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/route_client-reference-manifest.js": {
-      "bytes": 11728,
+      "bytes": 11733,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/guide/route_client-reference-manifest.js": {
-      "bytes": 11728,
+      "bytes": 11733,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/discord/interactions/route_client-reference-manifest.js": {
-      "bytes": 11632,
+      "bytes": 11637,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/me/route_client-reference-manifest.js": {
-      "bytes": 11722,
+      "bytes": 11727,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/auth/[...nextauth]/route_client-reference-manifest.js": {
-      "bytes": 11628,
+      "bytes": 11633,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/polls/[id]/discord/route_client-reference-manifest.js": {
-      "bytes": 11714,
+      "bytes": 11719,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/polls/[id]/stream/route_client-reference-manifest.js": {
-      "bytes": 11712,
+      "bytes": 11717,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/admin/admins/[id]/route_client-reference-manifest.js": {
-      "bytes": 11714,
+      "bytes": 11719,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/route_client-reference-manifest.js": {
-      "bytes": 11624,
+      "bytes": 11629,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/poll-image/[id]/route_client-reference-manifest.js": {
-      "bytes": 11622,
+      "bytes": 11627,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/polls/[id]/vote/route_client-reference-manifest.js": {
-      "bytes": 11708,
+      "bytes": 11713,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page_client-reference-manifest.js": {
-      "bytes": 13074,
+      "bytes": 13079,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/admin/admins/route_client-reference-manifest.js": {
-      "bytes": 11616,
+      "bytes": 11621,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/opengraph-image/route_client-reference-manifest.js": {
-      "bytes": 11612,
+      "bytes": 11617,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/polls/[id]/route_client-reference-manifest.js": {
-      "bytes": 11612,
+      "bytes": 11617,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/cron/polls/route_client-reference-manifest.js": {
-      "bytes": 11612,
+      "bytes": 11617,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/_not-found/page_client-reference-manifest.js": {
-      "bytes": 11600,
+      "bytes": 11605,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/page_client-reference-manifest.js": {
-      "bytes": 12166,
+      "bytes": 12171,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/p/[id]/page_client-reference-manifest.js": {
-      "bytes": 12120,
+      "bytes": 12125,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/admin/page_client-reference-manifest.js": {
-      "bytes": 11608,
+      "bytes": 11613,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/page_client-reference-manifest.js": {
-      "bytes": 11511,
+      "bytes": 11516,
       "imports": [],
       "format": "cjs"
     },
     ".open-next/server-functions/default/node_modules/next/dist/server/load-manifest.external.js": {
-      "bytes": 61472,
+      "bytes": 61730,
       "imports": [
         {
           "path": "path",
@@ -3440,6 +3440,11 @@
           "original": "../shared/lib/deep-freeze"
         },
         {
+          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route_client-reference-manifest.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\scheduled-polls\\[id]\\route_client-reference-manifest.js"
+        },
+        {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/discord/route_client-reference-manifest.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\discord\\route_client-reference-manifest.js"
@@ -3450,14 +3455,19 @@
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\stream\\route_client-reference-manifest.js"
         },
         {
+          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route_client-reference-manifest.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\scheduled-polls\\route_client-reference-manifest.js"
+        },
+        {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/vote/route_client-reference-manifest.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\vote\\route_client-reference-manifest.js"
         },
         {
-          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route_client-reference-manifest.js",
+          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page_client-reference-manifest.js",
           "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\templates\\[id]\\route_client-reference-manifest.js"
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\scheduled-polls\\page_client-reference-manifest.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/stream/route_client-reference-manifest.js",
@@ -3468,11 +3478,6 @@
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/route_client-reference-manifest.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\route_client-reference-manifest.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route_client-reference-manifest.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\templates\\route_client-reference-manifest.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route_client-reference-manifest.js",
@@ -3493,11 +3498,6 @@
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\channels\\route_client-reference-manifest.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page_client-reference-manifest.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\templates\\page_client-reference-manifest.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route_client-reference-manifest.js",
@@ -4132,11 +4132,6 @@
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/.next/server/chunks/2437.js": {
-      "bytes": 23367,
-      "imports": [],
-      "format": "cjs"
-    },
     ".open-next/server-functions/default/.next/server/chunks/2547.js": {
       "bytes": 377708,
       "imports": [],
@@ -4178,6 +4173,11 @@
       "imports": [],
       "format": "cjs"
     },
+    ".open-next/server-functions/default/.next/server/chunks/7068.js": {
+      "bytes": 23482,
+      "imports": [],
+      "format": "cjs"
+    },
     ".open-next/server-functions/default/.next/server/chunks/9368.js": {
       "bytes": 4052,
       "imports": [],
@@ -4195,11 +4195,6 @@
           "path": ".open-next/server-functions/default/.next/server/chunks/1813.js",
           "kind": "require-call",
           "original": "./chunks/1813.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/chunks/2437.js",
-          "kind": "require-call",
-          "original": "./chunks/2437.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/chunks/2547.js",
@@ -4237,9 +4232,115 @@
           "original": "./chunks/5873.js"
         },
         {
+          "path": ".open-next/server-functions/default/.next/server/chunks/7068.js",
+          "kind": "require-call",
+          "original": "./chunks/7068.js"
+        },
+        {
           "path": ".open-next/server-functions/default/.next/server/chunks/9368.js",
           "kind": "require-call",
           "original": "./chunks/9368.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route.js": {
+      "bytes": 12717,
+      "imports": [
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/router/utils/app-paths"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/after-task-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
+          "kind": "require-call",
+          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
+        },
+        {
+          "path": "querystring",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "assert",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/action-async-storage.external.js"
+        },
+        {
+          "path": "util",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js",
+          "kind": "require-call",
+          "original": "next/dist/compiled/next-server/app-route.runtime.prod.js"
+        },
+        {
+          "path": "crypto",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "https",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
+        },
+        {
+          "path": "zlib",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "buffer",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "url",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "http",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/no-fallback-error.external"
+        },
+        {
+          "path": "events",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
+          "kind": "require-call",
+          "original": "../../../../../../webpack-runtime.js"
         }
       ],
       "format": "cjs"
@@ -4487,8 +4588,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route.js": {
-      "bytes": 12572,
+    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route.js": {
+      "bytes": 13263,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -4583,7 +4684,118 @@
         {
           "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
           "kind": "require-call",
-          "original": "../../../../../../webpack-runtime.js"
+          "original": "../../../../../webpack-runtime.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page.js": {
+      "bytes": 49050,
+      "imports": [
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/router/utils/app-paths"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/after-task-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
+          "kind": "require-call",
+          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
+        },
+        {
+          "path": "querystring",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "assert",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/action-async-storage.external.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/is-bot.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/router/utils/is-bot"
+        },
+        {
+          "path": "util",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-async-storage.external.js"
+        },
+        {
+          "path": "path",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/dynamic-access-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/dynamic-access-async-storage.external.js"
+        },
+        {
+          "path": "crypto",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "https",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
+          "kind": "require-call",
+          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
+        },
+        {
+          "path": "zlib",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "buffer",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "url",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "http",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+          "kind": "require-call",
+          "original": "next/dist/shared/lib/no-fallback-error.external"
+        },
+        {
+          "path": "events",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
+          "kind": "require-call",
+          "original": "../../../../webpack-runtime.js"
         }
       ],
       "format": "cjs"
@@ -4787,107 +4999,6 @@
     },
     ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route.js": {
       "bytes": 10007,
-      "imports": [
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/router/utils/app-paths"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/after-task-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
-          "kind": "require-call",
-          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
-        },
-        {
-          "path": "querystring",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "assert",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/action-async-storage.external.js"
-        },
-        {
-          "path": "util",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js",
-          "kind": "require-call",
-          "original": "next/dist/compiled/next-server/app-route.runtime.prod.js"
-        },
-        {
-          "path": "crypto",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "https",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
-        },
-        {
-          "path": "zlib",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "buffer",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "url",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "http",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/no-fallback-error.external"
-        },
-        {
-          "path": "events",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
-          "kind": "require-call",
-          "original": "../../../../../webpack-runtime.js"
-        }
-      ],
-      "format": "cjs"
-    },
-    ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route.js": {
-      "bytes": 13106,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -5313,117 +5424,6 @@
           "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js",
           "kind": "require-call",
           "original": "next/dist/compiled/next-server/app-route.runtime.prod.js"
-        },
-        {
-          "path": "crypto",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "https",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-unit-async-storage.external.js"
-        },
-        {
-          "path": "zlib",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "buffer",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "url",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "http",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/no-fallback-error.external"
-        },
-        {
-          "path": "events",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/webpack-runtime.js",
-          "kind": "require-call",
-          "original": "../../../../webpack-runtime.js"
-        }
-      ],
-      "format": "cjs"
-    },
-    ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page.js": {
-      "bytes": 48942,
-      "imports": [
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/router/utils/app-paths"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/after-task-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js",
-          "kind": "require-call",
-          "original": "next/dist/compiled/next-server/app-page.runtime.prod.js"
-        },
-        {
-          "path": "querystring",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "assert",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/action-async-storage.external.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/is-bot.js",
-          "kind": "require-call",
-          "original": "next/dist/shared/lib/router/utils/is-bot"
-        },
-        {
-          "path": "util",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/work-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/work-async-storage.external.js"
-        },
-        {
-          "path": "path",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": ".open-next/server-functions/default/node_modules/next/dist/server/app-render/dynamic-access-async-storage.external.js",
-          "kind": "require-call",
-          "original": "next/dist/server/app-render/dynamic-access-async-storage.external.js"
         },
         {
           "path": "crypto",
@@ -6628,7 +6628,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page.js": {
-      "bytes": 54641,
+      "bytes": 54653,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -6896,7 +6896,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/.next/server/app/api/cron/polls/route.js": {
-      "bytes": 11434,
+      "bytes": 11549,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -7909,7 +7909,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/node_modules/next/dist/server/require.js": {
-      "bytes": 32512,
+      "bytes": 32548,
       "imports": [
         {
           "path": "path",
@@ -7957,6 +7957,11 @@
           "external": true
         },
         {
+          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\scheduled-polls\\[id]\\route.js"
+        },
+        {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/discord/route.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\discord\\route.js"
@@ -7972,9 +7977,14 @@
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\polls\\[id]\\vote\\route.js"
         },
         {
-          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route.js",
+          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route.js",
           "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\templates\\[id]\\route.js"
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\scheduled-polls\\route.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\scheduled-polls\\page.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/stream/route.js",
@@ -7990,11 +8000,6 @@
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\dashboard\\route.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\[guildId]\\templates\\route.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route.js",
@@ -8015,11 +8020,6 @@
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route.js",
           "kind": "require-call",
           "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\api\\guilds\\register-commands\\route.js"
-        },
-        {
-          "path": ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\Pudding\\Documents\\GitHub\\polly\\.open-next\\server-functions\\default\\.next\\server\\app\\dashboard\\[guildId]\\templates\\page.js"
         },
         {
           "path": ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/emojis/route.js",
@@ -9071,7 +9071,7 @@
       "format": "esm"
     },
     ".open-next/server-functions/default/index.mjs": {
-      "bytes": 91402,
+      "bytes": 91504,
       "imports": [
         {
           "path": "node:module",
@@ -9546,6 +9546,61 @@
           "external": true
         },
         {
+          "path": "path",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "crypto",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "https",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "zlib",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "buffer",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "url",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "http",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "events",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "querystring",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "assert",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "util",
+          "kind": "require-call",
+          "external": true
+        },
+        {
           "path": "crypto",
           "kind": "require-call",
           "external": true
@@ -9812,61 +9867,6 @@
         },
         {
           "path": "util",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "crypto",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "https",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "zlib",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "buffer",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "url",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "http",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "events",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "querystring",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "assert",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "util",
-          "kind": "require-call",
-          "external": true
-        },
-        {
-          "path": "path",
           "kind": "require-call",
           "external": true
         },
@@ -11512,119 +11512,119 @@
         ".open-next/server-functions/default/node_modules/next/dist/shared/lib/deep-freeze.js": {
           "bytesInOutput": 589
         },
+        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route_client-reference-manifest.js": {
+          "bytesInOutput": 10910
+        },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/discord/route_client-reference-manifest.js": {
-          "bytesInOutput": 10994
+          "bytesInOutput": 11000
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/stream/route_client-reference-manifest.js": {
-          "bytesInOutput": 10992
+          "bytesInOutput": 10997
+        },
+        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route_client-reference-manifest.js": {
+          "bytesInOutput": 10787
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/vote/route_client-reference-manifest.js": {
-          "bytesInOutput": 10986
+          "bytesInOutput": 10991
         },
-        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10882
+        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page_client-reference-manifest.js": {
+          "bytesInOutput": 12950
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/stream/route_client-reference-manifest.js": {
-          "bytesInOutput": 10872
+          "bytesInOutput": 10877
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10866
-        },
-        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route_client-reference-manifest.js": {
-          "bytesInOutput": 10764
+          "bytesInOutput": 10871
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route_client-reference-manifest.js": {
-          "bytesInOutput": 10764
+          "bytesInOutput": 10769
         },
         ".open-next/server-functions/default/.next/server/app/api/dashboard-image/[guildId]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10669
+          "bytesInOutput": 10674
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page_client-reference-manifest.js": {
-          "bytesInOutput": 12871
+          "bytesInOutput": 12877
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/channels/route_client-reference-manifest.js": {
-          "bytesInOutput": 10762
-        },
-        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page_client-reference-manifest.js": {
-          "bytesInOutput": 12886
+          "bytesInOutput": 10767
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route_client-reference-manifest.js": {
-          "bytesInOutput": 10667
+          "bytesInOutput": 10672
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/settings/page_client-reference-manifest.js": {
-          "bytesInOutput": 12385
+          "bytesInOutput": 12390
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/emojis/route_client-reference-manifest.js": {
-          "bytesInOutput": 10756
+          "bytesInOutput": 10761
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/route_client-reference-manifest.js": {
-          "bytesInOutput": 10753
+          "bytesInOutput": 10758
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/route_client-reference-manifest.js": {
-          "bytesInOutput": 10753
+          "bytesInOutput": 10758
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/guide/route_client-reference-manifest.js": {
-          "bytesInOutput": 10753
+          "bytesInOutput": 10758
         },
         ".open-next/server-functions/default/.next/server/app/api/discord/interactions/route_client-reference-manifest.js": {
-          "bytesInOutput": 10655
+          "bytesInOutput": 10660
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/me/route_client-reference-manifest.js": {
-          "bytesInOutput": 10744
+          "bytesInOutput": 10749
         },
         ".open-next/server-functions/default/.next/server/app/api/auth/[...nextauth]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10649
+          "bytesInOutput": 10654
         },
         ".open-next/server-functions/default/.next/server/app/api/polls/[id]/discord/route_client-reference-manifest.js": {
-          "bytesInOutput": 10735
+          "bytesInOutput": 10740
         },
         ".open-next/server-functions/default/.next/server/app/api/polls/[id]/stream/route_client-reference-manifest.js": {
-          "bytesInOutput": 10732
+          "bytesInOutput": 10737
         },
         ".open-next/server-functions/default/.next/server/app/api/admin/admins/[id]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10734
+          "bytesInOutput": 10739
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10643
+          "bytesInOutput": 10648
         },
         ".open-next/server-functions/default/.next/server/app/api/poll-image/[id]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10640
+          "bytesInOutput": 10645
         },
         ".open-next/server-functions/default/.next/server/app/api/polls/[id]/vote/route_client-reference-manifest.js": {
-          "bytesInOutput": 10726
+          "bytesInOutput": 10731
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page_client-reference-manifest.js": {
-          "bytesInOutput": 12089
+          "bytesInOutput": 12094
         },
         ".open-next/server-functions/default/.next/server/app/api/admin/admins/route_client-reference-manifest.js": {
-          "bytesInOutput": 10631
+          "bytesInOutput": 10636
         },
         ".open-next/server-functions/default/.next/server/app/opengraph-image/route_client-reference-manifest.js": {
-          "bytesInOutput": 10626
+          "bytesInOutput": 10631
         },
         ".open-next/server-functions/default/.next/server/app/api/polls/[id]/route_client-reference-manifest.js": {
-          "bytesInOutput": 10625
+          "bytesInOutput": 10630
         },
         ".open-next/server-functions/default/.next/server/app/api/cron/polls/route_client-reference-manifest.js": {
-          "bytesInOutput": 10625
+          "bytesInOutput": 10630
         },
         ".open-next/server-functions/default/.next/server/app/_not-found/page_client-reference-manifest.js": {
-          "bytesInOutput": 10606
+          "bytesInOutput": 10611
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/page_client-reference-manifest.js": {
-          "bytesInOutput": 11171
+          "bytesInOutput": 11176
         },
         ".open-next/server-functions/default/.next/server/app/p/[id]/page_client-reference-manifest.js": {
-          "bytesInOutput": 11122
+          "bytesInOutput": 11127
         },
         ".open-next/server-functions/default/.next/server/app/admin/page_client-reference-manifest.js": {
-          "bytesInOutput": 10609
+          "bytesInOutput": 10614
         },
         ".open-next/server-functions/default/.next/server/app/page_client-reference-manifest.js": {
-          "bytesInOutput": 10506
+          "bytesInOutput": 10511
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/load-manifest.external.js": {
-          "bytesInOutput": 44690
+          "bytesInOutput": 44930
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage-instance.js": {
           "bytesInOutput": 504
@@ -11695,9 +11695,6 @@
         ".open-next/server-functions/default/.next/server/chunks/1813.js": {
           "bytesInOutput": 20223
         },
-        ".open-next/server-functions/default/.next/server/chunks/2437.js": {
-          "bytesInOutput": 23031
-        },
         ".open-next/server-functions/default/.next/server/chunks/2547.js": {
           "bytesInOutput": 398326
         },
@@ -11717,7 +11714,10 @@
           "bytesInOutput": 312249
         },
         ".open-next/server-functions/default/.next/server/chunks/5873.js": {
-          "bytesInOutput": 131306
+          "bytesInOutput": 131305
+        },
+        ".open-next/server-functions/default/.next/server/chunks/7068.js": {
+          "bytesInOutput": 23156
         },
         ".open-next/server-functions/default/.next/server/chunks/9368.js": {
           "bytesInOutput": 4298
@@ -11725,8 +11725,11 @@
         ".open-next/server-functions/default/.next/server/webpack-runtime.js": {
           "bytesInOutput": 2171
         },
+        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/[id]/route.js": {
+          "bytesInOutput": 13194
+        },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/discord/route.js": {
-          "bytesInOutput": 10211
+          "bytesInOutput": 10212
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/stream/route.js": {
           "bytesInOutput": 13942
@@ -11734,8 +11737,11 @@
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/polls/[id]/vote/route.js": {
           "bytesInOutput": 15133
         },
-        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/[id]/route.js": {
-          "bytesInOutput": 13035
+        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/scheduled-polls/route.js": {
+          "bytesInOutput": 13767
+        },
+        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/scheduled-polls/page.js": {
+          "bytesInOutput": 50414
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/votes/stream/route.js": {
           "bytesInOutput": 17377
@@ -11745,9 +11751,6 @@
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/dashboard/route.js": {
           "bytesInOutput": 10279
-        },
-        ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/templates/route.js": {
-          "bytesInOutput": 13595
         },
         ".open-next/server-functions/default/node_modules/next/dist/compiled/@vercel/og/index.edge.js": {
           "bytesInOutput": 534903
@@ -11759,13 +11762,10 @@
           "bytesInOutput": 10772
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/polls/[id]/page.js": {
-          "bytesInOutput": 28662
+          "bytesInOutput": 28663
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/register-commands/route.js": {
           "bytesInOutput": 11009
-        },
-        ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/templates/page.js": {
-          "bytesInOutput": 50301
         },
         ".open-next/server-functions/default/.next/server/app/api/guilds/[guildId]/emojis/route.js": {
           "bytesInOutput": 9056
@@ -11810,7 +11810,7 @@
           "bytesInOutput": 15003
         },
         ".open-next/server-functions/default/.next/server/app/dashboard/[guildId]/page.js": {
-          "bytesInOutput": 56153
+          "bytesInOutput": 56165
         },
         ".open-next/server-functions/default/.next/server/app/api/admin/admins/route.js": {
           "bytesInOutput": 10722
@@ -11819,7 +11819,7 @@
           "bytesInOutput": 12662
         },
         ".open-next/server-functions/default/.next/server/app/api/cron/polls/route.js": {
-          "bytesInOutput": 11804
+          "bytesInOutput": 11928
         },
         ".open-next/server-functions/default/.next/server/app/api/polls/[id]/route.js": {
           "bytesInOutput": 11540
@@ -11891,7 +11891,7 @@
           "bytesInOutput": 30766
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/require.js": {
-          "bytesInOutput": 23632
+          "bytesInOutput": 23650
         },
         ".open-next/server-functions/default/node_modules/next/dist/lib/wait.js": {
           "bytesInOutput": 346
@@ -11999,10 +11999,10 @@
           "bytesInOutput": 5072
         },
         ".open-next/server-functions/default/index.mjs": {
-          "bytesInOutput": 64593
+          "bytesInOutput": 64695
         }
       },
-      "bytes": 4790787
+      "bytes": 4792140
     }
   }
 }

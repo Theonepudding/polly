@@ -69,9 +69,9 @@ export interface PollsData {
   votes: Vote[]
 }
 
-// ─── Poll Template (scheduled) ───────────────────────────────────────────────
+// ─── Scheduled Poll ──────────────────────────────────────────────────────────
 
-export interface PollTemplate {
+export interface ScheduledPoll {
   id: string
   guildId: string
   title: string

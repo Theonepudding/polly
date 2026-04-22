@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { X, Plus, Trash2, RefreshCw, ChevronDown, Clock, Pencil } from 'lucide-react'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
-import type { PollTemplate } from '@/types'
+import type { ScheduledPoll } from '@/types'
 
 const INTERVAL_PRESETS = [
   { label: 'Daily',     days: 1  },
@@ -56,15 +56,15 @@ type DiscordEmoji = DE
 interface Role { id: string; name: string; mentionable?: boolean }
 
 interface Props {
-  guildId:          string
-  userId:           string
-  userName:         string
-  initialTemplate?: PollTemplate
+  guildId:              string
+  userId:               string
+  userName:             string
+  initialScheduledPoll?: ScheduledPoll
 }
 
 
-export default function CreateScheduledPollModal({ guildId, userId, userName, initialTemplate }: Props) {
-  const isEdit = !!initialTemplate
+export default function CreateScheduledPollModal({ guildId, userId, userName, initialScheduledPoll }: Props) {
+  const isEdit = !!initialScheduledPoll
   const router = useRouter()
   const [open,          setOpen]          = useState(false)
   const [title,         setTitle]         = useState('')
@@ -116,8 +116,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
 
   // Pre-populate state from template when opening in edit mode
   useEffect(() => {
-    if (!open || !initialTemplate) return
-    const t = initialTemplate
+    if (!open || !initialScheduledPoll) return
+    const t = initialScheduledPoll
     setTitle(t.title)
     setDescription(t.description ?? '')
     setOptions(t.options.map(o => o.text))
@@ -137,7 +137,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
     setPostDiscord(t.postToDiscord)
     setOptBtnEmojis(t.options.map(o => o.buttonEmoji ?? ''))
     setSyncKey(k => k + 1)
-  }, [open, initialTemplate])
+  }, [open, initialScheduledPoll])
 
   useEffect(() => {
     if (!open) return
@@ -281,8 +281,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
         postToDiscord: postDiscord,
       }
       const url = isEdit
-        ? `/api/guilds/${guildId}/templates/${initialTemplate!.id}`
-        : `/api/guilds/${guildId}/templates`
+        ? `/api/guilds/${guildId}/scheduled-polls/${initialScheduledPoll!.id}`
+        : `/api/guilds/${guildId}/scheduled-polls`
       const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },

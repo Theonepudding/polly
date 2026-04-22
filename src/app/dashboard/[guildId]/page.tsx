@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPollsAndVotes } from '@/lib/polls'
-import { getTemplates } from '@/lib/poll-templates'
+import { getScheduledPolls } from '@/lib/scheduled-polls'
 import { getGuild, upsertGuild, userCanManage } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
@@ -98,16 +98,16 @@ export default async function GuildDashboardPage({ params }: Props) {
 
   const userId = session.user?.id ?? ''
 
-  const [{ polls: allPolls, votesByPoll }, templates, memberRoles] = await Promise.all([
+  const [{ polls: allPolls, votesByPoll }, scheduledPolls, memberRoles] = await Promise.all([
     getPollsAndVotes(guildId),
-    getTemplates(guildId),
+    getScheduledPolls(guildId),
     fetchMemberRoles(guildId, userId),
   ])
 
   const active        = allPolls.filter(p => !p.isClosed)
   const allClosed     = allPolls.filter(p => p.isClosed)
   const closedPreview = allClosed.slice(0, 8)
-  const activeTemplates = templates.filter(t => t.active)
+  const activeScheduledPolls = scheduledPolls.filter(t => t.active)
 
   const canManage = userCanManage(guild, userId, memberRoles) || !!session.user.isBotAdmin
 
@@ -129,7 +129,7 @@ export default async function GuildDashboardPage({ params }: Props) {
             <ExternalLink size={14} />
             Add to another server
           </a>
-          <Link href={`/dashboard/${guildId}/templates`} className="btn-ghost text-sm">
+          <Link href={`/dashboard/${guildId}/scheduled-polls`} className="btn-ghost text-sm">
             <Clock size={14} />
             Scheduled Polls
           </Link>
@@ -166,7 +166,7 @@ export default async function GuildDashboardPage({ params }: Props) {
           { label: 'Active Polls',  value: active.length,          icon: Circle,       color: 'text-p-success', href: null },
           { label: 'Total Polls',   value: allPolls.length,         icon: BarChart3,    color: 'text-p-primary', href: null },
           { label: 'Closed Polls',  value: allClosed.length,        icon: CheckCircle2, color: 'text-p-muted',   href: null },
-          { label: 'Scheduled',     value: activeTemplates.length,  icon: Clock,        color: 'text-p-warning', href: `/dashboard/${guildId}/templates` },
+          { label: 'Scheduled',     value: activeScheduledPolls.length,  icon: Clock,        color: 'text-p-warning', href: `/dashboard/${guildId}/scheduled-polls` },
         ].map(({ label, value, icon: Icon, color, href }) => (
           href ? (
             <Link key={label} href={href} className="card p-4 hover:border-p-border-2 transition-colors">

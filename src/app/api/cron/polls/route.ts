@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { processDueTemplates } from '@/lib/poll-templates'
+import { processDueScheduledPolls } from '@/lib/scheduled-polls'
 import { closeExpiredPolls, getPollsNeedingReminder, getVotes, updatePoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
 import { postPollResults, sendReminderPing, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   }
 
   // 1. Run scheduled templates
-  const templateResult = await processDueTemplates()
+  const templateResult = await processDueScheduledPolls()
 
   // 2. Close expired polls
   const expiredPolls = await closeExpiredPolls()
