@@ -14,6 +14,7 @@ const COMMANDS = [
     name: 'setup',
     description: 'Configure Polly for this server',
     type: 1,
+    default_member_permissions: '8', // requires Administrator — hides from non-admins
   },
 ]
 

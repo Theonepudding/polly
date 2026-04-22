@@ -729,17 +729,27 @@ export async function POST(req: NextRequest) {
       // ── Close poll: close:{pollId} ────────────────────────────────────────
       if (customId.startsWith('close:')) {
         const [, pollId] = customId.split(':')
+
+        // Permission check must happen before we return so we can send an error
+        const pollForCheck = await getPoll(pollId)
+        if (pollForCheck) {
+          const isCreator = userId === pollForCheck.createdBy
+          if (!isCreator) {
+            const guildForCheck = await getGuild(pollForCheck.guildId)
+            const userRoles     = (member?.roles as string[]) ?? []
+            if (guildForCheck && !userCanManage(guildForCheck, userId, userRoles)) {
+              return Response.json({
+                type: 4,
+                data: { content: '❌ You don\'t have permission to close this poll.', flags: 64 },
+              })
+            }
+          }
+        }
+
         bg((async () => {
           try {
             const poll = await getPoll(pollId)
             if (!poll) return
-            // Only the poll creator or guild managers can close
-            const isCreator = userId === poll.createdBy
-            if (!isCreator) {
-              const guild     = await getGuild(poll.guildId)
-              const userRoles = (member?.roles as string[]) ?? []
-              if (guild && !userCanManage(guild, userId, userRoles)) return
-            }
             const ok = await updatePoll(pollId, { isClosed: true })
             if (!ok) return
             const closedPoll  = await getPoll(pollId)
