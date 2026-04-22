@@ -28,7 +28,7 @@ function rowToVote(r: VoteRow): Vote {
 async function readPollsFromKV(): Promise<Poll[]> {
   const kv = await getKV()
   if (!kv) return []
-  const raw = await kv.get(KEY, { cacheTtl: 0 })
+  const raw = await kv.get(KEY)
   return raw ? ((JSON.parse(raw) as PollsData).polls ?? []) : []
 }
 
