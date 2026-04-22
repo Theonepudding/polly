@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, RefreshCw, ChevronDown, Clock } from 'lucide-react'
+import { X, Plus, Trash2, RefreshCw, ChevronDown, Clock, Pencil } from 'lucide-react'
 import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
+import type { PollTemplate } from '@/types'
 
 const INTERVAL_PRESETS = [
   { label: 'Daily',     days: 1  },
@@ -13,7 +14,15 @@ const INTERVAL_PRESETS = [
 ]
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
-const DAYS_OPEN_OPTIONS = [1, 3, 7, 14]
+
+const DAYS_OPEN_PRESETS = [
+  { label: '1 day',   days: 1  },
+  { label: '2 days',  days: 2  },
+  { label: '3 days',  days: 3  },
+  { label: '1 week',  days: 7  },
+  { label: '2 weeks', days: 14 },
+  { label: '1 month', days: 30 },
+]
 
 function utcToLocal(hhMM: string): string {
   const [h, m] = hhMM.split(':').map(Number)
@@ -44,13 +53,15 @@ type DiscordEmoji = DE
 interface Role { id: string; name: string; mentionable?: boolean }
 
 interface Props {
-  guildId:  string
-  userId:   string
-  userName: string
+  guildId:          string
+  userId:           string
+  userName:         string
+  initialTemplate?: PollTemplate
 }
 
 
-export default function CreateScheduledPollModal({ guildId, userId, userName }: Props) {
+export default function CreateScheduledPollModal({ guildId, userId, userName, initialTemplate }: Props) {
+  const isEdit = !!initialTemplate
   const router = useRouter()
   const [open,          setOpen]          = useState(false)
   const [title,         setTitle]         = useState('')
@@ -66,8 +77,10 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
   const [useCustom,     setUseCustom]     = useState(false)
   const [localTime,     setLocalTime]     = useState('18:00')
   const [startDate,     setStartDate]     = useState(() => defaultStartDate(7, 18))
-  const [daysOpen,      setDaysOpen]      = useState(7)
-  const [postDiscord,   setPostDiscord]   = useState(true)
+  const [daysOpen,        setDaysOpen]        = useState(7)
+  const [customDaysOpen,  setCustomDaysOpen]  = useState('')
+  const [showCustomDays,  setShowCustomDays]  = useState(false)
+  const [postDiscord,     setPostDiscord]     = useState(true)
   const [showAdvanced,  setShowAdvanced]  = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
@@ -89,6 +102,31 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     if (!startDate) return ''
     return new Date(`${startDate}T${localTime}:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
   }, [startDate, localTime])
+
+  // Pre-populate state from template when opening in edit mode
+  useEffect(() => {
+    if (!open || !initialTemplate) return
+    const t = initialTemplate
+    setTitle(t.title)
+    setDescription(t.description ?? '')
+    setOptions(t.options.map(o => o.text))
+    setIsAnonymous(t.isAnonymous)
+    setAllowMultiple(t.allowMultiple)
+    setUseTimes(t.includeTimeSlots)
+    if (t.includeTimeSlots) setTimes(t.timeSlots)
+    const presetMatch = INTERVAL_PRESETS.find(p => p.days === t.intervalDays)
+    if (presetMatch) { setIntervalDays(t.intervalDays); setUseCustom(false); setCustomDays('') }
+    else { setIntervalDays(t.intervalDays); setUseCustom(true); setCustomDays(String(t.intervalDays)) }
+    const d = new Date(); d.setUTCHours(t.atHour, 0, 0, 0)
+    setLocalTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+    setStartDate(new Date(t.nextRunAt).toLocaleDateString('en-CA'))
+    const dayPreset = DAYS_OPEN_PRESETS.find(p => p.days === t.daysOpen)
+    if (dayPreset) { setDaysOpen(t.daysOpen); setShowCustomDays(false); setCustomDaysOpen('') }
+    else { setDaysOpen(t.daysOpen); setShowCustomDays(true); setCustomDaysOpen(String(t.daysOpen)) }
+    setPostDiscord(t.postToDiscord)
+    setOptBtnEmojis(t.options.map(o => o.buttonEmoji ?? ''))
+    setSyncKey(k => k + 1)
+  }, [open, initialTemplate])
 
   useEffect(() => {
     if (!open) return
@@ -140,7 +178,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime('')
     setIntervalDays(7); setCustomDays(''); setUseCustom(false)
     setLocalTime('18:00'); setStartDate(defaultStartDate(7, 18))
-    setDaysOpen(7); setPostDiscord(true); setShowAdvanced(false)
+    setDaysOpen(7); setCustomDaysOpen(''); setShowCustomDays(false)
+    setPostDiscord(true); setShowAdvanced(false)
     setError(''); setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
     setOptBtnEmojis(['', ''])
     setBtnEmojiPickerFor(null); setBtnEmojiPickerPos(null)
@@ -207,31 +246,33 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
     const nextRunAt = new Date(`${startDate}T${localTime}:00`).toISOString()
     setLoading(true); setError('')
     try {
-      const res = await fetch(`/api/guilds/${guildId}/templates`, {
-        method: 'POST',
+      const payload = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        options: cleanOpts.map((text, i) => ({
+          id: `opt-${i}`,
+          text,
+          ...(optBtnEmojis[i] ? { buttonEmoji: optBtnEmojis[i] } : {}),
+        })),
+        includeTimeSlots: useTimes,
+        timeSlots: useTimes ? times : [],
+        isAnonymous,
+        allowMultiple,
+        daysOpen,
+        intervalDays,
+        atHour,
+        nextRunAt,
+        postToDiscord: postDiscord,
+      }
+      const url = isEdit
+        ? `/api/guilds/${guildId}/templates/${initialTemplate!.id}`
+        : `/api/guilds/${guildId}/templates`
+      const res = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          options: cleanOpts.map((text, i) => ({
-            id: `opt-${i}`,
-            text,
-            ...(optBtnEmojis[i] ? { buttonEmoji: optBtnEmojis[i] } : {}),
-          })),
-          includeTimeSlots: useTimes,
-          timeSlots: useTimes ? times : [],
-          isAnonymous,
-          allowMultiple,
-          daysOpen,
-          intervalDays,
-          atHour,
-          nextRunAt,
-          postToDiscord: postDiscord,
-          createdBy: userId,
-          createdByName: userName,
-        }),
+        body: JSON.stringify(isEdit ? payload : { ...payload, createdBy: userId, createdByName: userName }),
       })
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create schedule')
+      if (!res.ok) throw new Error((await res.json()).error ?? (isEdit ? 'Failed to save changes' : 'Failed to create schedule'))
       setOpen(false); reset()
       router.refresh()
     } catch (e: unknown) {
@@ -240,6 +281,14 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
   }
 
   if (!open) {
+    if (isEdit) {
+      return (
+        <button onClick={() => setOpen(true)} className="btn-secondary text-xs py-1.5">
+          <Pencil size={13} />
+          Edit
+        </button>
+      )
+    }
     return (
       <button onClick={() => setOpen(true)} className="btn-secondary">
         <RefreshCw size={14} />
@@ -254,8 +303,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
       <div className="relative w-full max-w-lg card shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-p-border">
           <div className="flex items-center gap-2">
-            <RefreshCw size={16} className="text-p-primary" />
-            <h2 className="font-display font-bold text-xl text-p-text">New Scheduled Poll</h2>
+            {isEdit ? <Pencil size={16} className="text-p-primary" /> : <RefreshCw size={16} className="text-p-primary" />}
+            <h2 className="font-display font-bold text-xl text-p-text">{isEdit ? 'Edit Schedule' : 'New Scheduled Poll'}</h2>
           </div>
           <button onClick={() => { setOpen(false); reset() }} className="text-p-muted hover:text-p-text p-1"><X size={18} /></button>
         </div>
@@ -445,13 +494,46 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
           {/* Days open */}
           <div>
             <label className="label">Each poll stays open for</label>
-            <div className="flex flex-wrap gap-2">
-              {DAYS_OPEN_OPTIONS.map(d => (
-                <button key={d} type="button" onClick={() => setDaysOpen(d)}
-                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${daysOpen === d ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
-                  {d === 1 ? '1 day' : `${d} days`}
+            <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {DAYS_OPEN_PRESETS.map(p => (
+                  <button key={p.days} type="button"
+                    onClick={() => { setDaysOpen(p.days); setCustomDaysOpen(''); setShowCustomDays(false) }}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      daysOpen === p.days && !showCustomDays ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    {p.label}
+                  </button>
+                ))}
+                <button type="button"
+                  onClick={() => setShowCustomDays(v => !v)}
+                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                    showCustomDays ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                  }`}>
+                  Custom
                 </button>
-              ))}
+              </div>
+              {showCustomDays && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    placeholder="e.g. 5"
+                    value={customDaysOpen}
+                    onChange={e => {
+                      setCustomDaysOpen(e.target.value)
+                      const n = parseInt(e.target.value)
+                      if (!isNaN(n) && n >= 1) setDaysOpen(n)
+                    }}
+                    className="input w-24 text-sm py-1.5 text-center"
+                  />
+                  <span className="text-p-muted text-xs">days</span>
+                  {customDaysOpen && parseInt(customDaysOpen) >= 1 && (
+                    <span className="text-p-primary text-xs font-medium ml-auto">{parseInt(customDaysOpen)} day{parseInt(customDaysOpen) !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -493,7 +575,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName }: 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => { setOpen(false); reset() }} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
-              {loading ? 'Saving…' : 'Create Schedule'}
+              {loading ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Schedule'}
             </button>
           </div>
         </form>

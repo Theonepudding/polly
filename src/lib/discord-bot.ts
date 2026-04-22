@@ -387,37 +387,76 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
 }
 
 // ─── Poll results announcement ────────────────────────────────────────────────
+// Deletes the original poll embed, then posts a single results message with the
+// poll image (closed state), winner, voter breakdown, and a website link button.
 
 export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): Promise<string | null> {
-  const channelId = poll.overrideChannelId ?? guild.announceChannelId
+  const channelId = poll.discordChannelId ?? poll.overrideChannelId ?? guild.announceChannelId
   if (!process.env.DISCORD_BOT_TOKEN || !channelId) return null
+
+  // Delete the original voting embed — results replace it entirely
+  if (poll.discordMessageId) {
+    await deletePollFromDiscord(poll).catch(() => {})
+  }
 
   const total  = votes.length
   const winner = total > 0 ? winnerOf(poll, votes) : null
+  const slot   = topTimeSlot(poll, votes)
 
-  const results = poll.options.map(opt => {
-    const count = votes.filter(v => v.optionId === opt.id).length
-    const pct   = total > 0 ? Math.round((count / total) * 100) : 0
-    const bar   = '█'.repeat(Math.round(pct / 10)) + '░'.repeat(10 - Math.round(pct / 10))
-    return `${opt.id === winner?.id && total > 0 ? '🏆 ' : ''}**${opt.text}** — ${count} vote${count !== 1 ? 's' : ''} (${pct}%)\n\`${bar}\``
-  }).join('\n\n')
+  // Build description: winner + optional voter breakdown
+  const lines: string[] = []
 
-  const embed = {
-    title:       `Results: ${poll.title}`,
-    url:         pollPageUrl(poll.id),
-    description: results || '*No votes were cast.*',
-    color:       COLOR_RESULT,
-    footer:      { text: `${total} total vote${total !== 1 ? 's' : ''}  ·  Created by ${poll.createdByName}  ·  Polly` },
-    timestamp:   new Date().toISOString(),
+  if (total === 0) {
+    lines.push('*No votes were cast.*')
+  } else {
+    if (winner) {
+      const winCount = votes.filter(v => v.optionId === winner.id).length
+      const winPct   = Math.round((winCount / total) * 100)
+      lines.push(`🏆 **${winner.text}** won with **${winCount}** vote${winCount !== 1 ? 's' : ''} (${winPct}%)`)
+    }
+    if (slot) lines.push(`⏰ Most popular time: ${utcHHMMtoDiscordTimestamp(slot)}`)
+
+    if (!poll.isAnonymous) {
+      // Show who voted for each option
+      const optionsWithVotes = poll.options.filter(o => votes.some(v => v.optionId === o.id))
+      if (optionsWithVotes.length > 0) {
+        lines.push('')
+        lines.push('**Who voted:**')
+        for (const opt of optionsWithVotes) {
+          const voters = votes.filter(v => v.optionId === opt.id).map(v => v.username)
+          lines.push(`**${opt.text}** — ${voters.join(', ')}`)
+        }
+      }
+    }
   }
+
+  // Use the closed poll image embeds (cyan accent, final vote counts)
+  const baseEmbeds = buildClosedEmbeds(poll, votes) as Record<string, unknown>[]
+  const firstEmbed = {
+    ...baseEmbeds[0],
+    title:       `Results: ${poll.title}`,
+    description: lines.join('\n'),
+    color:       COLOR_RESULT,
+  }
+  const embeds = [firstEmbed, ...baseEmbeds.slice(1)]
+
+  const components = [{
+    type: 1,
+    components: [{
+      type:  2,
+      style: 5,
+      label: '📊 View full results',
+      url:   pollPageUrl(poll.id),
+    }],
+  }]
 
   try {
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method:  'POST',
       headers: botHeaders(),
-      body:    JSON.stringify({ embeds: [embed] }),
+      body:    JSON.stringify({ embeds, components }),
     })
-    if (!res.ok) return null
+    if (!res.ok) { console.error('Results post failed:', await res.text()); return null }
     return ((await res.json()) as { id: string }).id
   } catch (e) {
     console.error('Results post error:', e)

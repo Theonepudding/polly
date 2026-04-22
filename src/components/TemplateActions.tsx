@@ -2,24 +2,27 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import ConfirmModal from './ConfirmModal'
+import CreateScheduledPollModal from './CreateScheduledPollModal'
+import type { PollTemplate } from '@/types'
 
 interface Props {
-  guildId: string
-  templateId: string
-  active: boolean
+  guildId:  string
+  userId:   string
+  userName: string
+  template: PollTemplate
 }
 
-export default function TemplateActions({ guildId, templateId, active }: Props) {
+export default function TemplateActions({ guildId, userId, userName, template }: Props) {
   const router = useRouter()
-  const [busy,   setBusy]   = useState(false)
+  const [busy,    setBusy]    = useState(false)
   const [confirm, setConfirm] = useState(false)
 
   async function toggle() {
     setBusy(true)
-    await fetch(`/api/guilds/${guildId}/templates/${templateId}`, {
+    await fetch(`/api/guilds/${guildId}/templates/${template.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !active }),
+      body: JSON.stringify({ active: !template.active }),
     })
     router.refresh()
     setBusy(false)
@@ -27,7 +30,7 @@ export default function TemplateActions({ guildId, templateId, active }: Props) 
 
   async function remove() {
     setBusy(true)
-    await fetch(`/api/guilds/${guildId}/templates/${templateId}`, { method: 'DELETE' })
+    await fetch(`/api/guilds/${guildId}/templates/${template.id}`, { method: 'DELETE' })
     router.refresh()
     setBusy(false)
   }
@@ -45,8 +48,14 @@ export default function TemplateActions({ guildId, templateId, active }: Props) 
         />
       )}
       <div className="flex gap-2 shrink-0">
+        <CreateScheduledPollModal
+          guildId={guildId}
+          userId={userId}
+          userName={userName}
+          initialTemplate={template}
+        />
         <button onClick={toggle} disabled={busy} className="btn-secondary text-xs py-1.5">
-          {active ? 'Pause' : 'Resume'}
+          {template.active ? 'Pause' : 'Resume'}
         </button>
         <button onClick={() => setConfirm(true)} disabled={busy} className="btn-danger text-xs py-1.5">
           Delete

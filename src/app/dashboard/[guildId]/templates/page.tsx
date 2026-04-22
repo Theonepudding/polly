@@ -65,7 +65,7 @@ export default async function TemplatesPage({ params }: Props) {
                   {t.lastRunAt && <span>Last ran: {new Date(t.lastRunAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}</span>}
                 </div>
               </div>
-              <TemplateActions guildId={guildId} templateId={t.id} active={t.active} />
+              <TemplateActions guildId={guildId} userId={userId} userName={userName} template={t} />
             </div>
           ))}
         </div>

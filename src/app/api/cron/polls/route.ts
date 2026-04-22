@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { processDueTemplates } from '@/lib/poll-templates'
 import { closeExpiredPolls, getPollsNeedingReminder, getVotes, updatePoll } from '@/lib/polls'
 import { getGuild } from '@/lib/guilds'
-import { updatePollInDiscord, postPollResults, sendReminderPing, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
+import { postPollResults, sendReminderPing, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -26,10 +26,8 @@ export async function POST(req: Request) {
         getVotes(poll.id),
         getGuild(poll.guildId),
       ])
-      // Update Discord embed to closed state
-      await updatePollInDiscord(poll, votes).catch(() => {})
-      // Post results announcement
       if (guild) {
+        // postPollResults deletes the original embed and posts the results message
         await postPollResults(poll, votes, guild).catch(() => {})
         await postAuditLog(guild, 'Poll auto-closed', `**${poll.title}** — ${votes.length} vote${votes.length !== 1 ? 's' : ''}`).catch(() => {})
       }

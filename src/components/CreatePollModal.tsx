@@ -8,8 +8,22 @@ import EmojiPickerPanel, { type DiscordEmoji as DE } from './EmojiPickerPanel'
 import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
-const HOUR_OPTIONS  = [1, 2, 4, 6, 12, 24]
-const DAY_OPTIONS   = [1, 3, 7, 14, 30]
+
+const DURATION_PRESETS = [
+  { label: '1h',      hours: 1,   days: undefined },
+  { label: '2h',      hours: 2,   days: undefined },
+  { label: '4h',      hours: 4,   days: undefined },
+  { label: '6h',      hours: 6,   days: undefined },
+  { label: '12h',     hours: 12,  days: undefined },
+  { label: '1 day',   hours: 24,  days: 1  },
+  { label: '2 days',  hours: 48,  days: 2  },
+  { label: '3 days',  hours: 72,  days: 3  },
+  { label: '1 week',  hours: 168, days: 7  },
+  { label: '2 weeks', hours: 336, days: 14 },
+  { label: '1 month', hours: 720, days: 30 },
+] as const
+
+const DEFAULT_PRESET = 8 // 1 week
 
 function nowTimeString() {
   const d = new Date()
@@ -45,10 +59,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [useTimes,         setUseTimes]         = useState(false)
   const [times,            setTimes]            = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
   const [customTime,       setCustomTime]       = useState('')
-  const [durUnit,          setDurUnit]          = useState<'hours' | 'days'>('days')
-  const [durationHours,    setDurationHours]    = useState(6)
-  const [customHoursInput, setCustomHoursInput] = useState('')
-  const [daysOpen,         setDaysOpen]         = useState(7)
+  const [durSel,           setDurSel]           = useState<number | 'custom'>(DEFAULT_PRESET)
+  const [customDurVal,     setCustomDurVal]     = useState('')
+  const [customDurUnit,    setCustomDurUnit]    = useState<'hours' | 'days' | 'weeks'>('days')
   const [closeAtTime,      setCloseAtTime]      = useState(nowTimeString)
   const [isAnonymous,      setIsAnonymous]      = useState(false)
   const [allowMultiple,    setAllowMultiple]    = useState(false)
@@ -69,11 +82,15 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [emojiPickerPos,   setEmojiPickerPos]   = useState<{ top: number; left: number } | null>(null)
   const [emojiTab,         setEmojiTab]         = useState<string>('server')
   const [syncKey,          setSyncKey]          = useState(0)
-  const [optBtnEmojis,  setOptBtnEmojis]  = useState<string[]>(['', ''])
-  const [btnEmojiPickerFor, setBtnEmojiPickerFor] = useState<number | null>(null)
-  const [btnEmojiPickerPos, setBtnEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
+  const [optBtnEmojis,     setOptBtnEmojis]     = useState<string[]>(['', ''])
+  const [btnEmojiPickerFor,setBtnEmojiPickerFor]= useState<number | null>(null)
+  const [btnEmojiPickerPos,setBtnEmojiPickerPos]= useState<{ top: number; left: number } | null>(null)
   const titleRef      = useRef<EmojiInputHandle>(null)
   const optionRefsMap = useRef<Record<number, EmojiInputHandle | null>>({})
+
+  const isDayBased = durSel === 'custom'
+    ? customDurUnit !== 'hours'
+    : !!(DURATION_PRESETS[durSel as number]?.days)
 
   useEffect(() => {
     if (!open) return
@@ -92,7 +109,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     }).catch(() => {})
   }, [open, guildId])
 
-  // Close emoji picker on outside click
   useEffect(() => {
     if (emojiPickerFor === null) return
     const handler = (e: MouseEvent) => {
@@ -128,8 +144,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setDurUnit('days'); setDurationHours(6)
-    setCustomHoursInput(''); setDaysOpen(7); setCloseAtTime(nowTimeString())
+    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime('')
+    setDurSel(DEFAULT_PRESET); setCustomDurVal(''); setCustomDurUnit('days')
+    setCloseAtTime(nowTimeString())
     setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
@@ -147,8 +164,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setAllowMultiple(t.allowMultiple)
     setUseTimes(t.includeTimeSlots)
     if (t.includeTimeSlots) setTimes(t.timeSlots)
-    setDurUnit('days')
-    setDaysOpen(t.daysOpen)
+    const idx = DURATION_PRESETS.findIndex(p => p.days === t.daysOpen)
+    if (idx !== -1) { setDurSel(idx); setCustomDurVal('') }
+    else { setDurSel('custom'); setCustomDurVal(String(t.daysOpen)); setCustomDurUnit('days') }
     setOptBtnEmojis(t.options.map(o => o.buttonEmoji ?? ''))
     setSyncKey(k => k + 1)
   }
@@ -205,13 +223,26 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setLoading(true); setError('')
     try {
       const closesAt = new Date()
-      if (durUnit === 'hours') {
-        closesAt.setTime(closesAt.getTime() + durationHours * 60 * 60 * 1000)
+      if (durSel === 'custom') {
+        const n = Math.max(1, parseFloat(customDurVal) || 1)
+        if (customDurUnit === 'hours') {
+          closesAt.setTime(closesAt.getTime() + n * 60 * 60 * 1000)
+        } else {
+          const [h, m] = closeAtTime.split(':').map(Number)
+          closesAt.setHours(h, m, 0, 0)
+          closesAt.setDate(closesAt.getDate() + (customDurUnit === 'weeks' ? Math.round(n * 7) : Math.round(n)))
+        }
       } else {
-        const [h, m] = closeAtTime.split(':').map(Number)
-        closesAt.setHours(h, m, 0, 0)
-        closesAt.setDate(closesAt.getDate() + daysOpen)
+        const preset = DURATION_PRESETS[durSel as number]
+        if (preset.days) {
+          const [h, m] = closeAtTime.split(':').map(Number)
+          closesAt.setHours(h, m, 0, 0)
+          closesAt.setDate(closesAt.getDate() + preset.days)
+        } else {
+          closesAt.setTime(closesAt.getTime() + preset.hours * 60 * 60 * 1000)
+        }
       }
+
       const res = await fetch(`/api/guilds/${guildId}/polls`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -358,7 +389,6 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 const btnEmojiMatch = btnEmoji.match(/^<(a?):(\w+):(\d+)>$/)
                 return (
                 <div key={`${i}-${syncKey}`} className="flex items-center gap-2">
-                  {/* Left: static number + optional emoji — click to set button emoji */}
                   <button
                     type="button"
                     data-btn-emoji-btn=""
@@ -410,7 +440,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             </div>
           </div>
 
-          {/* Compact voting options */}
+          {/* Voting options */}
           <div>
             <label className="label mb-2">Voting options</label>
             <div className="flex flex-wrap gap-2">
@@ -431,9 +461,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
 
           {/* Time slot picker */}
           {useTimes && (
-            <div className="pl-1">
-              <label className="label">Time presets <span className="normal-case font-normal text-p-muted/50">(your local time)</span></label>
-              <div className="flex flex-wrap gap-2 mb-3">
+            <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
+              <label className="label mb-0">Time slots <span className="normal-case font-normal text-p-muted/60">(your local time)</span></label>
+              <div className="flex flex-wrap gap-2">
                 {[...DEFAULT_TIMES_UTC, ...times.filter(t => !DEFAULT_TIMES_UTC.includes(t))].map(t => (
                   <button key={t} type="button" onClick={() => toggleTime(t)}
                     className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
@@ -456,74 +486,76 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           {/* Duration */}
           <div>
             <label className="label">Poll duration</label>
-            <div className="flex gap-1 p-1 bg-p-surface-2 rounded-lg mb-3">
-              {(['hours', 'days'] as const).map(unit => (
-                <button key={unit} type="button" onClick={() => setDurUnit(unit)}
-                  className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-all capitalize ${
-                    durUnit === unit
-                      ? 'bg-p-surface text-p-text shadow-sm'
-                      : 'text-p-muted hover:text-p-text'
-                  }`}>
-                  {unit}
-                </button>
-              ))}
-            </div>
+            <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
 
-            {durUnit === 'hours' ? (
+              {/* Presets — hours row then days row */}
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {HOUR_OPTIONS.map(h => (
-                    <button key={h} type="button"
-                      onClick={() => { setDurationHours(h); setCustomHoursInput('') }}
+                <div className="flex flex-wrap gap-1.5">
+                  {DURATION_PRESETS.slice(0, 5).map((p, i) => (
+                    <button key={i} type="button"
+                      onClick={() => { setDurSel(i); setCustomDurVal('') }}
                       className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                        durationHours === h && !customHoursInput ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                        durSel === i ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
                       }`}>
-                      {h === 24 ? '24h (1 day)' : `${h}h`}
+                      {p.label}
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {DURATION_PRESETS.slice(5).map((p, i) => (
+                    <button key={i + 5} type="button"
+                      onClick={() => { setDurSel(i + 5); setCustomDurVal('') }}
+                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                        durSel === i + 5 ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                      }`}>
+                      {p.label}
+                    </button>
+                  ))}
+                  <button type="button"
+                    onClick={() => setDurSel('custom')}
+                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                      durSel === 'custom' ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                    }`}>
+                    Custom
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom duration input */}
+              {durSel === 'custom' && (
+                <div className="flex items-center gap-2 pt-1">
                   <input
                     type="number"
                     min="1"
-                    max="720"
-                    placeholder="Custom…"
-                    value={customHoursInput}
-                    onChange={e => {
-                      setCustomHoursInput(e.target.value)
-                      const n = parseInt(e.target.value)
-                      if (!isNaN(n) && n >= 1) setDurationHours(Math.min(n, 720))
-                    }}
-                    className="input w-24 text-sm py-1.5"
+                    max="9999"
+                    placeholder="e.g. 5"
+                    value={customDurVal}
+                    onChange={e => setCustomDurVal(e.target.value)}
+                    className="input w-24 text-sm py-1.5 text-center"
                   />
-                  <span className="text-p-muted text-xs">hours</span>
-                  {customHoursInput && parseInt(customHoursInput) >= 1 && (
-                    <span className="text-p-primary text-xs font-medium">
-                      {parseInt(customHoursInput)}h selected
-                    </span>
-                  )}
+                  <select
+                    value={customDurUnit}
+                    onChange={e => setCustomDurUnit(e.target.value as 'hours' | 'days' | 'weeks')}
+                    className="input flex-1 text-sm py-1.5"
+                  >
+                    <option value="hours">hours</option>
+                    <option value="days">days</option>
+                    <option value="weeks">weeks</option>
+                  </select>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {DAY_OPTIONS.map(d => (
-                    <button key={d} type="button" onClick={() => setDaysOpen(d)}
-                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                        daysOpen === d ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                      }`}>
-                      {d === 1 ? '1 day' : `${d} days`}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <label className="text-p-muted text-xs whitespace-nowrap">Close at</label>
+              )}
+
+              {/* Close time — only for day/week-based durations */}
+              {isDayBased && (
+                <div className="flex items-center gap-3 pt-0.5 border-t border-p-border/50">
+                  <span className="text-p-muted text-xs whitespace-nowrap shrink-0 pt-3">Close at</span>
                   <input type="time" value={closeAtTime} onChange={e => setCloseAtTime(e.target.value)}
-                    className="input py-1.5 text-sm w-32" />
-                  <span className="text-p-muted text-xs">your local time</span>
+                    className="input py-1.5 text-sm w-32 mt-3" />
+                  <span className="text-p-muted text-xs mt-3">your local time</span>
                 </div>
-              </div>
-            )}
+              )}
+
+            </div>
           </div>
 
           {/* Advanced options toggle */}
@@ -543,7 +575,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                   placeholder="Any extra context for voters…" maxLength={400} />
               </div>
 
-              {/* Notify roles — only mentionable ones */}
+              {/* Notify roles */}
               {roles.some(r => r.mentionable) && (
                 <div>
                   <label className="label flex items-center gap-1.5">
@@ -556,9 +588,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                       <button key={role.id} type="button"
                         onClick={() => togglePingRole(role.id)}
                         className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                          pingRoleIds.includes(role.id)
-                            ? 'badge-primary'
-                            : 'badge-muted hover:border-p-border-2'
+                          pingRoleIds.includes(role.id) ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
                         }`}>
                         {role.name}
                       </button>
@@ -567,7 +597,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 </div>
               )}
 
-              {/* Override channel — admins only */}
+              {/* Override channel */}
               {canManage && channels.length > 0 && (
                 <div>
                   <label className="label flex items-center gap-1.5">
@@ -619,7 +649,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
         />
       )}
 
-      {/* Button emoji picker — sets the Discord button emoji for an option */}
+      {/* Button emoji picker */}
       {btnEmojiPickerFor !== null && btnEmojiPickerPos && (
         <EmojiPickerPanel
           top={btnEmojiPickerPos.top}
