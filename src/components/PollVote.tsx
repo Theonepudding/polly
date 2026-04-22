@@ -245,7 +245,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                       count > 0 && !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
                       isExp && 'ring-1 ring-p-primary/50',
                     )}>
-                    {{mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}}{count > 0 ? ` ×${count}` : ''}
+                    {mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}{count > 0 ? ` ×${count}` : ''}
                   </button>
                 )
               })}
@@ -448,7 +448,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                 ? 'border-p-accent/60 bg-p-accent-b text-p-accent'
                 : 'border-p-border bg-p-surface text-p-text hover:border-p-border-2 hover:bg-p-surface-2'
             )}>
-            {{mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}}
+            {mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}
           </button>
         ))}
       </div>
