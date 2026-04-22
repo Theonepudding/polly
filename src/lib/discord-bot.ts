@@ -550,46 +550,35 @@ export async function postPollyGuide(channelId: string, guildId: string, customM
   if (!process.env.DISCORD_BOT_TOKEN) return null
   const siteUrl   = process.env.NEXTAUTH_URL ?? ''
   const dashboard = `${siteUrl}/dashboard/${guildId}`
+  const gi        = (type: string) => `${siteUrl}/api/guide-image?type=${type}`
 
-  const embed = {
-    title:       'How Polly Works',
-    description: customMessage ?? 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.',
-    color:       COLOR_ACTIVE,
-    fields: [
-      {
-        name:   'Voting',
-        value:  'Click an option button on any poll to cast your vote. You can change your choice any time before the poll closes — just click a different option and your vote updates. Anonymous polls hide who voted for what; you\'ll still see the totals.',
-        inline: false,
-      },
-      {
-        name:   'Multi-choice polls',
-        value:  'Some polls allow picking more than one option. When you vote on one of these, the bot will confirm all your selections. You can update them later the same way.',
-        inline: false,
-      },
-      {
-        name:   'Time preference polls',
-        value:  'Some polls include a time preference step. After picking your option, a follow-up message asks which time slot works best for you. Select one or choose "No preference" to skip it.',
-        inline: false,
-      },
-      {
-        name:   'Creating a poll',
-        value:  `Use the \`/poll\` command or open the [web dashboard](${dashboard}) to create a poll. New polls are posted here with voting buttons automatically. You need the appropriate role to create polls — ask an admin if needed.`,
-        inline: false,
-      },
-      {
-        name:   'Results',
-        value:  `Results update in real time on both the Discord embed and the website. When a poll closes, the final tally is announced and the embed updates to show the winner. Full results are always available on the [website](${siteUrl}).`,
-        inline: false,
-      },
-    ],
-    footer: { text: 'Polly — Discord poll bot' },
-  }
+  const embeds = [
+    {
+      title:       '🗳️ Polly — How it Works',
+      description: customMessage ?? `Polls appear in this channel with live results. Use the buttons on each poll to vote, or open the [web dashboard](${dashboard}) for the full experience.`,
+      color:       COLOR_ACTIVE,
+      image:       { url: gi('voting') },
+    },
+    {
+      title:       '📋 Poll Modes',
+      description: 'Polls can use one or more of these modes — look for the badges on each poll.',
+      color:       COLOR_ACTIVE,
+      image:       { url: gi('modes') },
+    },
+    {
+      title:       '✏️ Creating Polls',
+      description: `Use \`/poll\` in any channel for quick polls, or open the [web dashboard](${dashboard}) for the full editor with all options and modes.\nYou need the **Poll Creator** role to create polls — ask an admin if you can't.`,
+      color:       COLOR_ACTIVE,
+      image:       { url: gi('create') },
+      footer:      { text: 'Polly — polly.pudding.vip' },
+    },
+  ]
 
   try {
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method:  'POST',
       headers: botHeaders(),
-      body:    JSON.stringify({ embeds: [embed] }),
+      body:    JSON.stringify({ embeds }),
     })
     if (!res.ok) return null
     const msg = await res.json() as { id: string }
