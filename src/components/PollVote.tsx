@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Poll, Vote } from '@/types'
-import { Check, Clock, LogIn, Users, ChevronDown, EyeOff, CheckSquare, Lock } from 'lucide-react'
+import { Check, Clock, LogIn, Users, ChevronDown, EyeOff, CheckSquare, Lock, Ghost } from 'lucide-react'
 import clsx from 'clsx'
 
 function utcToLocal(hhMM: string): string {
@@ -15,7 +15,6 @@ function utcToLocal(hhMM: string): string {
 }
 
 function isTimeSlot(s: string): boolean { return /^\d{2}:\d{2}$/.test(s) }
-function displaySlot(s: string): string { return isTimeSlot(s) ? utcToLocal(s) : s }
 
 function renderOptionText(text: string) {
   const parts = text.split(/(<a?:\w+:\d+>)/g)
@@ -57,12 +56,16 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   const [expanded,     setExpanded]     = useState<string | null>(null)
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
   const [live,      setLive]      = useState(false)
+  // mounted = false on SSR (server has no user timezone); true after browser hydration
+  const [mounted,   setMounted]   = useState(false)
   const effectiveUserId = userId ?? session?.user?.id
 
   const total    = poll.allowMultiple
     ? [...new Set(votes.map(v => v.userId))].length
     : votes.length
   const isClosed = poll.isClosed
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (isClosed) return
@@ -242,7 +245,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                       count > 0 && !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
                       isExp && 'ring-1 ring-p-primary/50',
                     )}>
-                    {displaySlot(ts)}{count > 0 ? ` ×${count}` : ''}
+                    {{mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}}{count > 0 ? ` ×${count}` : ''}
                   </button>
                 )
               })}
@@ -308,6 +311,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           )}
           {poll.isAnonymous   && <span className="badge badge-muted gap-1"><EyeOff size={9} />Anonymous</span>}
           {poll.allowMultiple && <span className="badge badge-muted gap-1"><CheckSquare size={9} />Multi-choice</span>}
+          {poll.isGhost && !isClosed && <span className="badge badge-muted gap-1"><Ghost size={9} />Ghost</span>}
           {!isClosed && timeRemaining && (
             <span className="badge badge-muted gap-1 ml-auto">
               <Clock size={9} />{timeRemaining}
@@ -331,7 +335,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
             <LogIn size={14} /> Sign in with Discord
           </button>
         </div>
-        {total > 0 && (
+        {total > 0 && (!poll.isGhost || isClosed) && (
           <div className="mt-6 pt-6 border-t border-p-border">
             <p className="text-xs text-p-muted mb-3">Current results:</p>
             <Results />
@@ -359,9 +363,19 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
         <PollHeader />
         <div className="flex items-center gap-2 mb-5 text-sm text-p-success bg-p-success/10 border border-p-success/25 rounded-lg px-3 py-2.5">
           <Check size={14} /> Your vote is recorded.
-          {myVotes[0]?.timeSlot && <span className="text-p-muted ml-1">({displaySlot(myVotes[0].timeSlot)})</span>}
+          {myVotes[0]?.timeSlot && (
+            <span className="text-p-muted ml-1">
+              ({mounted && isTimeSlot(myVotes[0].timeSlot) ? utcToLocal(myVotes[0].timeSlot) : myVotes[0].timeSlot})
+            </span>
+          )}
         </div>
-        <Results />
+        {poll.isGhost && !isClosed ? (
+          <p className="text-xs text-p-muted flex items-center gap-1.5 py-4 border-t border-p-border">
+            <Ghost size={12} /> Results are hidden until the poll closes.
+          </p>
+        ) : (
+          <Results />
+        )}
         <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setTimeSlot('') }}
           className="btn-ghost text-xs mt-4">
           Change my vote
@@ -434,7 +448,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                 ? 'border-p-accent/60 bg-p-accent-b text-p-accent'
                 : 'border-p-border bg-p-surface text-p-text hover:border-p-border-2 hover:bg-p-surface-2'
             )}>
-            {displaySlot(ts)}
+            {{mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}}
           </button>
         ))}
       </div>

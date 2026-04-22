@@ -82,11 +82,11 @@ function formatSlotForDiscord(slot: string): string {
   return /^\d{2}:\d{2}$/.test(slot) ? utcHHMMtoDiscordTimestamp(slot) : `**${slot}**`
 }
 
-function utcToLocal(hhMM: string): string {
-  const [h, m] = hhMM.split(':').map(Number)
-  const d = new Date()
-  d.setUTCHours(h, m, 0, 0)
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
+// Discord buttons run server-side so we can't convert to a user's local timezone.
+// Use UTC labels in buttons; the followup message uses <t:...:t> which Discord
+// renders in each viewer's own timezone automatically.
+function utcLabel(hhMM: string): string {
+  return `${hhMM} UTC`
 }
 
 function roleMentions(roleIds?: string[]): string {
@@ -123,6 +123,7 @@ function pollFooter(poll: Poll) {
   const flags = [
     poll.isAnonymous   ? '🔒 Anonymous' : null,
     poll.allowMultiple ? '☑️ Multi-choice' : null,
+    poll.isGhost       ? '👻 Ghost' : null,
   ].filter(Boolean).join('  ·  ')
   const parts = [
     poll.closesAt ? `Closes ${shortDate(poll.closesAt)}` : 'No end date',
@@ -183,7 +184,7 @@ export function buildTimeSlotComponents(poll: Poll, optionId: string) {
   const timeButtons = poll.timeSlots.slice(0, 5).map(ts => ({
     type:      2,
     style:     2,
-    label:     /^\d{2}:\d{2}$/.test(ts) ? utcToLocal(ts) : ts.slice(0, 80),
+    label:     /^\d{2}:\d{2}$/.test(ts) ? utcLabel(ts) : ts.slice(0, 80),
     custom_id: `t:${poll.id}:${optionId}:${ts}`,
   }))
 
@@ -196,7 +197,7 @@ export function buildTimeSlotComponents(poll: Poll, optionId: string) {
 export function buildTimeSlotFollowupContent(poll: Poll): string {
   const lines = poll.timeSlots.slice(0, 5).map(ts =>
     /^\d{2}:\d{2}$/.test(ts)
-      ? `**${utcToLocal(ts)}** — ${utcHHMMtoDiscordTimestamp(ts)} your time`
+      ? `**${ts} UTC** — ${utcHHMMtoDiscordTimestamp(ts)} your time`
       : `**${ts}**`
   )
   return `🕐 Pick a time preference:\n${lines.join('\n')}`

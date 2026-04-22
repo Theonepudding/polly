@@ -60,6 +60,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     timeSlots:        body.timeSlots ?? [],
     isAnonymous:      body.isAnonymous ?? false,
     allowMultiple:    body.allowMultiple ?? false,
+    isGhost:          body.isGhost ?? false,
     createdBy:        session.user.id,
     createdByName:    session.user.name ?? body.createdByName ?? 'Unknown',
     createdAt:        new Date().toISOString(),

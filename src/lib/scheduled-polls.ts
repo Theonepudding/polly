@@ -106,6 +106,7 @@ export async function runScheduledPoll(scheduledPoll: ScheduledPoll): Promise<Po
     timeSlots:        scheduledPoll.timeSlots,
     isAnonymous:      scheduledPoll.isAnonymous,
     allowMultiple:    scheduledPoll.allowMultiple,
+    isGhost:          false,
     createdBy:        scheduledPoll.createdBy,
     createdByName:    scheduledPoll.createdByName,
     createdAt:        now.toISOString(),

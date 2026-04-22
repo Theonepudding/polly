@@ -43,6 +43,7 @@ export interface Poll {
   timeSlots: string[]       // "HH:MM"
   isAnonymous: boolean
   allowMultiple: boolean
+  isGhost: boolean
   createdBy: string         // Discord user ID
   createdByName: string
   createdAt: string         // ISO

@@ -5,6 +5,7 @@ import type { Poll, Vote } from '@/types'
 const W      = 600
 const INDIGO = '#818cf8'
 const CYAN   = '#22d3ee'
+const GHOST  = '#a855f7'
 const PAD_H  = 26
 const PAD_V  = 26
 
@@ -292,7 +293,8 @@ export async function GET(
   }
 
   const closed     = poll.isClosed || (poll.closesAt ? new Date(poll.closesAt) <= new Date() : false)
-  const accent     = closed ? CYAN : INDIGO
+  const ghostMode  = !!(poll.isGhost && !closed)
+  const accent     = closed ? CYAN : (ghostMode ? GHOST : INDIGO)
   const needsP2    = poll.options.length > 6
   const pageOpts   = needsP2
     ? (page === 0 ? poll.options.slice(0, 6) : poll.options.slice(6))
@@ -328,9 +330,9 @@ export async function GET(
   const MIN_H    = 460
 
   function optRowH(opt: { id: string }): number {
-    const voterCount = isAnon ? 0 : votes.filter(v => v.optionId === opt.id).length
+    const voterCount = isAnon || ghostMode ? 0 : votes.filter(v => v.optionId === opt.id).length
     const lineH = Math.max(optFSize + 4, BADGE_H)
-    return lineH + 7 + barH_px + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
+    return lineH + 7 + (ghostMode ? 0 : barH_px) + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
   }
 
   // Calculate the canvas height for ANY set of options + whether time slots appear.
@@ -395,7 +397,7 @@ export async function GET(
     )
   }
 
-  const statusLabel = closed ? 'CLOSED' : 'OPEN'
+  const statusLabel = closed ? 'CLOSED' : (ghostMode ? 'GHOST' : 'OPEN')
 
   const img = new ImageResponse(
     (
@@ -436,7 +438,7 @@ export async function GET(
         {pageOpts.map((opt, optIdx) => {
           const count  = votes.filter(v => v.optionId === opt.id).length
           const pct    = totalForPct > 0 ? Math.round((count / totalForPct) * 100) : 0
-          const voters = poll.isAnonymous ? [] : votes.filter(v => v.optionId === opt.id).map(v => v.username)
+          const voters = poll.isAnonymous || ghostMode ? [] : votes.filter(v => v.optionId === opt.id).map(v => v.username)
           const names  = voters.slice(0, 4).join(' · ') + (voters.length > 4 ? ` +${voters.length - 4}` : '')
 
           // Button badge: custom emoji > custom number > default 1-based index
@@ -445,35 +447,44 @@ export async function GET(
           const btnEmojiUri   = btnEmojiId ? emojiMap.get(btnEmojiId) : null
           const btnLabel      = String(opt.buttonNum ?? (optIdx + 1))
 
+          // Ghost badge colours differ from normal
+          const badgeBg      = ghostMode ? 'rgba(168,85,247,0.18)' : 'rgba(99,102,241,0.22)'
+          const badgeBorder  = ghostMode ? '1.5px solid rgba(168,85,247,0.4)' : '1.5px solid rgba(129,140,248,0.4)'
+          const badgeColor   = ghostMode ? '#d8b4fe' : '#a5b4fc'
+
           return (
             <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: optGap }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ghostMode ? 0 : 7 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                  {/* Button number / emoji badge — always shows the number, emoji alongside if set */}
+                  {/* Button number / emoji badge */}
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
                     minWidth: btnEmojiUri ? 40 : 28, height: 28, borderRadius: 6, flexShrink: 0,
                     padding: '0 6px',
-                    background: 'rgba(99,102,241,0.22)',
-                    border: '1.5px solid rgba(129,140,248,0.4)',
+                    background: badgeBg,
+                    border: badgeBorder,
                   }}>
-                    <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 800 }}>{btnLabel}</span>
+                    <span style={{ color: badgeColor, fontSize: 13, fontWeight: 800 }}>{btnLabel}</span>
                     {btnEmojiUri && <img src={btnEmojiUri} width={14} height={14} />}
                   </div>
                   <SegText text={opt.text} fontSize={optFSize} />
                 </div>
-                <span style={{ color: count > 0 ? accent : '#5555aa', fontSize: stFSize, fontWeight: 800, marginLeft: 12, flexShrink: 0 }}>
-                  {pct}%{count > 0 ? ` · ${count}` : ''}
-                </span>
+                {!ghostMode && (
+                  <span style={{ color: count > 0 ? accent : '#5555aa', fontSize: stFSize, fontWeight: 800, marginLeft: 12, flexShrink: 0 }}>
+                    {pct}%{count > 0 ? ` · ${count}` : ''}
+                  </span>
+                )}
               </div>
-              <div style={{
-                display: 'flex', height: barH_px,
-                background: 'rgba(255,255,255,0.18)',
-                borderRadius: 3, overflow: 'hidden',
-                marginBottom: voters.length > 0 ? 5 : 0,
-              }}>
-                {pct > 0 && <div style={{ width: `${pct}%`, background: accent, borderRadius: 3 }} />}
-              </div>
+              {!ghostMode && (
+                <div style={{
+                  display: 'flex', height: barH_px,
+                  background: 'rgba(255,255,255,0.18)',
+                  borderRadius: 3, overflow: 'hidden',
+                  marginBottom: voters.length > 0 ? 5 : 0,
+                }}>
+                  {pct > 0 && <div style={{ width: `${pct}%`, background: accent, borderRadius: 3 }} />}
+                </div>
+              )}
               {voters.length > 0 && (
                 <span style={{ color: '#a0a0d0', fontSize: nameFSz }}>{names}</span>
               )}
@@ -502,8 +513,8 @@ export async function GET(
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {shownSlots.map(ts => {
                 const tsCount  = votes.filter(v => v.timeSlot === ts).length
-                const hasVotes = tsCount > 0
-                const isTop    = maxSlotVoteCount > 0 && tsCount === maxSlotVoteCount
+                const hasVotes = !ghostMode && tsCount > 0
+                const isTop    = !ghostMode && maxSlotVoteCount > 0 && tsCount === maxSlotVoteCount
                 return (
                   <div key={ts} style={{
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -531,7 +542,7 @@ export async function GET(
                 )
               })}
               {(() => {
-                const noPrefCount = votes.filter(v => !v.timeSlot).length
+                const noPrefCount = ghostMode ? 0 : votes.filter(v => !v.timeSlot).length
                 return (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -556,11 +567,14 @@ export async function GET(
           paddingTop: 12, marginTop: 'auto',
           borderTop: '1px solid rgba(255,255,255,0.15)',
         }}>
-          <span style={{ color: '#b8b8e0', fontSize: 14 }}>
-            {footerTotal} {footerLabel} · Polly
+          <span style={{ color: ghostMode ? '#c084fc' : '#b8b8e0', fontSize: 14 }}>
+            {ghostMode ? 'Results hidden · Polly' : `${footerTotal} ${footerLabel} · Polly`}
           </span>
-          {!closed && closesLabel && (
+          {!closed && !ghostMode && closesLabel && (
             <span style={{ color: '#b8b8e0', fontSize: 14 }}>closes {closesLabel}</span>
+          )}
+          {ghostMode && closesLabel && (
+            <span style={{ color: 'rgba(168,85,247,0.55)', fontSize: 14 }}>closes {closesLabel}</span>
           )}
         </div>
 

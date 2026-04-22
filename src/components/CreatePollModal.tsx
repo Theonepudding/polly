@@ -19,19 +19,14 @@ function displaySlot(s: string): string {
 
 const DURATION_PRESETS = [
   { label: '1h',      hours: 1,   days: undefined },
-  { label: '2h',      hours: 2,   days: undefined },
-  { label: '4h',      hours: 4,   days: undefined },
   { label: '6h',      hours: 6,   days: undefined },
-  { label: '12h',     hours: 12,  days: undefined },
   { label: '1 day',   hours: 24,  days: 1  },
-  { label: '2 days',  hours: 48,  days: 2  },
   { label: '3 days',  hours: 72,  days: 3  },
   { label: '1 week',  hours: 168, days: 7  },
   { label: '2 weeks', hours: 336, days: 14 },
-  { label: '1 month', hours: 720, days: 30 },
 ] as const
 
-const DEFAULT_PRESET = 8 // 1 week
+const DEFAULT_PRESET = 4 // 1 week
 
 function nowTimeString() {
   const d = new Date()
@@ -74,6 +69,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [closeAtTime,      setCloseAtTime]      = useState(nowTimeString)
   const [isAnonymous,      setIsAnonymous]      = useState(false)
   const [allowMultiple,    setAllowMultiple]    = useState(false)
+  const [isGhost,          setIsGhost]          = useState(false)
   const [loading,          setLoading]          = useState(false)
   const [error,            setError]            = useState('')
   const [createdPoll,      setCreatedPoll]      = useState<Poll | null>(null)
@@ -153,7 +149,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setTimes([]); setCustomTime(''); setCustomSlotText('')
     setDurSel(DEFAULT_PRESET); setCustomDurVal(''); setCustomDurUnit('days')
     setCloseAtTime(nowTimeString())
-    setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
+    setIsAnonymous(false); setAllowMultiple(false); setIsGhost(false); setError(''); setCreatedPoll(null)
     setPosted(false); setHasChannel(false); setPostedChannelId(null)
     setOverrideChannel(''); setPingRoleIds([]); setShowAdvanced(false)
     setEmojiPickerFor(null); setEmojiPickerPos(null); setEmojiTab('server')
@@ -252,6 +248,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           timeSlots: useTimes ? times : [],
           isAnonymous,
           allowMultiple,
+          isGhost,
           closesAt: closesAt.toISOString(),
           createdBy: userId,
           createdByName: userName,
@@ -431,6 +428,11 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${allowMultiple ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
                 Multi-choice
               </button>
+              <button type="button" onClick={() => setIsGhost(v => !v)}
+                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isGhost ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}
+                title="Hide vote counts and results until the poll closes">
+                Ghost
+              </button>
               <button type="button" onClick={() => setUseTimes(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
                 Availability slots
@@ -507,74 +509,47 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           <div>
             <label className="label">Poll duration</label>
             <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
-
-              {/* Presets — hours row then days row */}
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {DURATION_PRESETS.slice(0, 5).map((p, i) => (
-                    <button key={i} type="button"
-                      onClick={() => { setDurSel(i); setCustomDurVal('') }}
-                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                        durSel === i ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                      }`}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DURATION_PRESETS.slice(5).map((p, i) => (
-                    <button key={i + 5} type="button"
-                      onClick={() => { setDurSel(i + 5); setCustomDurVal('') }}
-                      className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                        durSel === i + 5 ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                      }`}>
-                      {p.label}
-                    </button>
-                  ))}
-                  <button type="button"
-                    onClick={() => setDurSel('custom')}
+              <div className="flex flex-wrap gap-1.5">
+                {DURATION_PRESETS.map((p, i) => (
+                  <button key={i} type="button"
+                    onClick={() => { setDurSel(i); setCustomDurVal('') }}
                     className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                      durSel === 'custom' ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                      durSel === i ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
                     }`}>
-                    Custom
+                    {p.label}
                   </button>
-                </div>
+                ))}
+                <button type="button"
+                  onClick={() => setDurSel('custom')}
+                  className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
+                    durSel === 'custom' ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
+                  }`}>
+                  Custom
+                </button>
               </div>
-
-              {/* Custom duration input */}
               {durSel === 'custom' && (
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    min="1"
-                    max="9999"
-                    placeholder="e.g. 5"
-                    value={customDurVal}
-                    onChange={e => setCustomDurVal(e.target.value)}
+                    type="number" min="1" max="9999" placeholder="e.g. 5"
+                    value={customDurVal} onChange={e => setCustomDurVal(e.target.value)}
                     className="input w-24 text-sm py-1.5 text-center"
                   />
-                  <select
-                    value={customDurUnit}
-                    onChange={e => setCustomDurUnit(e.target.value as 'hours' | 'days' | 'weeks')}
-                    className="input flex-1 text-sm py-1.5"
-                  >
+                  <select value={customDurUnit} onChange={e => setCustomDurUnit(e.target.value as 'hours' | 'days' | 'weeks')}
+                    className="input flex-1 text-sm py-1.5">
                     <option value="hours">hours</option>
                     <option value="days">days</option>
                     <option value="weeks">weeks</option>
                   </select>
                 </div>
               )}
-
-              {/* Close time — only for day/week-based durations */}
               {isDayBased && (
-                <div className="flex items-center gap-3 pt-0.5 border-t border-p-border/50">
-                  <span className="text-p-muted text-xs whitespace-nowrap shrink-0 pt-3">Close at</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-p-muted text-xs whitespace-nowrap">Close at</span>
                   <input type="time" value={closeAtTime} onChange={e => setCloseAtTime(e.target.value)}
-                    className="input py-1.5 text-sm w-32 mt-3" />
-                  <span className="text-p-muted text-xs mt-3">your local time</span>
+                    className="input py-1.5 text-sm w-32" />
+                  <span className="text-p-muted text-xs">your local time</span>
                 </div>
               )}
-
             </div>
           </div>
 
