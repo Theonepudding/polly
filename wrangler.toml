@@ -1,5 +1,5 @@
 name = "polly"
-main = ".open-next/worker.js"
+main = "cloudflare-worker.mjs"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 

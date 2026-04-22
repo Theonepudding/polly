@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:cf": "npx @opennextjs/cloudflare build && node scripts/add-scheduled-handler.mjs",
+    "build:cf": "npx @opennextjs/cloudflare build",
     "deploy": "npm run build:cf && npx wrangler deploy"
   },
   "dependencies": {
