@@ -166,7 +166,9 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
     return 'closing soon'
   }
 
-  function Results({ compact = false }: { compact?: boolean }) {
+  function Results() {
+    const ghostActive = poll.isGhost && !isClosed
+
     return (
       <div className="space-y-3">
         {poll.options.map(opt => {
@@ -176,6 +178,21 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           const isMyVote = myVotes.some(v => v.optionId === opt.id)
           const isWin    = isClosed && count === maxCount && count > 0
           const isOpen   = expanded === opt.id
+
+          if (ghostActive) {
+            return (
+              <div key={opt.id} className={clsx(
+                'rounded-xl border px-4 py-3 transition-all',
+                isMyVote ? 'border-p-primary/40 bg-p-primary-b' : 'border-p-border bg-p-surface opacity-50'
+              )}>
+                <span className={clsx('text-sm font-semibold flex items-center gap-2',
+                  isMyVote ? 'text-p-primary' : 'text-p-muted')}>
+                  {isMyVote && <Check size={12} className="text-p-primary shrink-0" />}
+                  {renderOptionText(opt.text)}
+                </span>
+              </div>
+            )
+          }
 
           return (
             <div key={opt.id} className={clsx(
@@ -226,7 +243,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
           )
         })}
 
-        {poll.includeTimeSlots && (
+        {!ghostActive && poll.includeTimeSlots && (
           <div className="mt-4 pt-4 border-t border-p-border">
             <p className="text-xs font-semibold text-p-muted mb-3 flex items-center gap-1.5">
               <Clock size={11} /> Availability
@@ -286,8 +303,19 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
         )}
 
         <p className="text-xs text-p-muted flex items-center gap-1.5 mt-1">
-          <Users size={11} /> {total} {poll.allowMultiple ? 'participant' : 'vote'}{total !== 1 ? 's' : ''}
-          {poll.isAnonymous && <span className="flex items-center gap-1 ml-2"><EyeOff size={10} />Anonymous</span>}
+          {ghostActive ? (
+            <>
+              <Ghost size={11} />
+              {total} {poll.allowMultiple ? 'participant' : 'vote'}{total !== 1 ? 's' : ''} cast
+              <span className="text-p-subtle ml-1">· results revealed when closed</span>
+            </>
+          ) : (
+            <>
+              <Users size={11} />
+              {total} {poll.allowMultiple ? 'participant' : 'vote'}{total !== 1 ? 's' : ''}
+              {poll.isAnonymous && <span className="flex items-center gap-1 ml-2"><EyeOff size={10} />Anonymous</span>}
+            </>
+          )}
         </p>
       </div>
     )
@@ -335,7 +363,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
             <LogIn size={14} /> Sign in with Discord
           </button>
         </div>
-        {total > 0 && (!poll.isGhost || isClosed) && (
+        {total > 0 && (
           <div className="mt-6 pt-6 border-t border-p-border">
             <p className="text-xs text-p-muted mb-3">Current results:</p>
             <Results />
@@ -369,13 +397,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
             </span>
           )}
         </div>
-        {poll.isGhost && !isClosed ? (
-          <p className="text-xs text-p-muted flex items-center gap-1.5 py-4 border-t border-p-border">
-            <Ghost size={12} /> Results are hidden until the poll closes.
-          </p>
-        ) : (
-          <Results />
-        )}
+        <Results />
         <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setTimeSlot('') }}
           className="btn-ghost text-xs mt-4">
           Change my vote

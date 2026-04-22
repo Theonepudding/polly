@@ -1,6 +1,6 @@
 import { Poll, Vote, Guild } from '@/types'
 import { getGuild, upsertGuild } from './guilds'
-import { getPolls, updatePoll } from './polls'
+import { getPolls, getVotes, updatePoll } from './polls'
 
 const DISCORD_API  = 'https://discord.com/api/v10'
 const COLOR_ACTIVE = 0x6366F1
@@ -512,24 +512,35 @@ export async function postAuditLog(
 // ─── 24h reminder ping ────────────────────────────────────────────────────────
 
 export async function sendReminderPing(poll: Poll, guild: Guild): Promise<void> {
-  const channelId = poll.overrideChannelId ?? guild.announceChannelId
+  const channelId = poll.discordChannelId ?? poll.overrideChannelId ?? guild.announceChannelId
   if (!process.env.DISCORD_BOT_TOKEN || !channelId) return
 
-  const pingContent = roleMentions(poll.pingRoleIds)
+  const [pingContent, votes] = [roleMentions(poll.pingRoleIds), await getVotes(poll.id)]
+
+  // Delete the original voting embed so the reminder replaces it, not duplicates it
+  if (poll.discordMessageId) {
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages/${poll.discordMessageId}`, {
+      method: 'DELETE', headers: botHeaders(),
+    }).catch(() => {})
+  }
 
   try {
-    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method:  'POST',
       headers: botHeaders(),
       body:    JSON.stringify({
         content: `${pingContent ? pingContent + ' ' : ''}⏰ **Less than 24 hours left to vote!**`,
-        embeds:  buildPollEmbeds(poll, []),
+        embeds:  buildPollEmbeds(poll, votes),
         components: buildPollComponents(poll),
         allowed_mentions: poll.pingRoleIds?.length
           ? { roles: poll.pingRoleIds }
           : { parse: [] },
       }),
     })
+    if (res.ok) {
+      const { id: newMsgId } = await res.json() as { id: string }
+      await updatePoll(poll.id, { discordMessageId: newMsgId, discordChannelId: channelId })
+    }
   } catch (e) { console.error('Reminder error:', e) }
 }
 

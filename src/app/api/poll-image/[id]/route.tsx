@@ -568,13 +568,10 @@ export async function GET(
           borderTop: '1px solid rgba(255,255,255,0.15)',
         }}>
           <span style={{ color: ghostMode ? '#c084fc' : '#b8b8e0', fontSize: 14 }}>
-            {ghostMode ? 'Results hidden · Polly' : `${footerTotal} ${footerLabel} · Polly`}
+            {footerTotal} {footerLabel} · Polly
           </span>
-          {!closed && !ghostMode && closesLabel && (
-            <span style={{ color: '#b8b8e0', fontSize: 14 }}>closes {closesLabel}</span>
-          )}
-          {ghostMode && closesLabel && (
-            <span style={{ color: 'rgba(168,85,247,0.55)', fontSize: 14 }}>closes {closesLabel}</span>
+          {!closed && closesLabel && (
+            <span style={{ color: ghostMode ? 'rgba(168,85,247,0.55)' : '#b8b8e0', fontSize: 14 }}>closes {closesLabel}</span>
           )}
         </div>
 
