@@ -416,8 +416,9 @@ export async function GET(
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : ''
 
+  const noPrefCount      = hasTimeSlots && !ghostMode ? votes.filter(v => !v.timeSlot).length : 0
   const maxSlotVoteCount = hasTimeSlots
-    ? Math.max(0, ...shownSlots.map(ts => votes.filter(v => v.timeSlot === ts).length))
+    ? Math.max(0, noPrefCount, ...shownSlots.map(ts => votes.filter(v => v.timeSlot === ts).length))
     : 0
   const hasClockSlots = hasTimeSlots && shownSlots.some(isClockSlot)
 
@@ -590,17 +591,17 @@ export async function GET(
                 )
               })}
               {(() => {
-                const noPrefCount = ghostMode ? 0 : votes.filter(v => !v.timeSlot).length
+                const isTop = !ghostMode && noPrefCount > 0 && noPrefCount === maxSlotVoteCount
                 return (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.22)',
-                    borderRadius: 20, padding: '4px 12px',
+                    background: isTop ? 'rgba(34,211,238,0.22)' : noPrefCount > 0 ? 'rgba(34,211,238,0.11)' : 'rgba(255,255,255,0.06)',
+                    border: `${isTop ? '2px' : '1px'} solid ${isTop ? 'rgba(34,211,238,0.85)' : noPrefCount > 0 ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.22)'}`,
+                    borderRadius: 20, padding: isTop ? '3px 11px' : '4px 12px',
                   }}>
-                    <span style={{ color: '#b8b8d8', fontSize: 14, fontWeight: 700 }}>No preference</span>
+                    <span style={{ color: isTop ? '#7df9ff' : noPrefCount > 0 ? '#38e0f5' : '#b8b8d8', fontSize: 14, fontWeight: 700 }}>No preference</span>
                     {noPrefCount > 0 && (
-                      <span style={{ color: '#c0c0dc', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
+                      <span style={{ color: isTop ? 'rgba(125,249,255,0.95)' : 'rgba(210,210,245,0.85)', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
                     )}
                   </div>
                 )

@@ -248,17 +248,23 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
             <p className="text-xs font-semibold text-p-muted mb-3 flex items-center gap-1.5">
               <Clock size={11} /> Availability
             </p>
+            {(() => {
+              const noPrefCount  = votes.filter(v => !v.timeSlot).length
+              const slotCounts   = poll.timeSlots.map(ts => votes.filter(v => v.timeSlot === ts).length)
+              const maxSlotCount = Math.max(0, noPrefCount, ...slotCounts)
+              return (
             <div className="flex flex-wrap gap-2 mb-2">
-              {poll.timeSlots.map(ts => {
-                const slotVoters = votes.filter(v => v.timeSlot === ts)
-                const count      = slotVoters.length
-                const isExp      = expandedSlot === ts
+              {poll.timeSlots.map((ts, i) => {
+                const count  = slotCounts[i]
+                const isTop  = count > 0 && count === maxSlotCount
+                const isExp  = expandedSlot === ts
                 return (
                   <button key={ts} type="button"
                     onClick={() => !poll.isAnonymous && count > 0 && setExpandedSlot(isExp ? null : ts)}
                     className={clsx(
                       'badge text-xs transition-all',
-                      count > 0 ? 'badge-primary' : 'badge-muted text-p-subtle',
+                      isTop  ? 'badge-accent'
+                      : count > 0 ? 'badge-primary' : 'badge-muted text-p-subtle',
                       count > 0 && !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
                       isExp && 'ring-1 ring-p-primary/50',
                     )}>
@@ -266,24 +272,25 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                   </button>
                 )
               })}
-              {(() => {
-                const noSlotVoters = votes.filter(v => poll.includeTimeSlots && !v.timeSlot)
-                const count = noSlotVoters.length
-                if (count === 0) return null
+              {noPrefCount > 0 && (() => {
+                const isTop = noPrefCount === maxSlotCount
                 const isExp = expandedSlot === '__none__'
                 return (
                   <button type="button"
                     onClick={() => !poll.isAnonymous && setExpandedSlot(isExp ? null : '__none__')}
                     className={clsx(
-                      'badge badge-muted text-xs transition-all',
+                      'badge text-xs transition-all',
+                      isTop ? 'badge-accent' : 'badge-muted',
                       !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
                       isExp && 'ring-1 ring-p-border',
                     )}>
-                    No preference ×{count}
+                    No preference ×{noPrefCount}
                   </button>
                 )
               })()}
             </div>
+              )
+            })()}
             {expandedSlot && !poll.isAnonymous && (() => {
               const slotVoters = expandedSlot === '__none__'
                 ? votes.filter(v => !v.timeSlot)
