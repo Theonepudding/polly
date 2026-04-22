@@ -14,6 +14,9 @@ function utcToLocal(hhMM: string): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+function isTimeSlot(s: string): boolean { return /^\d{2}:\d{2}$/.test(s) }
+function displaySlot(s: string): string { return isTimeSlot(s) ? utcToLocal(s) : s }
+
 function renderOptionText(text: string) {
   const parts = text.split(/(<a?:\w+:\d+>)/g)
   return parts.map((part, i) => {
@@ -223,7 +226,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
         {poll.includeTimeSlots && (
           <div className="mt-4 pt-4 border-t border-p-border">
             <p className="text-xs font-semibold text-p-muted mb-3 flex items-center gap-1.5">
-              <Clock size={11} /> Preferred times
+              <Clock size={11} /> Availability
             </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {poll.timeSlots.map(ts => {
@@ -239,7 +242,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                       count > 0 && !poll.isAnonymous ? 'cursor-pointer hover:opacity-75' : 'cursor-default',
                       isExp && 'ring-1 ring-p-primary/50',
                     )}>
-                    {utcToLocal(ts)}{count > 0 ? ` ×${count}` : ''}
+                    {displaySlot(ts)}{count > 0 ? ` ×${count}` : ''}
                   </button>
                 )
               })}
@@ -356,7 +359,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
         <PollHeader />
         <div className="flex items-center gap-2 mb-5 text-sm text-p-success bg-p-success/10 border border-p-success/25 rounded-lg px-3 py-2.5">
           <Check size={14} /> Your vote is recorded.
-          {myVotes[0]?.timeSlot && <span className="text-p-muted ml-1">({utcToLocal(myVotes[0].timeSlot)})</span>}
+          {myVotes[0]?.timeSlot && <span className="text-p-muted ml-1">({displaySlot(myVotes[0].timeSlot)})</span>}
         </div>
         <Results />
         <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setTimeSlot('') }}
@@ -418,7 +421,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
       <button onClick={() => setStep('vote')} className="text-xs text-p-muted hover:text-p-text mb-4 flex items-center gap-1">
         ← Back
       </button>
-      <p className="text-sm text-p-muted mb-4">Pick your preferred time:</p>
+      <p className="text-sm text-p-muted mb-4">Pick your availability:</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
         {poll.timeSlots.map(ts => (
           <button
@@ -431,7 +434,7 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
                 ? 'border-p-accent/60 bg-p-accent-b text-p-accent'
                 : 'border-p-border bg-p-surface text-p-text hover:border-p-border-2 hover:bg-p-surface-2'
             )}>
-            {utcToLocal(ts)}
+            {displaySlot(ts)}
           </button>
         ))}
       </div>

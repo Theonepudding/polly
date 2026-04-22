@@ -12,6 +12,7 @@ import PollCard from '@/components/PollCard'
 import ActivePollsList from '@/components/ActivePollsList'
 import CreatePollModal from '@/components/CreatePollModal'
 import AutoRefresh from '@/components/AutoRefresh'
+import ClosedPollCard from '@/components/ClosedPollCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -214,28 +215,14 @@ export default async function GuildDashboardPage({ params }: Props) {
             <span className="text-sm text-p-muted">{allClosed.length} poll{allClosed.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="flex flex-col gap-2">
-            {closedPreview.map(poll => {
-              const parts = poll.title.split(/(<a?:\w+:\d+>)/g)
-              const titleEl = parts.map((part, i) => {
-                const m = part.match(/^<(a?):(\w+):(\d+)>$/)
-                // eslint-disable-next-line @next/next/no-img-element
-                if (m) return <img key={i} src={`https://cdn.discordapp.com/emojis/${m[3]}.${m[1]==='a'?'gif':'png'}?size=32`} alt={m[2]} className="inline-block w-4 h-4 align-text-bottom mx-0.5" />
-                return part ? <span key={i}>{part}</span> : null
-              })
-              return (
-              <Link key={poll.id} href={`/dashboard/${guildId}/polls/${poll.id}`}
-                className="card-hover p-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-p-text font-medium text-sm">{titleEl}</p>
-                  <p className="text-p-muted text-xs mt-0.5">
-                    Closed {poll.closesAt ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                    {' · '}{(votesByPoll[poll.id] ?? []).length} vote{(votesByPoll[poll.id] ?? []).length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <span className="badge badge-muted">Closed</span>
-              </Link>
-              )
-            })}
+            {closedPreview.map(poll => (
+              <ClosedPollCard
+                key={poll.id}
+                poll={poll}
+                votes={votesByPoll[poll.id] ?? []}
+                guildId={guildId}
+              />
+            ))}
           </div>
         </section>
       )}

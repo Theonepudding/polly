@@ -9,6 +9,14 @@ import EmojiInput, { type EmojiInputHandle } from './EmojiInput'
 
 const DEFAULT_TIMES_UTC = ['17:00', '18:00', '19:00', '20:00', '21:00']
 
+function isTimeSlot(s: string): boolean { return /^\d{2}:\d{2}$/.test(s) }
+function displaySlot(s: string): string {
+  if (!isTimeSlot(s)) return s
+  const [h, m] = s.split(':').map(Number)
+  const d = new Date(); d.setUTCHours(h, m, 0, 0)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 const DURATION_PRESETS = [
   { label: '1h',      hours: 1,   days: undefined },
   { label: '2h',      hours: 2,   days: undefined },
@@ -59,6 +67,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [useTimes,         setUseTimes]         = useState(false)
   const [times,            setTimes]            = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
   const [customTime,       setCustomTime]       = useState('')
+  const [customSlotText,   setCustomSlotText]   = useState('')
   const [durSel,           setDurSel]           = useState<number | 'custom'>(DEFAULT_PRESET)
   const [customDurVal,     setCustomDurVal]     = useState('')
   const [customDurUnit,    setCustomDurUnit]    = useState<'hours' | 'days' | 'weeks'>('days')
@@ -144,7 +153,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime('')
+    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime(''); setCustomSlotText('')
     setDurSel(DEFAULT_PRESET); setCustomDurVal(''); setCustomDurUnit('days')
     setCloseAtTime(nowTimeString())
     setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
@@ -186,15 +195,17 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   }
   function setOption(i: number, val: string) { setOptions(o => o.map((v, idx) => idx === i ? val : v)) }
 
-  function toggleTime(t: string) {
-    setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
-  }
   function addCustomTime() {
     if (!customTime) return
     const [h, m] = customTime.split(':').map(Number)
     const d = new Date(); d.setHours(h, m, 0, 0)
     const utc = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
     if (!times.includes(utc)) { setTimes(prev => [...prev, utc]); setCustomTime('') }
+  }
+  function addCustomSlot() {
+    const text = customSlotText.trim()
+    if (!text || times.includes(text)) return
+    setTimes(prev => [...prev, text]); setCustomSlotText('')
   }
 
   function togglePingRole(id: string) {
@@ -440,9 +451,9 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             </div>
           </div>
 
-          {/* Voting options */}
+          {/* Poll settings */}
           <div>
-            <label className="label mb-2">Voting options</label>
+            <label className="label mb-2">Settings</label>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setIsAnonymous(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isAnonymous ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
@@ -454,30 +465,66 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
               </button>
               <button type="button" onClick={() => setUseTimes(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
-                Time slots
+                Availability slots
               </button>
             </div>
           </div>
 
-          {/* Time slot picker */}
+          {/* Availability slots picker */}
           {useTimes && (
             <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
-              <label className="label mb-0">Time slots <span className="normal-case font-normal text-p-muted/60">(your local time)</span></label>
-              <div className="flex flex-wrap gap-2">
-                {[...DEFAULT_TIMES_UTC, ...times.filter(t => !DEFAULT_TIMES_UTC.includes(t))].map(t => (
-                  <button key={t} type="button" onClick={() => toggleTime(t)}
-                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                      times.includes(t) ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                    }`}>
-                    {utcToLocal(t)}
-                  </button>
-                ))}
+              <div>
+                <label className="label mb-0.5">Availability slots</label>
+                <p className="text-xs text-p-muted">Add times or custom labels — voters pick which they&apos;re available for.</p>
               </div>
+
+              {/* Quick-add unselected default times */}
+              {DEFAULT_TIMES_UTC.some(t => !times.includes(t)) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {DEFAULT_TIMES_UTC.filter(t => !times.includes(t)).map(t => (
+                    <button key={t} type="button" onClick={() => setTimes(p => [...p, t])}
+                      className="badge badge-muted text-xs cursor-pointer hover:border-p-primary/50 hover:text-p-primary transition-colors">
+                      + {utcToLocal(t)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Active slots as removable chips */}
+              {times.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {times.map(t => (
+                    <span key={t} className="badge badge-primary text-xs flex items-center gap-1.5 pr-1.5">
+                      {displaySlot(t)}
+                      <button type="button"
+                        onClick={() => setTimes(p => p.filter(x => x !== t))}
+                        className="opacity-60 hover:opacity-100 transition-opacity flex items-center">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Add a clock time */}
               <div className="flex gap-2">
-                <input type="time" className="input flex-1 text-sm py-2"
+                <input type="time" className="input flex-1 text-sm py-1.5"
                   value={customTime} onChange={e => setCustomTime(e.target.value)} />
-                <button type="button" onClick={addCustomTime} className="btn-secondary text-xs shrink-0">
-                  <Plus size={13} /> Add
+                <button type="button" onClick={addCustomTime} className="btn-secondary text-xs shrink-0 py-1.5">
+                  Add time
+                </button>
+              </div>
+
+              {/* Add a custom text label */}
+              <div className="flex gap-2">
+                <input type="text" className="input flex-1 text-sm py-1.5"
+                  placeholder="e.g. Saturday, Morning, Any evening…"
+                  value={customSlotText}
+                  onChange={e => setCustomSlotText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomSlot() } }}
+                />
+                <button type="button" onClick={addCustomSlot} className="btn-secondary text-xs shrink-0 py-1.5">
+                  Add label
                 </button>
               </div>
             </div>
