@@ -57,10 +57,13 @@ function pollPageUrl(pollId: string): string {
   return `${process.env.NEXTAUTH_URL}/p/${pollId}`
 }
 
-function dashboardImageUrl(guildId: string, activePollIds: string[]): string {
-  const ids   = activePollIds.slice(0, 7).join(',')
+const DASHBOARD_PAGE_SIZE = 7
+
+function dashboardImageUrl(guildId: string, activePollIds: string[], page = 0): string {
+  const ids   = activePollIds.join(',')
   const token = Date.now().toString(36)
-  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}/${token}?ids=${encodeURIComponent(ids)}`
+  const p     = page > 0 ? `&p=${page}` : ''
+  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}/${token}?ids=${encodeURIComponent(ids)}${p}`
 }
 
 function shortDate(iso?: string) {
@@ -257,29 +260,41 @@ export function buildClosedEmbeds(poll: Poll, votes: Vote[]): object[] {
 
 // ─── Dashboard embed ──────────────────────────────────────────────────────────
 
-export function buildDashboardEmbed(guild: Guild, activePolls: Poll[]) {
-  const baseUrl = process.env.NEXTAUTH_URL ?? ''
-  const lines: string[] = []
+export function buildDashboardEmbeds(guild: Guild, activePolls: Poll[]): object[] {
+  const baseUrl    = process.env.NEXTAUTH_URL ?? ''
+  const allIds     = activePolls.map(p => p.id)
+  const totalPages = Math.max(1, Math.ceil(activePolls.length / DASHBOARD_PAGE_SIZE))
+  const embeds: object[] = []
 
-  if (activePolls.length === 0) {
-    lines.push('*No active polls right now.*')
-  } else {
-    for (const p of activePolls.slice(0, 8)) {
-      const closing = p.closesAt ? ` · closes ${discordTimestamp(p.closesAt)}` : ''
-      lines.push(`**[${p.title}](${baseUrl}/p/${p.id})**${closing}`)
+  for (let page = 0; page < totalPages; page++) {
+    const isFirst    = page === 0
+    const isLast     = page === totalPages - 1
+    const pagePolls  = activePolls.slice(page * DASHBOARD_PAGE_SIZE, (page + 1) * DASHBOARD_PAGE_SIZE)
+
+    // Each embed gets its own page's poll links — keeps text and image in sync
+    let description: string
+    if (activePolls.length === 0) {
+      description = '*No active polls right now.*'
+    } else {
+      description = pagePolls.map(p => {
+        const closing = p.closesAt ? ` · closes ${discordTimestamp(p.closesAt)}` : ''
+        return `**[${p.title}](${baseUrl}/p/${p.id})**${closing}`
+      }).join('\n')
     }
+
+    embeds.push({
+      ...(isFirst ? { title: `${guild.guildName} — Polls` } : {}),
+      description,
+      color:     0x6366F1,
+      image:     { url: dashboardImageUrl(guild.guildId, allIds, page) },
+      ...(isLast ? {
+        footer:    { text: `${activePolls.length} active poll${activePolls.length !== 1 ? 's' : ''}  ·  Polly` },
+        timestamp: new Date().toISOString(),
+      } : {}),
+    })
   }
 
-  return {
-    title:       `${guild.guildName} — Polls`,
-    description: lines.join('\n') || '*No polls yet.*',
-    color:       0x6366F1,
-    image:       { url: dashboardImageUrl(guild.guildId, activePolls.map(p => p.id)) },
-    footer: {
-      text: `${activePolls.length} active poll${activePolls.length !== 1 ? 's' : ''}  ·  Polly`,
-    },
-    timestamp: new Date().toISOString(),
-  }
+  return embeds
 }
 
 export function buildDashboardComponents(guild: Guild) {
@@ -371,7 +386,7 @@ export async function updatePollInDiscord(poll: Poll, votes: Vote[]): Promise<bo
 export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): Promise<string | null> {
   if (!process.env.DISCORD_BOT_TOKEN || !guild.dashboardChannelId) return null
 
-  const embed      = buildDashboardEmbed(guild, activePolls)
+  const embeds     = buildDashboardEmbeds(guild, activePolls)
   const components = buildDashboardComponents(guild)
   const channelId  = guild.dashboardChannelId
 
@@ -379,7 +394,7 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
     if (guild.dashboardMessageId) {
       const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${guild.dashboardMessageId}`, {
         method: 'PATCH', headers: botHeaders(),
-        body: JSON.stringify({ embeds: [embed], components }),
+        body: JSON.stringify({ embeds, components }),
       })
       if (res.ok) return guild.dashboardMessageId
       // On any failure (404, 429, 403, etc.) fall through and post a fresh message
@@ -393,7 +408,7 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
 
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: 'POST', headers: botHeaders(),
-      body: JSON.stringify({ embeds: [embed], components }),
+      body: JSON.stringify({ embeds, components }),
     })
     if (!res.ok) return null
     return ((await res.json()) as { id: string }).id

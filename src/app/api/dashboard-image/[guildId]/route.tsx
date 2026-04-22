@@ -68,8 +68,13 @@ export async function GET(
     const allPolls = await getPolls(guildId)
     activePolls = allPolls
       .filter(p => !p.isClosed && (!p.closesAt || new Date(p.closesAt) > new Date()))
-      .slice(0, 7)
   }
+
+  const PAGE_SIZE  = 7
+  const totalPolls = activePolls.length
+  const totalPages = Math.max(1, Math.ceil(totalPolls / PAGE_SIZE))
+  const page       = Math.max(0, Math.min(parseInt(url.searchParams.get('p') ?? '0', 10), totalPages - 1))
+  const pagePolls  = activePolls.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   const [guild, votesByPoll] = await Promise.all([
     getGuild(guildId),
@@ -77,9 +82,9 @@ export async function GET(
   ])
 
   const guildName = guild?.guildName ?? 'Polls'
-  const count     = activePolls.length
+  const count     = pagePolls.length
 
-  const emojiMap = await buildEmojiMap([guildName, ...activePolls.map(p => p.title)])
+  const emojiMap = await buildEmojiMap([guildName, ...pagePolls.map(p => p.title)])
 
   const HEADER_H = 72
   const FOOTER_H = 48
@@ -142,7 +147,7 @@ export async function GET(
           }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: INDIGO }} />
             <span style={{ color: INDIGO, fontSize: 12, fontWeight: 700, letterSpacing: '0.07em' }}>
-              {count} ACTIVE {count === 1 ? 'POLL' : 'POLLS'}
+              {totalPolls} ACTIVE {totalPolls === 1 ? 'POLL' : 'POLLS'}
             </span>
           </div>
         </div>
@@ -155,7 +160,7 @@ export async function GET(
             <span style={{ color: '#6060a0', fontSize: 15, fontStyle: 'italic' }}>No active polls right now</span>
           </div>
         ) : (
-          activePolls.map(p => {
+          pagePolls.map(p => {
             const votes  = votesByPoll[p.id]?.length ?? 0
             const closes = p.closesAt ? shortDate(p.closesAt) : null
             return (
@@ -186,7 +191,10 @@ export async function GET(
         }}>
           <span style={{ color: '#c0c0e8', fontSize: 13 }}>Polly — Discord poll bot</span>
           <span style={{ color: '#7070a8', fontSize: 13 }}>
-            Updated {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {totalPages > 1
+              ? `${page + 1} / ${totalPages}`
+              : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            }
           </span>
         </div>
 

@@ -6,7 +6,7 @@ import {
   buildTimeSlotComponents,
   buildTimeSlotFollowupContent,
   updatePollInDiscord,
-  buildDashboardEmbed,
+  buildDashboardEmbeds,
   buildDashboardComponents,
   buildPollEmbed,
   buildPollComponents,
