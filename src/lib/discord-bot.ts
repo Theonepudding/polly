@@ -58,8 +58,9 @@ function pollPageUrl(pollId: string): string {
 }
 
 function dashboardImageUrl(guildId: string, activePollIds: string[]): string {
-  const ids = activePollIds.slice(0, 7).join(',')
-  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}?ids=${encodeURIComponent(ids)}&t=${Date.now()}`
+  const ids   = activePollIds.slice(0, 7).join(',')
+  const token = Date.now().toString(36)
+  return `${process.env.NEXTAUTH_URL}/api/dashboard-image/${guildId}/${token}?ids=${encodeURIComponent(ids)}`
 }
 
 function shortDate(iso?: string) {

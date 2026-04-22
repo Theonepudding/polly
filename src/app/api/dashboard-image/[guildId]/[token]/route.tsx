@@ -44,7 +44,7 @@ async function buildEmojiMap(texts: string[]): Promise<Map<string, string>> {
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ guildId: string }> },
+  { params }: { params: Promise<{ guildId: string; token: string }> },
 ) {
   const { guildId } = await params
   const url     = new URL(req.url)
