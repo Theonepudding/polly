@@ -79,6 +79,21 @@ export async function fetchMemberRoles(guildId: string, userId: string): Promise
   return []
 }
 
+export async function fetchMemberNick(guildId: string, userId: string, fallback: string): Promise<string> {
+  if (!process.env.DISCORD_BOT_TOKEN) return fallback
+  try {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      cache: 'no-store',
+    })
+    if (res.ok) {
+      const m = await res.json()
+      return m.nick ?? m.user?.global_name ?? m.user?.username ?? fallback
+    }
+  } catch { /* ignore */ }
+  return fallback
+}
+
 export function userCanVote(guild: Guild, userRoleIds: string[]): boolean {
   if (guild.voterRoleIds.length === 0) return true
   return guild.voterRoleIds.some(r => userRoleIds.includes(r))

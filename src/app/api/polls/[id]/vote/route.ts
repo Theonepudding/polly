@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes, castVote } from '@/lib/polls'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
+import { fetchMemberNick } from '@/lib/guilds'
 import type { Poll, Vote } from '@/types'
 
 type Params = { params: Promise<{ id: string }> }
@@ -42,13 +43,14 @@ export async function POST(req: Request, { params }: Params) {
   if (!optionIds.every(id => poll.options.some(o => o.id === id)))
     return NextResponse.json({ error: 'Invalid option' }, { status: 400 })
 
-  const now = new Date().toISOString()
+  const now      = new Date().toISOString()
+  const username = await fetchMemberNick(poll.guildId, session.user.id, session.user.name ?? 'Unknown')
   let votes: Vote[] = []
   for (const optionId of optionIds) {
     const vote: Vote = {
       pollId:   id,
       userId:   session.user.id,
-      username: session.user.name ?? 'Unknown',
+      username,
       optionId,
       timeSlot: poll.includeTimeSlots ? body.timeSlot : undefined,
       votedAt:  now,

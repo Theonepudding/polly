@@ -450,18 +450,6 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
     }
     if (slot) lines.push(`⏰ Preferred: ${formatSlotForDiscord(slot)}`)
 
-    if (!poll.isAnonymous) {
-      // Show who voted for each option
-      const optionsWithVotes = poll.options.filter(o => votes.some(v => v.optionId === o.id))
-      if (optionsWithVotes.length > 0) {
-        lines.push('')
-        lines.push('**Who voted:**')
-        for (const opt of optionsWithVotes) {
-          const voters = votes.filter(v => v.optionId === opt.id).map(v => v.username)
-          lines.push(`**${opt.text}** — ${voters.join(', ')}`)
-        }
-      }
-    }
   }
 
   // Results embed: winner-announcement image (single image, no pagination)

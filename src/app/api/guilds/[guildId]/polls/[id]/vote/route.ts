@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, castVote } from '@/lib/polls'
-import { getGuild, userCanVote, fetchMemberRoles } from '@/lib/guilds'
+import { getGuild, userCanVote, fetchMemberRoles, fetchMemberNick } from '@/lib/guilds'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import type { Poll, Vote } from '@/types'
 
@@ -47,15 +47,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!optionIds.every(oid => poll.options.some(o => o.id === oid)))
     return NextResponse.json({ error: 'Invalid option' }, { status: 400 })
 
-  const now = new Date().toISOString()
+  const now      = new Date().toISOString()
+  const username = await fetchMemberNick(guildId, session.user.id, session.user.name ?? 'Unknown')
   let votes: Vote[] = []
   if (poll.allowMultiple) {
     for (const optionId of optionIds) {
-      const vote: Vote = { pollId: id, userId: session.user.id, username: session.user.name ?? 'Unknown', optionId, timeSlot: body.timeSlot, votedAt: now }
+      const vote: Vote = { pollId: id, userId: session.user.id, username, optionId, timeSlot: body.timeSlot, votedAt: now }
       ;({ votes } = await castVote(vote, true))
     }
   } else {
-    const vote: Vote = { pollId: id, userId: session.user.id, username: session.user.name ?? 'Unknown', optionId: optionIds[0], timeSlot: body.timeSlot, votedAt: now }
+    const vote: Vote = { pollId: id, userId: session.user.id, username, optionId: optionIds[0], timeSlot: body.timeSlot, votedAt: now }
     ;({ votes } = await castVote(vote, false))
   }
 
