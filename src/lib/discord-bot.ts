@@ -567,7 +567,7 @@ export async function postPollyGuide(channelId: string, guildId: string, customM
     },
     {
       title:       '✏️ Creating Polls',
-      description: `Use \`/poll\` in any channel for quick polls, or open the [web dashboard](${dashboard}) for the full editor with all options and modes.\nYou need the **Poll Creator** role to create polls — ask an admin if you can't.`,
+      description: `Use \`/poll\` in chat, tap the **➕ Create Poll** button in the polls channel, or open the [web dashboard](${dashboard}) for the full editor with all options.\nYou need the **Poll Creator** role — ask an admin if you can't.`,
       color:       COLOR_ACTIVE,
       image:       { url: gi('create') },
       footer:      { text: 'Polly — polly.pudding.vip' },

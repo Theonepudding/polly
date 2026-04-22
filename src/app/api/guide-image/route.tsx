@@ -132,7 +132,7 @@ function renderModes(): Response {
 // ─── Creating a poll explainer ────────────────────────────────────────────────
 
 function renderCreate(): Response {
-  const H = 258
+  const H = 296
 
   const img = new ImageResponse(
     (
@@ -140,32 +140,41 @@ function renderCreate(): Response {
 
         <span style={{ color: INDIGO, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', marginBottom: 14 }}>CREATING A POLL</span>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          {/* Discord /poll command */}
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: 'rgba(99,102,241,0.09)', border: '1.5px solid rgba(129,140,248,0.2)', borderRadius: 10, padding: '13px 15px', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ display: 'flex', background: 'rgba(99,102,241,0.22)', borderRadius: 6, padding: '4px 10px' }}>
-                <span style={{ color: INDIGO, fontSize: 15, fontWeight: 800 }}>/poll</span>
-              </div>
-              <span style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 700 }}>Discord command</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+
+          {/* /poll command */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(99,102,241,0.09)', border: '1.5px solid rgba(129,140,248,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', background: 'rgba(99,102,241,0.22)', borderRadius: 6, padding: '4px 10px', flexShrink: 0 }}>
+              <span style={{ color: INDIGO, fontSize: 14, fontWeight: 800 }}>/poll</span>
             </div>
-            <span style={{ color: 'rgba(160,160,210,0.62)', fontSize: 12, lineHeight: 1.35 }}>
-              Quick polls in any channel — title, options, and duration.
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 700 }}>Discord command</span>
+              <span style={{ color: 'rgba(160,160,210,0.58)', fontSize: 11 }}>Quick polls in any channel — set a title, options, and duration.</span>
+            </div>
+          </div>
+
+          {/* ➕ Create Poll button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(16,185,129,0.07)', border: '1.5px solid rgba(52,211,153,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', background: 'rgba(16,185,129,0.18)', borderRadius: 6, padding: '4px 10px', flexShrink: 0 }}>
+              <span style={{ color: '#6ee7b7', fontSize: 14, fontWeight: 800 }}>➕ Create Poll</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ color: '#6ee7b7', fontSize: 13, fontWeight: 700 }}>Dashboard channel button</span>
+              <span style={{ color: 'rgba(160,160,210,0.58)', fontSize: 11 }}>The button on the Polly message in the polls channel.</span>
+            </div>
           </div>
 
           {/* Web dashboard */}
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: 'rgba(34,211,238,0.05)', border: '1.5px solid rgba(34,211,238,0.17)', borderRadius: 10, padding: '13px 15px', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ display: 'flex', background: 'rgba(34,211,238,0.1)', borderRadius: 6, padding: '4px 10px' }}>
-                <span style={{ color: CYAN, fontSize: 15, fontWeight: 800 }}>Dashboard</span>
-              </div>
-              <span style={{ color: '#67e8f9', fontSize: 12, fontWeight: 700 }}>Web editor</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(34,211,238,0.05)', border: '1.5px solid rgba(34,211,238,0.17)', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', background: 'rgba(34,211,238,0.1)', borderRadius: 6, padding: '4px 10px', flexShrink: 0 }}>
+              <span style={{ color: CYAN, fontSize: 14, fontWeight: 800 }}>Dashboard</span>
             </div>
-            <span style={{ color: 'rgba(160,160,210,0.62)', fontSize: 12, lineHeight: 1.35 }}>
-              All modes: ghost, multi-choice, time slots, role pings.
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ color: '#67e8f9', fontSize: 13, fontWeight: 700 }}>Web editor</span>
+              <span style={{ color: 'rgba(160,160,210,0.58)', fontSize: 11 }}>Full options: ghost mode, multi-choice, time slots, role pings.</span>
+            </div>
           </div>
+
         </div>
 
         <div style={{ display: 'flex', marginTop: 'auto', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
