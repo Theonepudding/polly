@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import ActivePollCard from './ActivePollCard'
 import CreatePollModal from './CreatePollModal'
 import type { Poll, Vote } from '@/types'
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function ActivePollsList({ polls, initialVotes, guildId, userId, userName, canManage, canCreate = true }: Props) {
+  const router = useRouter()
   const [votesByPoll, setVotesByPoll] = useState<Record<string, Vote[]>>(initialVotes)
 
   useEffect(() => {
@@ -26,8 +28,9 @@ export default function ActivePollsList({ polls, initialVotes, guildId, userId, 
 
       es.onmessage = (e: MessageEvent) => {
         try {
-          const { votesByPoll: fresh } = JSON.parse(e.data) as { votesByPoll: Record<string, Vote[]> }
+          const { votesByPoll: fresh, pollsChanged } = JSON.parse(e.data) as { votesByPoll: Record<string, Vote[]>; pollsChanged?: boolean }
           if (fresh) setVotesByPoll(fresh)
+          if (pollsChanged) router.refresh()
         } catch { /* ignore malformed */ }
       }
 

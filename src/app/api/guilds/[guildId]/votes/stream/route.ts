@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ guil
   const { guildId } = await params
   const encoder = new TextEncoder()
 
-  let lastHash      = ''
+  let lastPollHash  = ''
+  let lastVoteHash  = ''
   let intervalId:   ReturnType<typeof setInterval> | null = null
 
   const stream = new ReadableStream({
@@ -33,14 +34,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ guil
             votesByPoll[p.id] = await getVotes(p.id)
           }))
 
-          const hash = JSON.stringify(
+          const pollHash = active.map(p => p.id).sort().join(',')
+          const voteHash = JSON.stringify(
             Object.entries(votesByPoll)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([id, votes]) => [id, votes.length, votes.map(v => v.votedAt).sort().join(',')])
           )
-          if (hash !== lastHash) {
-            lastHash = hash
-            send({ votesByPoll })
+
+          const pollsChanged = pollHash !== lastPollHash
+          const votesChanged = voteHash !== lastVoteHash
+
+          if (pollsChanged || votesChanged) {
+            lastPollHash = pollHash
+            lastVoteHash = voteHash
+            send({ votesByPoll, pollsChanged })
           }
         } catch {
           if (intervalId) clearInterval(intervalId)

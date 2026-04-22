@@ -13,6 +13,7 @@ interface Props {
 export default function PollManageBar({ guildId, pollId, isClosed = false, canManage = false }: Props) {
   const router = useRouter()
   const [closing,      setClosing]      = useState(false)
+  const [closeError,   setCloseError]   = useState('')
   const [resending,    setResending]    = useState(false)
   const [resendStatus, setResendStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
   const [deleting,     setDeleting]     = useState(false)
@@ -20,12 +21,17 @@ export default function PollManageBar({ guildId, pollId, isClosed = false, canMa
 
   async function closePoll() {
     setClosing(true)
-    await fetch(`/api/guilds/${guildId}/polls/${pollId}`, {
+    setCloseError('')
+    const res = await fetch(`/api/guilds/${guildId}/polls/${pollId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isClosed: true }),
     })
-    router.refresh()
+    if (res.status === 403) {
+      setCloseError('You don\'t have permission to close this poll.')
+    } else {
+      router.refresh()
+    }
     setClosing(false)
   }
 
@@ -83,6 +89,11 @@ export default function PollManageBar({ guildId, pollId, isClosed = false, canMa
         )}
       </div>
 
+      {closeError && (
+        <div className="flex items-center gap-1.5 text-p-danger text-xs mt-3">
+          <AlertCircle size={13} /> {closeError}
+        </div>
+      )}
       {resendStatus === 'ok' && (
         <div className="flex items-center gap-1.5 text-p-success text-xs mt-3">
           <CheckCircle2 size={13} /> Posted to Discord!

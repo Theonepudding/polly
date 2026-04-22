@@ -115,24 +115,37 @@ export default async function GuildDashboardPage({ params }: Props) {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 text-p-muted text-sm mb-1">
-            <Link href="/dashboard" className="hover:text-p-text transition-colors">Dashboard</Link>
-            <span>/</span>
-            <span className="text-p-text">{guild.guildName}</span>
+      <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          {guild.guildIcon ? (
+            <img
+              src={`https://cdn.discordapp.com/icons/${guildId}/${guild.guildIcon}.webp?size=64`}
+              alt={guild.guildName}
+              className="w-12 h-12 rounded-xl border border-p-border shrink-0"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-xl border border-p-border bg-p-surface-2 flex items-center justify-center shrink-0">
+              <span className="font-display font-bold text-lg text-p-primary">{guild.guildName[0]}</span>
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2 text-p-muted text-xs mb-0.5">
+              <Link href="/dashboard" className="hover:text-p-text transition-colors">Dashboard</Link>
+              <span>/</span>
+              <span className="text-p-text">{guild.guildName}</span>
+            </div>
+            <h1 className="font-display font-bold text-2xl text-p-text">{guild.guildName}</h1>
           </div>
-          <h1 className="font-display font-bold text-3xl text-p-text">{guild.guildName}</h1>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <a href={`${BOT_INVITE_URL}`} target="_blank" rel="noopener noreferrer"
             className="btn-ghost text-sm">
             <ExternalLink size={14} />
-            Add to another server
+            Add server
           </a>
           <Link href={`/dashboard/${guildId}/scheduled-polls`} className="btn-ghost text-sm">
             <Clock size={14} />
-            Scheduled Polls
+            Scheduled
           </Link>
           {canManage && (
             <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
@@ -162,28 +175,28 @@ export default async function GuildDashboardPage({ params }: Props) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
         {[
-          { label: 'Active Polls',  value: active.length,          icon: Circle,       color: 'text-p-success', href: null },
-          { label: 'Total Polls',   value: allPolls.length,         icon: BarChart3,    color: 'text-p-primary', href: null },
-          { label: 'Closed Polls',  value: allClosed.length,        icon: CheckCircle2, color: 'text-p-muted',   href: null },
-          { label: 'Scheduled',     value: activeScheduledPolls.length,  icon: Clock,        color: 'text-p-warning', href: `/dashboard/${guildId}/scheduled-polls` },
-        ].map(({ label, value, icon: Icon, color, href }) => (
+          { label: 'Active',    value: active.length,               icon: Circle,       color: 'text-p-success', bg: 'bg-p-success/10',  href: null },
+          { label: 'Total',     value: allPolls.length,              icon: BarChart3,    color: 'text-p-primary', bg: 'bg-p-primary-b',    href: null },
+          { label: 'Closed',    value: allClosed.length,             icon: CheckCircle2, color: 'text-p-muted',   bg: 'bg-p-surface-2',   href: null },
+          { label: 'Scheduled', value: activeScheduledPolls.length,  icon: Clock,        color: 'text-p-warning', bg: 'bg-p-warning/10',  href: `/dashboard/${guildId}/scheduled-polls` },
+        ].map(({ label, value, icon: Icon, color, bg, href }) => (
           href ? (
-            <Link key={label} href={href} className="card p-4 hover:border-p-border-2 transition-colors">
-              <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
-                <Icon size={13} className={color} />
-                {label}
+            <Link key={label} href={href} className="card p-4 hover:border-p-border-2 transition-all group">
+              <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center mb-3`}>
+                <Icon size={14} className={color} />
               </div>
-              <div className="font-display font-bold text-2xl text-p-text">{value}</div>
+              <div className="font-display font-bold text-2xl text-p-text mb-0.5">{value}</div>
+              <div className="text-p-muted text-xs">{label}</div>
             </Link>
           ) : (
             <div key={label} className="card p-4">
-              <div className="flex items-center gap-2 text-p-muted text-xs mb-2">
-                <Icon size={13} className={color} />
-                {label}
+              <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center mb-3`}>
+                <Icon size={14} className={color} />
               </div>
-              <div className="font-display font-bold text-2xl text-p-text">{value}</div>
+              <div className="font-display font-bold text-2xl text-p-text mb-0.5">{value}</div>
+              <div className="text-p-muted text-xs">{label}</div>
             </div>
           )
         ))}

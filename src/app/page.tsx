@@ -67,30 +67,38 @@ export default function LandingPage() {
       </Suspense>
 
       {/* Hero */}
-      <section className="relative max-w-6xl mx-auto px-4 pt-20 pb-24 text-center">
-        <div className="inline-flex items-center gap-2 badge badge-primary mb-6 text-sm px-3 py-1.5">
-          <Zap size={13} />
-          Discord Poll Bot
+      <section className="relative max-w-6xl mx-auto px-4 pt-24 pb-28 text-center">
+        {/* Glow rings */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full bg-p-primary/8 blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[150px] rounded-full bg-p-accent/6 blur-2xl" />
         </div>
-        <h1 className="font-display font-bold text-5xl sm:text-6xl md:text-7xl leading-tight mb-6">
-          <span className="heading-display">Polls that live</span>
-          <br />
-          <span className="text-p-text">inside Discord</span>
-        </h1>
-        <p className="text-p-muted text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-          Create polls, schedule events with time slot voting, and let your community decide — all without leaving Discord.
-          Manage everything from a clean web dashboard.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
-            className="btn-primary text-base px-6 py-3 gap-2.5">
-            <ExternalLink size={16} />
-            Add Polly to Discord
-          </a>
-          <Link href="/dashboard" className="btn-secondary text-base px-6 py-3">
-            Open Dashboard
-            <ChevronRight size={16} />
-          </Link>
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 badge badge-primary mb-6 text-sm px-3 py-1.5">
+            <Zap size={13} />
+            Discord Poll Bot
+          </div>
+          <h1 className="font-display font-bold text-5xl sm:text-6xl md:text-7xl leading-tight mb-6">
+            <span className="heading-display">Polls that live</span>
+            <br />
+            <span className="text-p-text">inside Discord</span>
+          </h1>
+          <p className="text-p-muted text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+            Create polls, schedule events with time slot voting, and let your community decide — all without leaving Discord.
+            Manage everything from a clean web dashboard.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
+              className="btn-primary text-base px-7 py-3 gap-2.5 shadow-lg shadow-indigo-500/25">
+              <ExternalLink size={16} />
+              Add Polly to Discord
+            </a>
+            <Link href="/dashboard" className="btn-secondary text-base px-7 py-3">
+              Open Dashboard
+              <ChevronRight size={16} />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -102,8 +110,8 @@ export default function LandingPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map(({ icon: Icon, title, desc, color, bg }) => (
-            <div key={title} className="card-hover p-6">
-              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4`}>
+            <div key={title} className="card-hover p-6 group">
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110`}>
                 <Icon size={20} className={color} />
               </div>
               <h3 className="font-display font-semibold text-p-text mb-2">{title}</h3>
@@ -192,10 +200,12 @@ export default function LandingPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {HOW_IT_WORKS.map(({ n, title, desc }) => (
-            <div key={n} className="card p-6">
-              <div className="font-display font-bold text-3xl text-p-primary/30 mb-3">{n}</div>
+            <div key={n} className="card p-6 relative">
+              <div className="w-10 h-10 rounded-xl bg-p-primary-b flex items-center justify-center mb-4">
+                <span className="font-display font-bold text-sm text-p-primary">{n}</span>
+              </div>
               <h3 className="font-display font-semibold text-p-text mb-1.5">{title}</h3>
-              <p className="text-p-muted text-sm">{desc}</p>
+              <p className="text-p-muted text-sm leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
@@ -203,14 +213,19 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="max-w-4xl mx-auto px-4 pb-24">
-        <div className="card-primary p-10 text-center rounded-2xl">
-          <h2 className="font-display font-bold text-3xl text-p-text mb-3">Ready to start polling?</h2>
-          <p className="text-p-muted mb-8">Add Polly to your server and run your first poll in minutes.</p>
-          <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
-            className="btn-primary text-base px-8 py-3 inline-flex mx-auto">
-            <ExternalLink size={16} />
-            Add to Discord — it&apos;s free
-          </a>
+        <div className="relative card-primary p-12 text-center rounded-2xl overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-p-primary/10 rounded-full blur-3xl" />
+          </div>
+          <div className="relative">
+            <h2 className="font-display font-bold text-3xl sm:text-4xl text-p-text mb-3">Ready to start polling?</h2>
+            <p className="text-p-muted text-lg mb-8">Add Polly to your server and run your first poll in minutes.</p>
+            <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
+              className="btn-primary text-base px-8 py-3 inline-flex mx-auto shadow-xl shadow-indigo-500/30">
+              <ExternalLink size={16} />
+              Add to Discord — it&apos;s free
+            </a>
+          </div>
         </div>
       </section>
     </div>

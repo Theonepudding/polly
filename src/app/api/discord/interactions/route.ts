@@ -321,6 +321,16 @@ export async function POST(req: NextRequest) {
       }
 
       if (cmd === 'setup') {
+        if (guildId) {
+          const guild     = await getGuild(guildId)
+          const userRoles = (member?.roles as string[]) ?? []
+          if (guild && !userCanManage(guild, userId, userRoles)) {
+            return Response.json({
+              type: 4,
+              data: { content: '❌ You need server admin permissions to use `/setup`.', flags: 64 },
+            })
+          }
+        }
         const siteUrl = process.env.NEXTAUTH_URL ?? ''
         return Response.json({
           type: 4,

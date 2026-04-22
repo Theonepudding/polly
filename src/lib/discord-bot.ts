@@ -379,7 +379,13 @@ export async function postOrUpdateDashboard(guild: Guild, activePolls: Poll[]): 
         body: JSON.stringify({ embeds: [embed], components }),
       })
       if (res.ok) return guild.dashboardMessageId
-      if (res.status !== 404) return null
+      // On any failure (404, 429, 403, etc.) fall through and post a fresh message
+      if (res.status !== 404) {
+        // Try to clean up the stale/inaccessible message before reposting
+        await fetch(`${DISCORD_API}/channels/${channelId}/messages/${guild.dashboardMessageId}`, {
+          method: 'DELETE', headers: botHeaders(),
+        }).catch(() => {})
+      }
     }
 
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
