@@ -47,7 +47,39 @@ export async function deleteTemplate(id: string): Promise<void> {
   await saveTemplates(all.filter(t => t.id !== id))
 }
 
-export function nextRunAfter(base: Date, intervalDays: number, atHour: number): Date {
+// Converts a local "YYYY-MM-DD" + "HH:MM" in a given IANA timezone to a UTC Date.
+function utcFromLocalTz(dateStr: string, localHHMM: string, timezone: string): Date {
+  // Treat the target local time as if it were UTC, then measure the TZ offset
+  // at that instant and subtract it to arrive at the true UTC moment.
+  const initial = new Date(`${dateStr}T${localHHMM}:00Z`)
+  const localStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(initial)
+  const asUTC = new Date(localStr.replace(' ', 'T') + 'Z')
+  const offsetMs = asUTC.getTime() - initial.getTime()
+  return new Date(initial.getTime() - offsetMs)
+}
+
+export function nextRunAfter(
+  base: Date,
+  intervalDays: number,
+  atHour: number,
+  atLocalHHMM?: string,
+  timezone?: string,
+): Date {
+  if (atLocalHHMM && timezone) {
+    // DST-aware: advance by intervalDays (in UTC ms), then get the local date
+    // in the user's timezone and recompute the correct UTC time for that local hour.
+    const nextUTC = new Date(base.getTime() + intervalDays * 24 * 60 * 60 * 1000)
+    const dateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(nextUTC)
+    return utcFromLocalTz(dateStr, atLocalHHMM, timezone)
+  }
+  // Legacy fallback: plain UTC arithmetic (no DST correction)
   const next = new Date(base)
   next.setUTCDate(next.getUTCDate() + intervalDays)
   next.setUTCHours(atHour, 0, 0, 0)
@@ -87,7 +119,7 @@ export async function runTemplate(template: PollTemplate): Promise<Poll> {
   }
 
   const prevRun = new Date(template.nextRunAt)
-  const nextRun = nextRunAfter(prevRun, template.intervalDays, template.atHour)
+  const nextRun = nextRunAfter(prevRun, template.intervalDays, template.atHour, template.atLocalHHMM, template.timezone)
   await updateTemplate(template.id, { lastRunAt: now.toISOString(), nextRunAt: nextRun.toISOString() })
 
   return poll
@@ -96,7 +128,7 @@ export async function runTemplate(template: PollTemplate): Promise<Poll> {
 export async function processDueTemplates(): Promise<{ ran: number; pollIds: string[] }> {
   const now       = new Date()
   const templates = await getTemplates()
-  const due       = templates.filter(t => t.active && new Date(t.nextRunAt) <= now)
+  const due       = templates.filter(t => t.active && t.isScheduled !== false && new Date(t.nextRunAt) <= now)
 
   const pollIds: string[] = []
   for (const t of due) {

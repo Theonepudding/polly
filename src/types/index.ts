@@ -86,11 +86,14 @@ export interface PollTemplate {
   createdByName: string
   createdAt: string
   intervalDays: number
-  atHour: number            // UTC 0–23
+  atHour: number            // UTC 0–23 (legacy; prefer atLocalHHMM + timezone)
+  atLocalHHMM?: string      // local time string "HH:MM" — used for DST-correct scheduling
+  timezone?: string         // IANA timezone e.g. "Europe/London"
   nextRunAt: string         // ISO
   lastRunAt: string | null
   active: boolean
   postToDiscord: boolean
+  isScheduled?: boolean  // false = quick template (saved structure, no auto-run)
 }
 
 // ─── Bot Admin ───────────────────────────────────────────────────────────────

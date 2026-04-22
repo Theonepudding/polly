@@ -76,7 +76,7 @@ export default function ClosedPollCard({ poll, votes, guildId }: Props) {
           <div className={busy ? 'opacity-40' : ''}>
             <p className="text-p-text font-medium text-sm">{renderTitle(poll.title)}</p>
             <p className="text-p-muted text-xs mt-0.5">
-              Closed {poll.closesAt ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+              Closed {poll.closesAt ? new Date(poll.closesAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
               {' · '}{voteCount} vote{voteCount !== 1 ? 's' : ''}
             </p>
           </div>

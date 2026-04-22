@@ -73,7 +73,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   const [isAnonymous,   setIsAnonymous]   = useState(false)
   const [allowMultiple, setAllowMultiple] = useState(false)
   const [useTimes,      setUseTimes]      = useState(false)
-  const [times,         setTimes]         = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
+  const [times,         setTimes]         = useState<string[]>([])
   const [customTime,    setCustomTime]    = useState('')
   const [customSlotText,setCustomSlotText]= useState('')
   const [intervalDays,  setIntervalDays]  = useState(7)
@@ -85,6 +85,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   const [customDaysOpen,  setCustomDaysOpen]  = useState('')
   const [showCustomDays,  setShowCustomDays]  = useState(false)
   const [postDiscord,     setPostDiscord]     = useState(true)
+  const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const [showAdvanced,  setShowAdvanced]  = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
@@ -100,7 +101,13 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   const titleRef      = useRef<EmojiInputHandle>(null)
   const optionRefsMap = useRef<Record<number, EmojiInputHandle | null>>({})
 
-  const atHour = useMemo(() => localTimeToUTCHour(localTime), [localTime])
+  const atHour    = useMemo(() => localTimeToUTCHour(localTime), [localTime])
+  const utcHint   = useMemo(() => {
+    const [h, m] = localTime.split(':').map(Number)
+    if (isNaN(h) || isNaN(m)) return ''
+    const d = new Date(); d.setHours(h, m, 0, 0)
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+  }, [localTime])
   const todayLocal = new Date().toLocaleDateString('en-CA')
   const startDayHint = useMemo(() => {
     if (!startDate) return ''
@@ -179,7 +186,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', ''])
     setIsAnonymous(false); setAllowMultiple(false); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime(''); setCustomSlotText('')
+    setTimes([]); setCustomTime(''); setCustomSlotText('')
     setIntervalDays(7); setCustomDays(''); setUseCustom(false)
     setLocalTime('18:00'); setStartDate(defaultStartDate(7, 18))
     setDaysOpen(7); setCustomDaysOpen(''); setShowCustomDays(false)
@@ -248,6 +255,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
     const cleanOpts = options.filter(o => o.trim())
     if (!title.trim()) return setError('Please add a title.')
     if (cleanOpts.length < 2) return setError('At least 2 options required.')
+    if (useTimes && times.length === 0) return setError('Add at least one availability slot.')
     if (!startDate) return setError('Please pick a start date.')
     const nextRunAt = new Date(`${startDate}T${localTime}:00`).toISOString()
     setLoading(true); setError('')
@@ -267,6 +275,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
         daysOpen,
         intervalDays,
         atHour,
+        atLocalHHMM: localTime,
+        timezone,
         nextRunAt,
         postToDiscord: postDiscord,
       }
@@ -424,7 +434,12 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
           {useTimes && (
             <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
               <div>
-                <label className="label mb-0.5">Availability slots</label>
+                <label className="label mb-0.5 flex items-center gap-2">
+                  Availability slots
+                  {times.length === 0 && (
+                    <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded px-1.5 py-0.5 normal-case tracking-normal">Required</span>
+                  )}
+                </label>
                 <p className="text-xs text-p-muted">Add times or custom labels — voters pick which they&apos;re available for.</p>
               </div>
 
@@ -518,7 +533,8 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
           <div>
             <label className="label flex items-center gap-1.5">
               <Clock size={13} className="opacity-60" />
-              Post time (your local time)
+              Post time
+              <span className="ml-auto text-[10px] font-normal text-p-muted normal-case tracking-normal">{timezone}</span>
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {DEFAULT_TIMES_UTC.map(utc => (
@@ -530,7 +546,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
             </div>
             <input type="time" className="input text-sm py-2 w-full"
               value={localTime} onChange={e => { if (e.target.value) setLocalTime(e.target.value) }} />
-            <p className="text-[11px] text-p-muted mt-1">UTC {String(atHour).padStart(2, '0')}:00</p>
+            {utcHint && <p className="text-[11px] text-p-muted mt-1">UTC {utcHint}</p>}
           </div>
 
           {/* Days open */}

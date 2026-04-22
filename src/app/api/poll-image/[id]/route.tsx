@@ -8,13 +8,11 @@ const CYAN   = '#22d3ee'
 const PAD_H  = 26
 const PAD_V  = 26
 
-function fmtTime(hhMM: string): string {
-  const parts = hhMM.match(/^(\d{2}):(\d{2})$/)
-  if (!parts) return hhMM
-  const d = new Date()
-  d.setUTCHours(parseInt(parts[1]), parseInt(parts[2]), 0, 0)
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })
-}
+// Slots are stored as UTC "HH:MM" or arbitrary text labels — display as-is in the image
+// (the image is static for all Discord viewers so there's no single correct local timezone)
+function fmtSlot(s: string): string { return s }
+
+function isClockSlot(s: string): boolean { return /^\d{2}:\d{2}$/.test(s) }
 
 async function fetchAsBase64(url: string): Promise<string | null> {
   try {
@@ -368,6 +366,11 @@ export async function GET(
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : ''
 
+  const maxSlotVoteCount = hasTimeSlots
+    ? Math.max(0, ...shownSlots.map(ts => votes.filter(v => v.timeSlot === ts).length))
+    : 0
+  const hasClockSlots = hasTimeSlots && shownSlots.some(isClockSlot)
+
   // Render mixed text/emoji as a Satori-compatible flex row
   function SegText({ text, fontSize, fontWeight = 800, color = '#ffffff' }: {
     text: string; fontSize: number; fontWeight?: number; color?: string
@@ -482,25 +485,47 @@ export async function GET(
         {hasTimeSlots && (
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: TS_SEP_H }}>
             <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: 12 }} />
-            <span style={{ color: '#8888bb', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 10 }}>
-              PREFERRED
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ color: '#9090bb', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em' }}>
+                PREFERRED
+              </span>
+              {hasClockSlots && (
+                <span style={{
+                  color: '#5a5a7a', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  borderRadius: 4, padding: '1px 5px',
+                  display: 'flex',
+                }}>UTC</span>
+              )}
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {shownSlots.map(ts => {
                 const tsCount  = votes.filter(v => v.timeSlot === ts).length
                 const hasVotes = tsCount > 0
+                const isTop    = maxSlotVoteCount > 0 && tsCount === maxSlotVoteCount
                 return (
                   <div key={ts} style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: hasVotes ? 'rgba(34,211,238,0.12)' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${hasVotes ? 'rgba(34,211,238,0.35)' : 'rgba(255,255,255,0.12)'}`,
-                    borderRadius: 20, padding: '4px 12px',
+                    background: isTop
+                      ? 'rgba(34,211,238,0.22)'
+                      : hasVotes ? 'rgba(34,211,238,0.11)' : 'rgba(255,255,255,0.08)',
+                    border: `${isTop ? '2px' : '1px'} solid ${
+                      isTop ? 'rgba(34,211,238,0.85)' : hasVotes ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.22)'
+                    }`,
+                    borderRadius: 20, padding: isTop ? '3px 11px' : '4px 12px',
                   }}>
-                    <span style={{ color: hasVotes ? '#22d3ee' : '#6666aa', fontSize: 14, fontWeight: 700 }}>
-                      {fmtTime(ts)}
+                    <span style={{
+                      color: isTop ? '#7df9ff' : hasVotes ? '#38e0f5' : '#c0c0de',
+                      fontSize: 14, fontWeight: 700,
+                    }}>
+                      {fmtSlot(ts)}
                     </span>
                     {hasVotes && (
-                      <span style={{ color: '#a0a0d0', fontSize: 12, fontWeight: 600 }}>×{tsCount}</span>
+                      <span style={{
+                        color: isTop ? 'rgba(125,249,255,0.85)' : 'rgba(180,180,220,0.75)',
+                        fontSize: 12, fontWeight: 600,
+                      }}>×{tsCount}</span>
                     )}
                   </div>
                 )
@@ -510,13 +535,13 @@ export async function GET(
                 return (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.14)',
                     borderRadius: 20, padding: '4px 12px',
                   }}>
-                    <span style={{ color: '#555588', fontSize: 14, fontWeight: 700 }}>No preference</span>
+                    <span style={{ color: '#8888b0', fontSize: 14, fontWeight: 700 }}>No preference</span>
                     {noPrefCount > 0 && (
-                      <span style={{ color: '#8888aa', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
+                      <span style={{ color: '#9898b8', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
                     )}
                   </div>
                 )

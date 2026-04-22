@@ -39,8 +39,8 @@ export default function TemplateActions({ guildId, userId, userName, template }:
     <>
       {confirm && (
         <ConfirmModal
-          title="Delete schedule"
-          message="Delete this scheduled poll? This cannot be undone."
+          title={template.isScheduled === false ? 'Delete template' : 'Delete schedule'}
+          message={template.isScheduled === false ? 'Delete this saved template? This cannot be undone.' : 'Delete this scheduled poll? This cannot be undone.'}
           confirm="Delete"
           danger
           onConfirm={() => { setConfirm(false); remove() }}
@@ -48,15 +48,19 @@ export default function TemplateActions({ guildId, userId, userName, template }:
         />
       )}
       <div className="flex gap-2 shrink-0">
-        <CreateScheduledPollModal
-          guildId={guildId}
-          userId={userId}
-          userName={userName}
-          initialTemplate={template}
-        />
-        <button onClick={toggle} disabled={busy} className="btn-secondary text-xs py-1.5">
-          {template.active ? 'Pause' : 'Resume'}
-        </button>
+        {template.isScheduled !== false && (
+          <CreateScheduledPollModal
+            guildId={guildId}
+            userId={userId}
+            userName={userName}
+            initialTemplate={template}
+          />
+        )}
+        {template.isScheduled !== false && (
+          <button onClick={toggle} disabled={busy} className="btn-secondary text-xs py-1.5">
+            {template.active ? 'Pause' : 'Resume'}
+          </button>
+        )}
         <button onClick={() => setConfirm(true)} disabled={busy} className="btn-danger text-xs py-1.5">
           Delete
         </button>

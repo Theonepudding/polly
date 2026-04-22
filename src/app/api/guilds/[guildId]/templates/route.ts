@@ -25,9 +25,18 @@ export async function POST(req: NextRequest, { params }: Params) {
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
   const now  = new Date()
-  const nextRun = new Date(now)
-  nextRun.setUTCHours(body.atHour ?? 18, 0, 0, 0)
-  if (nextRun <= now) nextRun.setUTCDate(nextRun.getUTCDate() + (body.intervalDays ?? 7))
+
+  // Trust the client-computed nextRunAt (it has the correct local→UTC conversion).
+  // Only fall back to server-side computation if the client didn't send one.
+  let nextRunAt: string
+  if (body.nextRunAt) {
+    nextRunAt = body.nextRunAt
+  } else {
+    const nextRun = new Date(now)
+    nextRun.setUTCHours(body.atHour ?? 18, 0, 0, 0)
+    if (nextRun <= now) nextRun.setUTCDate(nextRun.getUTCDate() + (body.intervalDays ?? 7))
+    nextRunAt = nextRun.toISOString()
+  }
 
   const template: PollTemplate = {
     id:               `tpl-${Date.now()}`,
@@ -45,10 +54,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     createdAt:        now.toISOString(),
     intervalDays:     body.intervalDays ?? 7,
     atHour:           body.atHour ?? 18,
-    nextRunAt:        nextRun.toISOString(),
+    ...(body.atLocalHHMM ? { atLocalHHMM: body.atLocalHHMM } : {}),
+    ...(body.timezone    ? { timezone:    body.timezone    } : {}),
+    nextRunAt,
     lastRunAt:        null,
-    active:           true,
+    active:           body.isScheduled === false ? false : true,
     postToDiscord:    body.postToDiscord ?? true,
+    ...(body.isScheduled === false ? { isScheduled: false } : {}),
   }
 
   await createTemplate(template)

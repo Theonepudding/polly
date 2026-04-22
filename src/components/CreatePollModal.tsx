@@ -65,9 +65,10 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
   const [description,      setDescription]      = useState('')
   const [options,          setOptions]          = useState(['', ''])
   const [useTimes,         setUseTimes]         = useState(false)
-  const [times,            setTimes]            = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
+  const [times,            setTimes]            = useState<string[]>([])
   const [customTime,       setCustomTime]       = useState('')
   const [customSlotText,   setCustomSlotText]   = useState('')
+  const [saveAsTemplate,   setSaveAsTemplate]   = useState(false)
   const [durSel,           setDurSel]           = useState<number | 'custom'>(DEFAULT_PRESET)
   const [customDurVal,     setCustomDurVal]     = useState('')
   const [customDurUnit,    setCustomDurUnit]    = useState<'hours' | 'days' | 'weeks'>('days')
@@ -153,7 +154,8 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
 
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', '']); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime(''); setCustomSlotText('')
+    setTimes([]); setCustomTime(''); setCustomSlotText('')
+    setSaveAsTemplate(false)
     setDurSel(DEFAULT_PRESET); setCustomDurVal(''); setCustomDurUnit('days')
     setCloseAtTime(nowTimeString())
     setIsAnonymous(false); setAllowMultiple(false); setError(''); setCreatedPoll(null)
@@ -172,7 +174,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     setIsAnonymous(t.isAnonymous)
     setAllowMultiple(t.allowMultiple)
     setUseTimes(t.includeTimeSlots)
-    if (t.includeTimeSlots) setTimes(t.timeSlots)
+    setTimes(t.includeTimeSlots ? t.timeSlots : [])
     const idx = DURATION_PRESETS.findIndex(p => p.days === t.daysOpen)
     if (idx !== -1) { setDurSel(idx); setCustomDurVal('') }
     else { setDurSel('custom'); setCustomDurVal(String(t.daysOpen)); setCustomDurUnit('days') }
@@ -231,6 +233,7 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
     const cleanOpts = options.filter(o => o.trim())
     if (!title.trim()) return setError('Please add a title.')
     if (cleanOpts.length < 2) return setError('At least 2 options required.')
+    if (useTimes && times.length === 0) return setError('Add at least one availability slot, or turn off the feature.')
     setLoading(true); setError('')
     try {
       const closesAt = new Date()
@@ -278,6 +281,36 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
       })
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to create poll')
       const data = await res.json()
+
+      if (saveAsTemplate) {
+        await fetch(`/api/guilds/${guildId}/templates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || undefined,
+            options: cleanOpts.map((text, i) => ({
+              id: `opt-${i}`,
+              text,
+              ...(optBtnEmojis[i] ? { buttonEmoji: optBtnEmojis[i] } : {}),
+            })),
+            includeTimeSlots: useTimes,
+            timeSlots: useTimes ? times : [],
+            isAnonymous,
+            allowMultiple,
+            isScheduled: false,
+            active: true,
+            intervalDays: 0,
+            daysOpen: 7,
+            atHour: 0,
+            nextRunAt: '2099-01-01T00:00:00.000Z',
+            postToDiscord: false,
+            createdBy: userId,
+            createdByName: userName,
+          }),
+        }).catch(() => {})
+      }
+
       setCreatedPoll(data.poll)
       setPosted(data.posted ?? false)
       setHasChannel(data.hasChannel ?? false)
@@ -473,9 +506,14 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
           {/* Availability slots picker */}
           {useTimes && (
             <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
-              <div>
-                <label className="label mb-0.5">Availability slots</label>
-                <p className="text-xs text-p-muted">Add times or custom labels — voters pick which they&apos;re available for.</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <label className="label mb-0.5">Availability slots</label>
+                  <p className="text-xs text-p-muted">Add times or custom labels — voters pick which they&apos;re available for.</p>
+                </div>
+                {times.length === 0 && (
+                  <span className="text-xs text-p-warning font-semibold shrink-0 mt-0.5">Required</span>
+                )}
               </div>
 
               {/* Quick-add unselected default times */}
@@ -661,6 +699,18 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
               )}
             </div>
           )}
+
+          {/* Save as template */}
+          <div className="flex items-center justify-between py-1 border-t border-p-border/50 pt-3">
+            <div>
+              <p className="text-xs font-medium text-p-text">Save as template</p>
+              <p className="text-xs text-p-muted">Reuse this poll structure from &quot;Load from template&quot;.</p>
+            </div>
+            <button type="button" onClick={() => setSaveAsTemplate(v => !v)}
+              className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all shrink-0 ml-4 ${saveAsTemplate ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+              {saveAsTemplate ? 'On' : 'Off'}
+            </button>
+          </div>
 
           {error && <p className="text-p-danger text-sm">{error}</p>}
 
