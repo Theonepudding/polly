@@ -160,7 +160,7 @@ function renderCreate(): Response {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ color: '#6ee7b7', fontSize: 13, fontWeight: 700 }}>Dashboard channel button</span>
-              <span style={{ color: 'rgba(160,160,210,0.58)', fontSize: 11 }}>The button on the Polly message in the polls channel.</span>
+              <span style={{ color: 'rgba(160,160,210,0.58)', fontSize: 11 }}>The button on the Polly dashboard message in Discord.</span>
             </div>
           </div>
 

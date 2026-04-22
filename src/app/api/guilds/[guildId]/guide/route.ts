@@ -15,7 +15,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (!guild) return NextResponse.json({ error: 'Guild not found' }, { status: 404 })
   if (!guild.pollyChannelId) return NextResponse.json({ error: 'No Polly channel configured' }, { status: 400 })
 
-  const messageId = await postPollyGuide(guild.pollyChannelId, guildId, guild.guideMessage)
+  const messageId = await postPollyGuide(guild.pollyChannelId, guildId)
   if (!messageId) return NextResponse.json({ error: 'Failed to post guide' }, { status: 502 })
 
   // Store the message ID so we could update it later if needed

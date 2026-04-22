@@ -10,7 +10,6 @@ export interface Guild {
   voterRoleIds: string[]   // roles that can vote (empty = everyone)
   announceChannelId?: string
   pollyChannelId?: string
-  guideMessage?: string
   dashboardChannelId?: string
   dashboardMessageId?: string
   auditLogChannelId?: string

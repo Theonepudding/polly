@@ -546,7 +546,7 @@ export async function sendReminderPing(poll: Poll, guild: Guild): Promise<void> 
 
 // ─── Polly guide message ─────────────────────────────────────────────────────
 
-export async function postPollyGuide(channelId: string, guildId: string, customMessage?: string): Promise<string | null> {
+export async function postPollyGuide(channelId: string, guildId: string): Promise<string | null> {
   if (!process.env.DISCORD_BOT_TOKEN) return null
   const siteUrl   = process.env.NEXTAUTH_URL ?? ''
   const dashboard = `${siteUrl}/dashboard/${guildId}`
@@ -555,7 +555,7 @@ export async function postPollyGuide(channelId: string, guildId: string, customM
   const embeds = [
     {
       title:       '🗳️ Polly — How it Works',
-      description: customMessage ?? `Polls appear in this channel with live results. Use the buttons on each poll to vote, or open the [web dashboard](${dashboard}) for the full experience.`,
+      description: `Polls appear in this channel with live results. Use the buttons on each poll to vote, or open the [web dashboard](${dashboard}) for the full experience.`,
       color:       COLOR_ACTIVE,
       image:       { url: gi('voting') },
     },
@@ -567,7 +567,7 @@ export async function postPollyGuide(channelId: string, guildId: string, customM
     },
     {
       title:       '✏️ Creating Polls',
-      description: `Use \`/poll\` in chat, tap the **➕ Create Poll** button in the polls channel, or open the [web dashboard](${dashboard}) for the full editor with all options.\nYou need the **Poll Creator** role — ask an admin if you can't.`,
+      description: `Use \`/poll\` in chat, tap the **➕ Create Poll** button on the Polly dashboard message, or open the [web dashboard](${dashboard}) for the full editor with all options.\nYou need the **Poll Creator** role — ask an admin if you can't.`,
       color:       COLOR_ACTIVE,
       image:       { url: gi('create') },
       footer:      { text: 'Polly — polly.pudding.vip' },

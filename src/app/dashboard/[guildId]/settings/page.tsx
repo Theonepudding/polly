@@ -15,7 +15,6 @@ interface GuildConfig {
   ownerId: string
   announceChannelId?: string | null
   pollyChannelId?: string | null
-  guideMessage?: string
   dashboardChannelId?: string | null
   auditLogChannelId?: string | null
   adminRoleIds: string[]
@@ -322,25 +321,12 @@ export default function SettingsPage() {
               Polly posts a pinned how-to guide in this channel. Good for a dedicated <span className="font-mono text-p-text text-xs">#polls</span> or <span className="font-mono text-p-text text-xs">#bot-info</span> channel.
             </p>
 
-            {/* Discord embed preview */}
-            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
-                  <span className="text-white font-bold text-[9px]">P</span>
-                </div>
-                <span className="text-white font-semibold">Polly</span>
-                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
-                <span className="text-[10px] text-[#72767d] ml-1">📌 Pinned</span>
-              </div>
-              <div className="flex gap-0">
-                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
-                <div className="flex-1 py-1 pr-3">
-                  <div className="text-white font-bold mb-1">How Polly Works</div>
-                  <div className="text-[#b5bac1]">
-                    {config.guideMessage ?? 'Polls appear in this channel as Discord messages. Vote with the buttons, or visit the website for a full view with live results.'}
-                  </div>
-                </div>
-              </div>
+            {/* Guide preview */}
+            <div className="mb-4 rounded-lg border border-p-border bg-p-surface-2 px-4 py-3 text-xs text-p-muted space-y-1">
+              <p className="font-semibold text-p-text">Posts 3 pinned visual embeds:</p>
+              <p>🗳️ <span className="text-p-text">How it Works</span> — voting buttons, live results</p>
+              <p>📋 <span className="text-p-text">Poll Modes</span> — anonymous, multi-choice, ghost, time slots</p>
+              <p>✏️ <span className="text-p-text">Creating Polls</span> — /poll command, button, web dashboard</p>
             </div>
 
             <select
@@ -350,26 +336,6 @@ export default function SettingsPage() {
               <option value="">— None —</option>
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
             </select>
-
-            <div className="mb-3">
-              <label className="label">
-                Custom guide message <span className="normal-case font-normal text-p-subtle">(optional)</span>
-              </label>
-              <textarea
-                className="textarea text-sm"
-                rows={3}
-                placeholder="Leave empty to use the default guide text."
-                maxLength={2000}
-                value={config.guideMessage ?? ''}
-                onChange={e => updateConfig({ ...config, guideMessage: e.target.value || undefined })}
-              />
-              {config.guideMessage && (
-                <button type="button" onClick={() => updateConfig({ ...config, guideMessage: undefined })}
-                  className="text-xs text-p-muted hover:text-p-danger mt-1">
-                  Reset to default
-                </button>
-              )}
-            </div>
 
             {config.pollyChannelId && (
               <div className="flex items-center gap-3">
