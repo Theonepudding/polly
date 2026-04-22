@@ -497,14 +497,14 @@ export async function GET(
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: TS_SEP_H }}>
             <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: 12 }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ color: '#9090bb', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em' }}>
+              <span style={{ color: '#c0c0e0', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em' }}>
                 PREFERRED
               </span>
               {hasClockSlots && (
                 <span style={{
-                  color: '#5a5a7a', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.09)',
+                  color: '#a8a8d0', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                  background: 'rgba(255,255,255,0.09)',
+                  border: '1px solid rgba(255,255,255,0.22)',
                   borderRadius: 4, padding: '1px 5px',
                   display: 'flex',
                 }}>UTC</span>
@@ -522,19 +522,19 @@ export async function GET(
                       ? 'rgba(34,211,238,0.22)'
                       : hasVotes ? 'rgba(34,211,238,0.11)' : 'rgba(255,255,255,0.08)',
                     border: `${isTop ? '2px' : '1px'} solid ${
-                      isTop ? 'rgba(34,211,238,0.85)' : hasVotes ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.22)'
+                      isTop ? 'rgba(34,211,238,0.85)' : hasVotes ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.28)'
                     }`,
                     borderRadius: 20, padding: isTop ? '3px 11px' : '4px 12px',
                   }}>
                     <span style={{
-                      color: isTop ? '#7df9ff' : hasVotes ? '#38e0f5' : '#c0c0de',
+                      color: isTop ? '#7df9ff' : hasVotes ? '#38e0f5' : '#d8d8f0',
                       fontSize: 14, fontWeight: 700,
                     }}>
                       {fmtSlot(ts)}
                     </span>
                     {hasVotes && (
                       <span style={{
-                        color: isTop ? 'rgba(125,249,255,0.85)' : 'rgba(180,180,220,0.75)',
+                        color: isTop ? 'rgba(125,249,255,0.95)' : 'rgba(210,210,245,0.85)',
                         fontSize: 12, fontWeight: 600,
                       }}>×{tsCount}</span>
                     )}
@@ -546,13 +546,13 @@ export async function GET(
                 return (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.14)',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.22)',
                     borderRadius: 20, padding: '4px 12px',
                   }}>
-                    <span style={{ color: '#8888b0', fontSize: 14, fontWeight: 700 }}>No preference</span>
+                    <span style={{ color: '#b8b8d8', fontSize: 14, fontWeight: 700 }}>No preference</span>
                     {noPrefCount > 0 && (
-                      <span style={{ color: '#9898b8', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
+                      <span style={{ color: '#c0c0dc', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
                     )}
                   </div>
                 )

@@ -186,10 +186,12 @@ export function buildPollComponents(poll: Poll) {
 }
 
 export function buildTimeSlotComponents(poll: Poll, optionId: string) {
-  const timeButtons = poll.timeSlots.slice(0, 5).map(ts => ({
+  const timeButtons = poll.timeSlots.slice(0, 5).map((ts, i) => ({
     type:      2,
     style:     2,
-    label:     /^\d{2}:\d{2}$/.test(ts) ? utcLabel(ts) : ts.slice(0, 80),
+    // Clock slots get numbered labels; the follow-up message shows the local-time mapping.
+    // Button labels don't support Discord timestamp formatting so numbers are the cleanest option.
+    label:     /^\d{2}:\d{2}$/.test(ts) ? String(i + 1) : ts.slice(0, 80),
     custom_id: `t:${poll.id}:${optionId}:${ts}`,
   }))
 
@@ -200,9 +202,9 @@ export function buildTimeSlotComponents(poll: Poll, optionId: string) {
 }
 
 export function buildTimeSlotFollowupContent(poll: Poll): string {
-  const lines = poll.timeSlots.slice(0, 5).map(ts =>
+  const lines = poll.timeSlots.slice(0, 5).map((ts, i) =>
     /^\d{2}:\d{2}$/.test(ts)
-      ? `**${ts} UTC** — ${utcHHMMtoDiscordTimestamp(ts)} your time`
+      ? `**${i + 1}** — ${ts} UTC · ${utcHHMMtoDiscordTimestamp(ts)} your time`
       : `**${ts}**`
   )
   return `🕐 Pick a time preference:\n${lines.join('\n')}`
