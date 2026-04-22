@@ -139,7 +139,7 @@ function buildModal(type: 's' | 'yn' | 'ts', customId: string, draft?: PollDraft
   const t  = { type: 1, components: [{ type: 4, custom_id: 't', label: 'Question', style: 1, required: true,  max_length: 120, placeholder: 'e.g. Which day for the raid?',          ...(draft ? { value: draft.title }                        : {}) }] }
   const d  = { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description  (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] }
   const o  = { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options  (one per line, 2–6 options)', style: 2, required: true, max_length: 600, placeholder: 'Option 1\nOption 2\nOption 3', ...(draft?.options.length ? { value: draft.options.join('\n') } : {}) }] }
-  const ts = { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots in UTC  (HH:MM, comma-separated)', style: 1, required: false, max_length: 120, placeholder: '18:00, 19:00, 20:00, 21:00  ← enter as UTC', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] }
+  const ts = { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Times or labels  (comma-separated)', style: 1, required: false, max_length: 200, placeholder: '20:00, 21:00  or  Morning, Afternoon, Evening', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] }
 
   if (type === 'yn')  return { custom_id: customId, title: 'Quick Yes / No Poll',  components: [t, d] }
   if (type === 'ts')  return { custom_id: customId, title: 'Time Slot Poll',        components: [t, o, ts, d] }
@@ -374,7 +374,7 @@ export async function POST(req: NextRequest) {
         }
 
         const timeSlots = pType === 'ts'
-          ? get('ts').split(',').map(t => t.trim()).filter(t => /^\d{2}:\d{2}$/.test(t))
+          ? get('ts').split(',').map(t => t.trim()).filter(Boolean).slice(0, 5)
           : []
 
         const id    = draftId()
@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
           if (opts.length >= 2) draft.options = opts
         }
         if (pType === 'ts') {
-          draft.timeSlots = get('ts').split(',').map(t => t.trim()).filter(t => /^\d{2}:\d{2}$/.test(t))
+          draft.timeSlots = get('ts').split(',').map(t => t.trim()).filter(Boolean).slice(0, 5)
         }
         await saveDraft(id, draft)
 

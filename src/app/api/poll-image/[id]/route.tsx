@@ -382,10 +382,12 @@ export async function GET(
   // Calculate the canvas height for ANY set of options + whether time slots appear.
   // Used for both pages so we can pick the SAME height for the whole poll — otherwise
   // Discord sees different aspect ratios per page and renders them at different widths.
-  const allTimeSlots = poll.timeSlots
+  const allTimeSlots   = poll.timeSlots
+  const hasCustomSlots = allTimeSlots.some(s => !isClockSlot(s))
+  const slotChipsPR    = hasCustomSlots ? 3 : 5  // chips per row estimate
   function calcH(opts: typeof pageOpts, showTimeSlots: boolean): number {
     const optsH  = opts.reduce((sum, o) => sum + optRowH(o), 0)
-    const _rows  = showTimeSlots ? Math.ceil(allTimeSlots.length / 5) : 0
+    const _rows  = showTimeSlots ? Math.ceil((allTimeSlots.length + 1) / slotChipsPR) : 0
     const _TS_H  = showTimeSlots ? 26 + _rows * 30 - 8 : 0
     const _SEP_H = showTimeSlots ? 16 : 0
     return Math.max(MIN_H, PAD_V * 2 + HEADER_H + optsH + _SEP_H + _TS_H + FOOTER_H)
@@ -404,8 +406,10 @@ export async function GET(
   const H = forcedH > 0 ? Math.max(forcedH, MIN_H) : computedH
 
   const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
-  const slotRows  = hasTimeSlots ? Math.ceil(shownSlots.length / 5) : 0
-  const TS_H      = hasTimeSlots ? 26 + slotRows * 30 - 8 : 0
+  // Estimate chips per row: clock slots (~60px each) fit ~5/row; custom text can be wider so assume ~3/row
+  const chipsPerRow = hasTimeSlots && shownSlots.some(s => !isClockSlot(s)) ? 3 : 5
+  const slotRows    = hasTimeSlots ? Math.ceil((shownSlots.length + 1) / chipsPerRow) : 0  // +1 for "No preference"
+  const TS_H        = hasTimeSlots ? 26 + slotRows * 30 - 8 : 0
   const TS_SEP_H  = hasTimeSlots ? 16 : 0
 
   const closesLabel = poll.closesAt
