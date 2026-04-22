@@ -31,6 +31,9 @@ function utcToLocal(hhMM: string): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+function isTimeSlot(s: string): boolean { return /^\d{2}:\d{2}$/.test(s) }
+function displaySlot(s: string): string { return isTimeSlot(s) ? utcToLocal(s) : s }
+
 function localTimeToUTCHour(localHHMM: string): number {
   const [h, m] = localHHMM.split(':').map(Number)
   const d = new Date(); d.setHours(h, m, 0, 0)
@@ -72,6 +75,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   const [useTimes,      setUseTimes]      = useState(false)
   const [times,         setTimes]         = useState<string[]>(DEFAULT_TIMES_UTC.slice(0, 3))
   const [customTime,    setCustomTime]    = useState('')
+  const [customSlotText,setCustomSlotText]= useState('')
   const [intervalDays,  setIntervalDays]  = useState(7)
   const [customDays,    setCustomDays]    = useState('')
   const [useCustom,     setUseCustom]     = useState(false)
@@ -175,7 +179,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
   function reset() {
     setTitle(''); setDescription(''); setOptions(['', ''])
     setIsAnonymous(false); setAllowMultiple(false); setUseTimes(false)
-    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime('')
+    setTimes(DEFAULT_TIMES_UTC.slice(0, 3)); setCustomTime(''); setCustomSlotText('')
     setIntervalDays(7); setCustomDays(''); setUseCustom(false)
     setLocalTime('18:00'); setStartDate(defaultStartDate(7, 18))
     setDaysOpen(7); setCustomDaysOpen(''); setShowCustomDays(false)
@@ -211,13 +215,15 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
     if (n >= 1 && n <= 365) { setIntervalDays(n); setUseCustom(false); setStartDate(defaultStartDate(n, localTimeToUTCHour(localTime))) }
   }
 
-  function toggleSlot(t: string) {
-    setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
-  }
-  function addCustomSlot() {
+  function addCustomTime() {
     if (!customTime) return
     const utc = localToUTCHHMM(customTime)
     if (!times.includes(utc)) { setTimes(prev => [...prev, utc]); setCustomTime('') }
+  }
+  function addCustomSlotLabel() {
+    const text = customSlotText.trim()
+    if (!text || times.includes(text)) return
+    setTimes(prev => [...prev, text]); setCustomSlotText('')
   }
 
   function pickPresetTime(utcHHMM: string) {
@@ -391,9 +397,9 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
             </div>
           </div>
 
-          {/* Compact voting options */}
+          {/* Settings */}
           <div>
-            <label className="label mb-2">Voting options</label>
+            <label className="label mb-2">Settings</label>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setIsAnonymous(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isAnonymous ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
@@ -405,7 +411,7 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
               </button>
               <button type="button" onClick={() => setUseTimes(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
-                Time slots
+                Availability slots
               </button>
               <button type="button" onClick={() => setPostDiscord(v => !v)}
                 className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${postDiscord ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
@@ -414,25 +420,61 @@ export default function CreateScheduledPollModal({ guildId, userId, userName, in
             </div>
           </div>
 
-          {/* Time slot picker */}
+          {/* Availability slots picker */}
           {useTimes && (
-            <div className="pl-1">
-              <label className="label">Time presets <span className="normal-case font-normal text-p-muted/50">(your local time)</span></label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {[...DEFAULT_TIMES_UTC, ...times.filter(t => !DEFAULT_TIMES_UTC.includes(t))].map(t => (
-                  <button key={t} type="button" onClick={() => toggleSlot(t)}
-                    className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${
-                      times.includes(t) ? 'badge-primary' : 'badge-muted hover:border-p-border-2'
-                    }`}>
-                    {utcToLocal(t)}
-                  </button>
-                ))}
+            <div className="bg-p-surface-2 rounded-xl p-4 space-y-3">
+              <div>
+                <label className="label mb-0.5">Availability slots</label>
+                <p className="text-xs text-p-muted">Add times or custom labels — voters pick which they&apos;re available for.</p>
               </div>
+
+              {/* Quick-add unselected default times */}
+              {DEFAULT_TIMES_UTC.some(t => !times.includes(t)) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {DEFAULT_TIMES_UTC.filter(t => !times.includes(t)).map(t => (
+                    <button key={t} type="button" onClick={() => setTimes(p => [...p, t])}
+                      className="badge badge-muted text-xs cursor-pointer hover:border-p-primary/50 hover:text-p-primary transition-colors">
+                      + {utcToLocal(t)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Active slots as removable chips */}
+              {times.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {times.map(t => (
+                    <span key={t} className="badge badge-primary text-xs flex items-center gap-1.5 pr-1.5">
+                      {displaySlot(t)}
+                      <button type="button"
+                        onClick={() => setTimes(p => p.filter(x => x !== t))}
+                        className="opacity-60 hover:opacity-100 transition-opacity flex items-center">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Add a clock time */}
               <div className="flex gap-2">
-                <input type="time" className="input flex-1 text-sm py-2"
+                <input type="time" className="input flex-1 text-sm py-1.5"
                   value={customTime} onChange={e => setCustomTime(e.target.value)} />
-                <button type="button" onClick={addCustomSlot} className="btn-secondary text-xs shrink-0">
-                  <Plus size={13} /> Add
+                <button type="button" onClick={addCustomTime} className="btn-secondary text-xs shrink-0 py-1.5">
+                  Add time
+                </button>
+              </div>
+
+              {/* Add a custom text label */}
+              <div className="flex gap-2">
+                <input type="text" className="input flex-1 text-sm py-1.5"
+                  placeholder="e.g. Saturday, Morning, Any evening…"
+                  value={customSlotText}
+                  onChange={e => setCustomSlotText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomSlotLabel() } }}
+                />
+                <button type="button" onClick={addCustomSlotLabel} className="btn-secondary text-xs shrink-0 py-1.5">
+                  Add label
                 </button>
               </div>
             </div>

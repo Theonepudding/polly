@@ -483,7 +483,7 @@ export async function GET(
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: TS_SEP_H }}>
             <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: 12 }} />
             <span style={{ color: '#8888bb', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 10 }}>
-              PREFERRED TIMES
+              PREFERRED
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {shownSlots.map(ts => {
@@ -505,6 +505,22 @@ export async function GET(
                   </div>
                 )
               })}
+              {(() => {
+                const noPrefCount = votes.filter(v => !v.timeSlot).length
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 20, padding: '4px 12px',
+                  }}>
+                    <span style={{ color: '#555588', fontSize: 14, fontWeight: 700 }}>No preference</span>
+                    {noPrefCount > 0 && (
+                      <span style={{ color: '#8888aa', fontSize: 12, fontWeight: 600 }}>×{noPrefCount}</span>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}

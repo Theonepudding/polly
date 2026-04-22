@@ -1,6 +1,6 @@
 import { Poll, Vote, Guild } from '@/types'
 import { getGuild, upsertGuild } from './guilds'
-import { getPolls } from './polls'
+import { getPolls, updatePoll } from './polls'
 
 const DISCORD_API  = 'https://discord.com/api/v10'
 const COLOR_ACTIVE = 0x6366F1
@@ -76,6 +76,10 @@ function utcHHMMtoDiscordTimestamp(hhMM: string): string {
   d.setUTCHours(h, m, 0, 0)
   if (d < new Date()) d.setUTCDate(d.getUTCDate() + 1)
   return `<t:${Math.floor(d.getTime() / 1000)}:t>`
+}
+
+function formatSlotForDiscord(slot: string): string {
+  return /^\d{2}:\d{2}$/.test(slot) ? utcHHMMtoDiscordTimestamp(slot) : `**${slot}**`
 }
 
 function utcToLocal(hhMM: string): string {
@@ -200,12 +204,12 @@ export function buildTimeSlotFollowupContent(poll: Poll): string {
 
 export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true, maxH?: number) {
   const total  = votes.length
-  const winner = winnerOf(poll, votes)
-  const slot   = topTimeSlot(poll, votes)
+  const winner = total > 0 ? winnerOf(poll, votes) : null
+  const slot   = topTimeSlot(poll, votes, winner?.id)
 
   const lines: string[] = []
   if (winner && total > 0) lines.push(`🏆 **${winner.text}** won with ${votes.filter(v => v.optionId === winner.id).length} vote${votes.filter(v => v.optionId === winner.id).length !== 1 ? 's' : ''}`)
-  if (slot) lines.push(`⏰ Most popular time: ${utcHHMMtoDiscordTimestamp(slot)}`)
+  if (slot) lines.push(`⏰ Preferred: ${formatSlotForDiscord(slot)}`)
 
   return {
     title:       `${poll.title} — Closed`,
@@ -405,7 +409,7 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
 
   const total  = votes.length
   const winner = total > 0 ? winnerOf(poll, votes) : null
-  const slot   = topTimeSlot(poll, votes)
+  const slot   = topTimeSlot(poll, votes, winner?.id)
 
   // Build description: winner + optional voter breakdown
   const lines: string[] = []
@@ -418,7 +422,7 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
       const winPct   = Math.round((winCount / total) * 100)
       lines.push(`🏆 **${winner.text}** won with **${winCount}** vote${winCount !== 1 ? 's' : ''} (${winPct}%)`)
     }
-    if (slot) lines.push(`⏰ Most popular time: ${utcHHMMtoDiscordTimestamp(slot)}`)
+    if (slot) lines.push(`⏰ Preferred: ${formatSlotForDiscord(slot)}`)
 
     if (!poll.isAnonymous) {
       // Show who voted for each option
@@ -462,7 +466,10 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
       body:    JSON.stringify({ embeds, components }),
     })
     if (!res.ok) { console.error('Results post failed:', await res.text()); return null }
-    return ((await res.json()) as { id: string }).id
+    const newMsgId = ((await res.json()) as { id: string }).id
+    // Save the results message ID so deleting the poll later can also remove this embed
+    await updatePoll(poll.id, { discordMessageId: newMsgId, discordChannelId: channelId }).catch(() => {})
+    return newMsgId
   } catch (e) {
     console.error('Results post error:', e)
     return null
@@ -712,10 +719,14 @@ function winnerOf(poll: Poll, votes: Vote[]) {
   }, poll.options[0])
 }
 
-function topTimeSlot(poll: Poll, votes: Vote[]): string | null {
+function topTimeSlot(poll: Poll, votes: Vote[], winnerOptionId?: string): string | null {
   if (!poll.includeTimeSlots || !poll.timeSlots.length) return null
-  return poll.timeSlots.reduce((best, ts) =>
-    votes.filter(v => v.timeSlot === ts).length > votes.filter(v => v.timeSlot === best).length ? ts : best,
-    poll.timeSlots[0],
-  )
+  const relevant = winnerOptionId ? votes.filter(v => v.optionId === winnerOptionId) : votes
+  let best: string | null = null
+  let bestCount = 0
+  for (const ts of poll.timeSlots) {
+    const count = relevant.filter(v => v.timeSlot === ts).length
+    if (count > bestCount) { best = ts; bestCount = count }
+  }
+  return best
 }
