@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, updatePoll, deletePoll, getVotes } from '@/lib/polls'
 import { updatePollInDiscord, deletePollFromDiscord, postPollResults, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
-import { getGuild } from '@/lib/guilds'
+import { getGuild, userCanManage, fetchMemberRoles } from '@/lib/guilds'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
 
@@ -22,6 +22,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { guildId, id } = await params
   const poll = await getPoll(id)
   if (!poll || poll.guildId !== guildId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const isCreator  = session.user.id === poll.createdBy
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isCreator && !isBotAdmin) {
+    const guild      = await getGuild(guildId)
+    const memberRoles = guild ? await fetchMemberRoles(guildId, session.user.id) : []
+    if (!guild || !userCanManage(guild, session.user.id, memberRoles)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
 
   const body  = await req.json()
   const patch = { ...body }
@@ -73,11 +83,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const [poll, guild] = await Promise.all([getPoll(id), getGuild(guildId)])
   if (!poll || poll.guildId !== guildId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const isCreator = session.user.id === poll.createdBy
-  const isOwner   = guild?.ownerId === session.user.id
-  const noAdminRestriction = (guild?.adminRoleIds?.length ?? 0) === 0
-  if (!isCreator && !isOwner && !noAdminRestriction && !session.user.isBotAdmin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const isCreator  = session.user.id === poll.createdBy
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isCreator && !isBotAdmin) {
+    const memberRoles = guild ? await fetchMemberRoles(guildId, session.user.id) : []
+    if (!guild || !userCanManage(guild, session.user.id, memberRoles)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
   }
 
   await deletePollFromDiscord(poll).catch(() => {})

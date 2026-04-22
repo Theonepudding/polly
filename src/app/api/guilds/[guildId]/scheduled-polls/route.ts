@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getScheduledPolls, createScheduledPoll } from '@/lib/scheduled-polls'
-import { getGuild } from '@/lib/guilds'
+import { getGuild, userCanCreate, fetchMemberRoles } from '@/lib/guilds'
 import { postAuditLog } from '@/lib/discord-bot'
 import type { ScheduledPoll } from '@/types'
 
@@ -21,6 +21,18 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { guildId } = await params
+
+  const guild = await getGuild(guildId)
+  if (!guild) return NextResponse.json({ error: 'Guild not found' }, { status: 404 })
+
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isBotAdmin) {
+    const memberRoles = await fetchMemberRoles(guildId, session.user.id)
+    if (!userCanCreate(guild, session.user.id, memberRoles)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
@@ -63,8 +75,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   await createScheduledPoll(scheduledPoll)
-
-  const guild = await getGuild(guildId)
   if (guild) {
     const interval = `every ${scheduledPoll.intervalDays === 1 ? 'day' : `${scheduledPoll.intervalDays} days`}`
     await postAuditLog(

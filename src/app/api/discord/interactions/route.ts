@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createPoll, updatePoll, getPoll, getPolls, castVote, getVotes } from '@/lib/polls'
-import { getGuild, upsertGuild, userCanCreate } from '@/lib/guilds'
+import { getGuild, upsertGuild, userCanCreate, userCanManage } from '@/lib/guilds'
 import { getKV } from '@/lib/kv'
 import {
   buildTimeSlotComponents,
@@ -561,7 +561,13 @@ export async function POST(req: NextRequest) {
         if (setupGuildId && channelId) {
           try {
             const guild = await getGuild(setupGuildId)
-            if (guild) await upsertGuild({ ...guild, announceChannelId: channelId, updatedAt: new Date().toISOString() })
+            if (guild) {
+              const userRoles = (member?.roles as string[]) ?? []
+              if (!userCanManage(guild, userId, userRoles)) {
+                return Response.json({ type: 4, data: { content: '❌ You don\'t have permission to change server settings.', flags: 64 } })
+              }
+              await upsertGuild({ ...guild, announceChannelId: channelId, updatedAt: new Date().toISOString() })
+            }
           } catch (e) { console.error('Setup channel save error:', e) }
         }
         const siteUrl = process.env.NEXTAUTH_URL ?? ''
@@ -715,6 +721,15 @@ export async function POST(req: NextRequest) {
         const [, pollId] = customId.split(':')
         bg((async () => {
           try {
+            const poll = await getPoll(pollId)
+            if (!poll) return
+            // Only the poll creator or guild managers can close
+            const isCreator = userId === poll.createdBy
+            if (!isCreator) {
+              const guild     = await getGuild(poll.guildId)
+              const userRoles = (member?.roles as string[]) ?? []
+              if (guild && !userCanManage(guild, userId, userRoles)) return
+            }
             const ok = await updatePoll(pollId, { isClosed: true })
             if (!ok) return
             const closedPoll  = await getPoll(pollId)
@@ -745,6 +760,11 @@ export async function POST(req: NextRequest) {
       // ── Dashboard: create poll (open type selector) ───────────────────────
       if (customId.startsWith('dash:create:')) {
         const dgId = customId.split(':')[2]
+        const guild = await getGuild(dgId)
+        const userRoles = (member?.roles as string[]) ?? []
+        if (guild && !userCanCreate(guild, userId, userRoles)) {
+          return Response.json({ type: 4, data: { content: '❌ You don\'t have permission to create polls on this server.', flags: 64 } })
+        }
         return Response.json({ type: 4, data: buildTypeSelectMessage(dgId) })
       }
 
@@ -753,12 +773,21 @@ export async function POST(req: NextRequest) {
         const dgId = customId.split(':')[2]
         bg((async () => {
           try {
-            const guild = await getGuild(dgId)
-            if (!guild) return
             const activePolls = (await getPolls(dgId)).filter(p => !p.isClosed)
-            await sendFollowup(token, appId, {
-              embeds: [buildDashboardEmbed(guild, activePolls)], components: buildDashboardComponents(guild), flags: 64,
-            })
+            const siteUrl = process.env.NEXTAUTH_URL ?? ''
+            const embed = activePolls.length === 0
+              ? { title: 'Active Polls', description: 'No active polls right now.', color: 0x6B7280 }
+              : {
+                  title: `Active Polls (${activePolls.length})`,
+                  color: 0x6366F1,
+                  description: activePolls.map(p => {
+                    const closeStr = p.closesAt
+                      ? `closes <t:${Math.floor(new Date(p.closesAt).getTime() / 1000)}:R>`
+                      : 'no close date'
+                    return `**[${p.title}](${siteUrl}/p/${p.id})**\n${p.options.length} options · ${closeStr}`
+                  }).join('\n\n'),
+                }
+            await sendFollowup(token, appId, { embeds: [embed], flags: 64 })
           } catch (e) { console.error('Dashboard list error:', e) }
         })())
         return Response.json({ type: 6 })

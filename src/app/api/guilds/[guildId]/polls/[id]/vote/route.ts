@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, castVote } from '@/lib/polls'
+import { getGuild, userCanVote, fetchMemberRoles } from '@/lib/guilds'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import type { Poll, Vote } from '@/types'
 
@@ -29,6 +30,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date()))
     return NextResponse.json({ error: 'Poll is closed' }, { status: 400 })
 
+  // Enforce voter role restrictions
+  const guild = await getGuild(guildId)
+  if (guild?.voterRoleIds?.length) {
+    const memberRoles = await fetchMemberRoles(guildId, session.user.id)
+    if (!userCanVote(guild, memberRoles)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
   const body     = await req.json()
   const optionIds: string[] = poll.allowMultiple
     ? (Array.isArray(body.optionIds) ? body.optionIds : [body.optionId])
@@ -49,7 +59,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     ;({ votes } = await castVote(vote, false))
   }
 
-  // Return immediately — Discord update runs in background after KV propagation delay
   bgDiscordUpdate(poll, votes, guildId)
   return NextResponse.json({ votes })
 }
