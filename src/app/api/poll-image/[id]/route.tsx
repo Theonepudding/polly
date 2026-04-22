@@ -100,12 +100,22 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
     )
   }
 
+  function winnerSlotCounts(optionId: string) {
+    if (!poll.includeTimeSlots || !poll.timeSlots.length) return []
+    return poll.timeSlots
+      .map(ts => ({ ts, count: votes.filter(v => v.optionId === optionId && v.timeSlot === ts).length }))
+      .filter(x => x.count > 0)
+  }
+
   // Height calculation
   const HEADER_H       = 40 + 14 + 1 + 20   // row + margin + divider + margin
   const WINNER_LABEL_H = 20 + 10
   function winnerCardH(w: Poll['options'][0]): number {
     const voterCount = !poll.isAnonymous ? votes.filter(v => v.optionId === w.id).length : 0
-    return 28 + 32 + 10 + 12 + 8 + 18 + (voterCount > 0 ? 18 + 6 : 0) // padding + text + gap + bar + gap + count + optional voters
+    const slots      = winnerSlotCounts(w.id)
+    return 28 + 32 + 10 + 12 + 8 + 18
+      + (voterCount > 0 ? 18 + 6 : 0)
+      + (slots.length > 0 ? 8 + 16 + 6 + 28 : 0) // margin + label + gap + chip row
   }
   const winnersH    = noVotes ? 0 : winners.reduce((s, w, i) => s + winnerCardH(w) + (i > 0 ? 10 : 0), 0)
   const runnerUpsH  = hasRunnerUps ? 18 + 18 + 10 + runnerUps.length * 41 : 0
@@ -213,6 +223,40 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
                     <span style={{ color: 'rgba(34,211,238,0.8)', fontSize: 12, fontWeight: 700 }}>
                       {count} {count !== 1 ? 'votes' : 'vote'}
                     </span>
+                    {(() => {
+                      const slots = winnerSlotCounts(winner.id)
+                      if (!slots.length) return null
+                      const maxCount = Math.max(...slots.map(s => s.count))
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
+                          <span style={{ color: 'rgba(34,211,238,0.7)', fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', marginBottom: 6 }}>
+                            PREFERRED TIME
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {slots.map(({ ts, count: sc }) => {
+                              const isTop = sc === maxCount
+                              return (
+                                <div key={ts} style={{
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  background: isTop ? 'rgba(34,211,238,0.2)' : 'rgba(34,211,238,0.07)',
+                                  border: `1px solid ${isTop ? 'rgba(34,211,238,0.7)' : 'rgba(34,211,238,0.3)'}`,
+                                  borderRadius: 12, padding: '3px 10px',
+                                }}>
+                                  <span style={{ color: isTop ? '#7df9ff' : 'rgba(34,211,238,0.75)', fontSize: 12, fontWeight: 700 }}>
+                                    {isClockSlot(ts) ? `${ts} UTC` : ts}
+                                  </span>
+                                  {sc > 1 && (
+                                    <span style={{ color: isTop ? 'rgba(125,249,255,0.85)' : 'rgba(34,211,238,0.55)', fontSize: 11, fontWeight: 600 }}>
+                                      ×{sc}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}
