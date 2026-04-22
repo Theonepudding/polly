@@ -11,7 +11,7 @@ const POLL_VOTES_KEY = (pollId: string) => `pv:${pollId}`
 async function readPollsFromKV(): Promise<Poll[]> {
   const kv = await getKV()
   if (!kv) return []
-  const raw = await kv.get(KEY, FRESH)
+  const raw = await kv.get(KEY)
   return raw ? ((JSON.parse(raw) as PollsData).polls ?? []) : []
 }
 
@@ -26,25 +26,20 @@ async function writePollsToKV(polls: Poll[]): Promise<void> {
 // Same-poll concurrent votes are still a theoretical race, but extremely rare
 // for a Discord poll bot and require Durable Objects to fully prevent.
 
-// cacheTtl: 0 bypasses the 60-second per-Worker KV read cache so every call
-// goes straight to the underlying store — critical for seeing votes written
-// by other Worker instances on the same PoP without waiting 60s.
-const FRESH = { cacheTtl: 0 } as const
-
 async function readPollVotes(pollId: string): Promise<Vote[]> {
   const kv = await getKV()
   if (!kv) return []
-  const raw = await kv.get(POLL_VOTES_KEY(pollId), FRESH)
+  const raw = await kv.get(POLL_VOTES_KEY(pollId))
   if (raw) return (JSON.parse(raw) as { votes: Vote[] }).votes
   // Migration path 1: global votes blob (previous architecture)
-  const gRaw = await kv.get('votes', FRESH)
+  const gRaw = await kv.get('votes')
   if (gRaw) {
     const all = (JSON.parse(gRaw) as { votes: Vote[] }).votes
     const mine = all.filter(v => v.pollId === pollId)
     if (mine.length) return mine
   }
   // Migration path 2: old combined polls+votes blob
-  const pRaw = await kv.get(KEY, FRESH)
+  const pRaw = await kv.get(KEY)
   if (pRaw) return ((JSON.parse(pRaw) as PollsData).votes ?? []).filter(v => v.pollId === pollId)
   return []
 }
@@ -66,7 +61,7 @@ export async function getPolls(guildId?: string): Promise<Poll[]> {
 export async function getPoll(id: string): Promise<Poll | null> {
   const kv = await getKV()
   if (kv) {
-    const raw = await kv.get(POLL_KEY(id), FRESH)
+    const raw = await kv.get(POLL_KEY(id))
     if (raw) return JSON.parse(raw) as Poll
   }
   const polls = await readPollsFromKV()
