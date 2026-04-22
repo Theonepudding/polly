@@ -119,21 +119,21 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
       <div style={{
         display: 'flex', flexDirection: 'column',
         width: RW, height: H,
-        background: '#0c0c1e',
+        background: '#111128',
         overflow: 'hidden',
         position: 'relative',
       }}>
         {/* Cyan accent bar */}
         <div style={{
           display: 'flex', height: 3,
-          background: `linear-gradient(90deg, transparent, ${CYAN}bb, ${CYAN}, ${CYAN}bb, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${CYAN}cc, ${CYAN}, ${CYAN}cc, transparent)`,
         }} />
 
         {/* Top glow */}
         <div style={{
           position: 'absolute', display: 'flex',
           width: RW, height: 260,
-          background: `radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.13) 0%, transparent 65%)`,
+          background: `radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.18) 0%, transparent 65%)`,
           top: 0, left: 0,
         }} />
 
@@ -141,13 +141,13 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
 
           {/* Header: title + CLOSED badge */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <span style={{ color: 'rgba(180,180,220,0.5)', fontSize: 14, fontWeight: 600, flex: 1 }}>
+            <span style={{ color: 'rgba(210,210,245,0.85)', fontSize: 14, fontWeight: 600, flex: 1 }}>
               {poll.title.length > 55 ? poll.title.slice(0, 55) + '…' : poll.title}
             </span>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-              background: 'rgba(34,211,238,0.09)',
-              border: '1px solid rgba(34,211,238,0.3)',
+              background: 'rgba(34,211,238,0.14)',
+              border: '1px solid rgba(34,211,238,0.5)',
               borderRadius: 20, padding: '4px 12px', marginLeft: 12,
             }}>
               <div style={{ display: 'flex', width: 5, height: 5, borderRadius: '50%', background: CYAN }} />
@@ -156,11 +156,11 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
           </div>
 
           {/* Divider */}
-          <div style={{ display: 'flex', height: 1, background: 'rgba(34,211,238,0.18)', marginBottom: 20 }} />
+          <div style={{ display: 'flex', height: 1, background: 'rgba(34,211,238,0.35)', marginBottom: 20 }} />
 
           {noVotes ? (
             <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: 'rgba(140,140,190,0.5)', fontSize: 18, fontWeight: 600 }}>No votes were cast</span>
+              <span style={{ color: 'rgba(180,180,220,0.75)', fontSize: 18, fontWeight: 600 }}>No votes were cast</span>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -180,8 +180,8 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
                 return (
                   <div key={winner.id} style={{
                     display: 'flex', flexDirection: 'column',
-                    background: 'rgba(34,211,238,0.07)',
-                    border: '1.5px solid rgba(34,211,238,0.28)',
+                    background: 'rgba(34,211,238,0.12)',
+                    border: '1.5px solid rgba(34,211,238,0.5)',
                     borderRadius: 12,
                     padding: '14px 16px',
                     marginBottom: i < winners.length - 1 ? 10 : 0,
@@ -196,21 +196,21 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
                     </div>
                     <div style={{
                       display: 'flex', height: 12,
-                      background: 'rgba(34,211,238,0.12)',
+                      background: 'rgba(34,211,238,0.18)',
                       borderRadius: 6, overflow: 'hidden', marginBottom: 8,
                     }}>
                       <div style={{
                         display: 'flex', width: `${pct}%`,
-                        background: `linear-gradient(90deg, rgba(34,211,238,0.65), ${CYAN})`,
+                        background: `linear-gradient(90deg, rgba(34,211,238,0.75), ${CYAN})`,
                         borderRadius: 6,
                       }} />
                     </div>
                     {shown.length > 0 && (
-                      <span style={{ color: 'rgba(140,195,210,0.7)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                      <span style={{ color: 'rgba(160,220,235,0.9)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
                         {voterStr}
                       </span>
                     )}
-                    <span style={{ color: 'rgba(34,211,238,0.5)', fontSize: 12, fontWeight: 700 }}>
+                    <span style={{ color: 'rgba(34,211,238,0.8)', fontSize: 12, fontWeight: 700 }}>
                       {count} {count !== 1 ? 'votes' : 'vote'}
                     </span>
                   </div>
@@ -220,7 +220,7 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
               {/* Runner-ups */}
               {hasRunnerUps && (
                 <div style={{ display: 'flex', flexDirection: 'column', marginTop: 18 }}>
-                  <span style={{ color: 'rgba(120,120,175,0.4)', fontSize: 10, fontWeight: 800, letterSpacing: '0.18em', marginBottom: 10 }}>
+                  <span style={{ color: 'rgba(160,160,210,0.75)', fontSize: 10, fontWeight: 800, letterSpacing: '0.18em', marginBottom: 10 }}>
                     OTHER RESULTS
                   </span>
                   {runnerUps.map(opt => {
@@ -229,13 +229,13 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
                     return (
                       <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: 11 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                          <RSegText text={opt.text} fontSize={14} fontWeight={600} color="rgba(160,160,210,0.62)" />
-                          <span style={{ color: 'rgba(120,120,175,0.55)', fontSize: 13, fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>
+                          <RSegText text={opt.text} fontSize={14} fontWeight={600} color="rgba(195,195,235,0.9)" />
+                          <span style={{ color: 'rgba(170,170,215,0.9)', fontSize: 13, fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>
                             {pct}%{count > 0 ? ` · ${count}` : ''}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-                          {pct > 0 && <div style={{ display: 'flex', width: `${pct}%`, background: 'rgba(129,140,248,0.4)', borderRadius: 2 }} />}
+                        <div style={{ display: 'flex', height: 4, background: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden' }}>
+                          {pct > 0 && <div style={{ display: 'flex', width: `${pct}%`, background: 'rgba(129,140,248,0.7)', borderRadius: 2 }} />}
                         </div>
                       </div>
                     )
@@ -249,12 +249,12 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             paddingTop: 12, marginTop: 'auto',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
+            borderTop: '1px solid rgba(255,255,255,0.15)',
           }}>
-            <span style={{ color: 'rgba(100,100,160,0.6)', fontSize: 12, fontWeight: 600 }}>
+            <span style={{ color: 'rgba(180,180,220,0.85)', fontSize: 12, fontWeight: 600 }}>
               {totalVotes} {totalVotes !== 1 ? 'votes' : 'vote'} · Polly
             </span>
-            <span style={{ color: 'rgba(34,211,238,0.3)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em' }}>
+            <span style={{ color: 'rgba(34,211,238,0.6)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em' }}>
               polly.pudding.vip
             </span>
           </div>
