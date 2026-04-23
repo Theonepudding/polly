@@ -97,11 +97,21 @@ export default async function GuildDashboardPage({ params }: Props) {
 
   const userId = session.user?.id ?? ''
 
-  const [{ polls: allPolls, votesByPoll }, scheduledPolls, memberRoles] = await Promise.all([
+  const [{ polls: allPolls, votesByPoll }, scheduledPolls, memberRoles, freshDiscordGuild] = await Promise.all([
     getPollsAndVotes(guildId),
     getScheduledPolls(guildId),
     fetchMemberRoles(guildId, userId),
+    fetchDiscordGuild(guildId),
   ])
+
+  // Keep name and icon in sync with Discord — background KV update if anything changed
+  if (freshDiscordGuild) {
+    const freshIcon = freshDiscordGuild.icon ?? undefined
+    if (guild.guildName !== freshDiscordGuild.name || guild.guildIcon !== freshIcon) {
+      guild = { ...guild, guildName: freshDiscordGuild.name, guildIcon: freshIcon }
+      upsertGuild(guild).catch(() => {})
+    }
+  }
 
   const active        = allPolls.filter(p => !p.isClosed)
   const allClosed     = allPolls.filter(p => p.isClosed)
