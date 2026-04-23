@@ -67,6 +67,17 @@ export function userCanCreate(guild: Guild, userId: string, userRoleIds: string[
   return true // no creator roles configured = everyone can create
 }
 
+export async function isMemberOf(guildId: string, userId: string): Promise<boolean> {
+  if (!process.env.DISCORD_BOT_TOKEN) return true // can't verify without bot token — trust in prod
+  try {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      cache: 'no-store',
+    })
+    return res.ok
+  } catch { return false }
+}
+
 export async function fetchMemberRoles(guildId: string, userId: string): Promise<string[]> {
   if (!process.env.DISCORD_BOT_TOKEN) return []
   try {

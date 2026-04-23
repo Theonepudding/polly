@@ -1,11 +1,19 @@
 import { NextRequest } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes } from '@/lib/polls'
-
+import { isMemberOf } from '@/lib/guilds'
 
 type Params = { params: Promise<{ guildId: string; id: string }> }
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  const { id } = await params
+export async function GET(req: NextRequest, { params }: Params) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return new Response('Unauthorized', { status: 401 })
+
+  const { guildId, id } = await params
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isBotAdmin && !await isMemberOf(guildId, session.user.id))
+    return new Response('Forbidden', { status: 403 })
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()

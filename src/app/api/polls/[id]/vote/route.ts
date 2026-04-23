@@ -21,6 +21,8 @@ function bgDiscordUpdate(poll: Poll, votes: Vote[]) {
 }
 
 export async function GET(_: Request, { params }: Params) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   return NextResponse.json({ votes: await getVotes(id) })
 }

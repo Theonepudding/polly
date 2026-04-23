@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPolls, createPoll, updatePoll } from '@/lib/polls'
-import { getGuild, userCanCreate } from '@/lib/guilds'
+import { getGuild, userCanCreate, isMemberOf } from '@/lib/guilds'
 import { postPollToDiscord, postAuditLog, refreshDashboard } from '@/lib/discord-bot'
 import type { Poll } from '@/types'
 
@@ -10,9 +10,13 @@ type Params = { params: Promise<{ guildId: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { guildId } = await params
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isBotAdmin && !await isMemberOf(guildId, session.user.id))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const polls = await getPolls(guildId)
   return NextResponse.json({ polls })
 }

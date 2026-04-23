@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getScheduledPolls, createScheduledPoll } from '@/lib/scheduled-polls'
-import { getGuild, userCanCreate, fetchMemberRoles } from '@/lib/guilds'
+import { getGuild, userCanCreate, fetchMemberRoles, isMemberOf } from '@/lib/guilds'
 import { postAuditLog } from '@/lib/discord-bot'
 import type { ScheduledPoll } from '@/types'
 
@@ -12,6 +12,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { guildId } = await params
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isBotAdmin && !await isMemberOf(guildId, session.user.id))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const scheduledPolls = await getScheduledPolls(guildId)
   return NextResponse.json({ scheduledPolls })
 }
