@@ -116,10 +116,12 @@ export default async function DashboardPage() {
       !botGuildIds.includes(g.id) && (g.owner || !!(parseInt(g.permissions) & 0x20))
     ).slice(0, 6)
   } else {
-    // Discord API unavailable (rate limit / expired token) — fall back to KV-stored guilds
-    guildsWithMeta = kvGuilds
-      .filter(g => g.ownerId === session.user.id || effectiveBotIds.includes(g.guildId))
-      .map(g => ({ ...g, userIsAdmin: g.ownerId === session.user.id }))
+    // Discord API unavailable (rate limit / expired token).
+    // Bot admins can see all guilds; regular users see nothing rather than leaking all guilds.
+    const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+    guildsWithMeta = isBotAdmin
+      ? kvGuilds.map(g => ({ ...g, userIsAdmin: true }))
+      : []
   }
 
   if (guildsWithMeta.length === 1) redirect(`/dashboard/${guildsWithMeta[0].guildId}`)
