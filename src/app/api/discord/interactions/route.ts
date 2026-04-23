@@ -149,26 +149,31 @@ function buildModal(type: 's' | 'yn' | 'ts', customId: string, draft?: PollDraft
 function buildSettingsMessage(draft: PollDraft, id: string): object {
   const HOURS = [1, 2, 4, 6, 12]
   const DURS  = [1, 3, 7, 14, 30]
-  const opts  = draft.options.map((o, i) => `**${i + 1}.** ${o}`).join('\n')
-  const tsRow = draft.timeSlots.length ? `\n**Time slots (UTC):** ${draft.timeSlots.join(' · ')}` : ''
+  const opts  = draft.options.map((o, i) => `${i + 1}. ${o}`).join('\n')
+  const tsRow = draft.timeSlots.length ? `\n\nTime slots: ${draft.timeSlots.join(' · ')}` : ''
 
   const durLabel = draft.hoursOpen > 0
     ? `${draft.hoursOpen}h`
     : `${draft.daysOpen} day${draft.daysOpen !== 1 ? 's' : ''}`
 
+  const settingsLabel = [
+    draft.isAnonymous  ? 'Anonymous' : 'Public',
+    draft.allowMultiple ? 'Multi-choice' : 'Single vote',
+  ].join('  ·  ')
+
   return {
     flags: 64,
     embeds: [{
-      title: 'Review & Settings',
+      title: 'Review & Post',
       color: 0x6366F1,
       fields: [
-        { name: '❓ Question', value: draft.title, inline: false },
-        ...(draft.description ? [{ name: 'ℹ️ Details',  value: draft.description, inline: false }] : []),
-        { name: '🗳️ Options', value: opts + tsRow,  inline: false },
-        { name: '⏱️ Duration', value: durLabel, inline: true },
-        { name: '🔧 Settings', value: `${draft.isAnonymous ? '🔒 Anonymous' : '🔓 Public'}  ·  ${draft.allowMultiple ? '☑️ Multi-choice' : '☐ Single vote'}`, inline: true },
+        { name: 'Question', value: draft.title, inline: false },
+        ...(draft.description ? [{ name: 'Description', value: draft.description, inline: false }] : []),
+        { name: 'Options', value: opts + tsRow, inline: false },
+        { name: 'Duration', value: durLabel, inline: true },
+        { name: 'Settings', value: settingsLabel, inline: true },
       ],
-      footer: { text: 'Adjust duration below — expires if not posted within 30 min' },
+      footer: { text: 'Expires if not posted within 30 min' },
     }],
     components: [
       {
@@ -190,16 +195,16 @@ function buildSettingsMessage(draft: PollDraft, id: string): object {
       {
         type: 1,
         components: [
-          { type: 2, style: draft.isAnonymous   ? 1 : 2, label: draft.isAnonymous   ? '🔒 Anonymous: On'    : '🔓 Anonymous: Off',    custom_id: `poll:tog:anon:${id}`  },
-          { type: 2, style: draft.allowMultiple ? 1 : 2, label: draft.allowMultiple ? '☑️ Multi-choice: On' : '☐ Multi-choice: Off',  custom_id: `poll:tog:multi:${id}` },
+          { type: 2, style: draft.isAnonymous   ? 1 : 2, label: draft.isAnonymous   ? 'Anonymous: On'    : 'Anonymous: Off',   custom_id: `poll:tog:anon:${id}`  },
+          { type: 2, style: draft.allowMultiple ? 1 : 2, label: draft.allowMultiple ? 'Multi-choice: On' : 'Multi-choice: Off', custom_id: `poll:tog:multi:${id}` },
         ],
       },
       {
         type: 1,
         components: [
-          { type: 2, style: 2, label: '✏️ Edit',      custom_id: `poll:edit:${id}`   },
-          { type: 2, style: 4, label: '✕ Cancel',     custom_id: `poll:cancel:${id}` },
-          { type: 2, style: 3, label: '🚀 Post Poll', custom_id: `poll:create:${id}` },
+          { type: 2, style: 2, label: 'Edit',      custom_id: `poll:edit:${id}`   },
+          { type: 2, style: 4, label: 'Cancel',    custom_id: `poll:cancel:${id}` },
+          { type: 2, style: 3, label: 'Post Poll', custom_id: `poll:create:${id}` },
         ],
       },
     ],
