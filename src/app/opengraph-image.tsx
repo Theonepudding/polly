@@ -37,17 +37,6 @@ export default function OGImage() {
           padding: '0 60px 0 100px', flex: 1,
         }}>
 
-          {/* Logo mark */}
-          <div style={{
-            width: 90, height: 90, borderRadius: 24,
-            background: 'rgba(99,102,241,0.20)',
-            border: '2.5px solid rgba(99,102,241,0.55)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 40,
-          }}>
-            <span style={{ fontSize: 52, fontWeight: 900, color: '#818cf8', lineHeight: 1 }}>P</span>
-          </div>
-
           {/* Wordmark */}
           <div style={{
             fontSize: 110, fontWeight: 900, color: '#eeeeff',
