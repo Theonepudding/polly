@@ -30,9 +30,16 @@ export const metadata: Metadata = {
     other: { rel: 'manifest', url: '/site.webmanifest' },
   },
   openGraph: {
+    type: 'website',
     title: 'Polly — Discord Poll Bot',
     description: 'Create, share, and track polls across your Discord servers.',
     images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Polly — Discord Poll Bot' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Polly — Discord Poll Bot',
+    description: 'Create, share, and track polls across your Discord servers.',
+    images: ['/opengraph-image'],
   },
 }
 
