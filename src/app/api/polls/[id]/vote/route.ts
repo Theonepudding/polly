@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getPoll, getVotes, castVote } from '@/lib/polls'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
-import { fetchMemberNick } from '@/lib/guilds'
+import { fetchMemberNick, isMemberOf } from '@/lib/guilds'
 import type { Poll, Vote } from '@/types'
 
 type Params = { params: Promise<{ id: string }> }
@@ -36,6 +36,10 @@ export async function POST(req: Request, { params }: Params) {
   if (!poll) return NextResponse.json({ error: 'Poll not found' }, { status: 404 })
   if (poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date()))
     return NextResponse.json({ error: 'Poll is closed' }, { status: 400 })
+
+  const isBotAdmin = !!(session.user as { isBotAdmin?: boolean }).isBotAdmin
+  if (!isBotAdmin && !await isMemberOf(poll.guildId, session.user.id))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body     = await req.json()
   const optionIds: string[] = poll.allowMultiple

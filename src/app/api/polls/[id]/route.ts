@@ -8,6 +8,8 @@ import { getGuild } from '@/lib/guilds'
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_: Request, { params }: Params) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const poll   = await getPoll(id)
   if (!poll) return NextResponse.json({ error: 'Not found' }, { status: 404 })
