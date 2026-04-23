@@ -16,10 +16,6 @@ import ClosedPollCard from '@/components/ClosedPollCard'
 
 export const dynamic = 'force-dynamic'
 
-const BOT_INVITE_URL = process.env.DISCORD_CLIENT_ID
-  ? `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=274878024704&scope=bot%20applications.commands`
-  : '#'
-
 interface Props { params: Promise<{ guildId: string }> }
 
 async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string; system_channel_id?: string } | null> {

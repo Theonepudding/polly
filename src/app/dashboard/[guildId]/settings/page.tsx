@@ -258,175 +258,109 @@ export default function SettingsPage() {
             <div className="h-px flex-1 bg-p-border" />
           </div>
 
-          {/* Announcement Channel */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Hash size={15} className="text-p-primary" />
-              <h2 className="font-display font-semibold text-p-text">Announcement Channel</h2>
-              <span className="text-p-warning text-xs ml-auto">Required</span>
-            </div>
-            <p className="text-p-muted text-sm mb-4">
-              Polls are posted here as Discord messages with voting buttons.
-            </p>
+          <div className="card p-5">
+            <div className="flex flex-col divide-y divide-p-border/50">
 
-            {/* Discord embed preview */}
-            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
-                  <span className="text-white font-bold text-[9px]">P</span>
+              {/* Announcement Channel */}
+              <div className="pb-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Hash size={13} className="text-p-primary shrink-0" />
+                  <span className="font-semibold text-sm text-p-text">Announcement Channel</span>
+                  <span className="text-p-warning text-xs ml-auto">Required</span>
                 </div>
-                <span className="text-white font-semibold">Polly</span>
-                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
+                <p className="text-p-muted text-xs mb-2 pl-5">Polls are posted here as Discord messages with voting buttons.</p>
+                <select
+                  value={config.announceChannelId ?? ''}
+                  onChange={e => updateConfig({ ...config, announceChannelId: e.target.value || null })}
+                  className="input">
+                  <option value="">— None —</option>
+                  {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                </select>
               </div>
-              <div className="flex gap-0">
-                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
-                <div className="flex-1 py-1 pr-3">
-                  <div className="text-white font-bold mb-1">Raid Night: Friday or Saturday?</div>
-                  <div className="text-[#b5bac1] mb-2">Vote closes in 2 days</div>
-                  <div className="space-y-1 mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded bg-[#2f3136]"><div className="h-full w-3/5 bg-[#6366f1] rounded" /></div>
-                      <span className="text-[#b5bac1] w-8 text-right">60%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded bg-[#2f3136]"><div className="h-full w-2/5 bg-[#6366f1] rounded" /></div>
-                      <span className="text-[#b5bac1] w-8 text-right">40%</span>
-                    </div>
-                  </div>
+
+              {/* Guide Channel */}
+              <div className="py-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen size={13} className="text-p-primary shrink-0" />
+                  <span className="font-semibold text-sm text-p-text">Guide Channel</span>
+                  <span className="text-p-muted text-xs ml-auto">Optional</span>
                 </div>
-              </div>
-              <div className="flex gap-2 px-3 pb-3">
-                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">Friday</div>
-                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">Saturday</div>
-              </div>
-            </div>
-
-            <select
-              value={config.announceChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, announceChannelId: e.target.value || null })}
-              className="input">
-              <option value="">— None —</option>
-              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
-            </select>
-          </div>
-
-          {/* Guide Channel */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpen size={15} className="text-p-primary" />
-              <h2 className="font-display font-semibold text-p-text">Guide Channel</h2>
-              <span className="text-p-muted text-xs ml-auto">Optional</span>
-            </div>
-            <p className="text-p-muted text-sm mb-4">
-              Polly posts a pinned how-to guide in this channel. Good for a dedicated <span className="font-mono text-p-text text-xs">#polls</span> or <span className="font-mono text-p-text text-xs">#bot-info</span> channel.
-            </p>
-
-            {/* Guide preview */}
-            <div className="mb-4 rounded-lg border border-p-border bg-p-surface-2 px-4 py-3 text-xs text-p-muted space-y-1">
-              <p className="font-semibold text-p-text">Posts 3 pinned visual embeds:</p>
-              <p>🗳️ <span className="text-p-text">How it Works</span> — voting buttons, live results</p>
-              <p>📋 <span className="text-p-text">Poll Modes</span> — anonymous, multi-choice, ghost, time slots</p>
-              <p>✏️ <span className="text-p-text">Creating Polls</span> — /poll command, button, web dashboard</p>
-            </div>
-
-            <select
-              value={config.pollyChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, pollyChannelId: e.target.value || null })}
-              className="input mb-3">
-              <option value="">— None —</option>
-              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
-            </select>
-
-            {config.pollyChannelId && (
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={postGuide} disabled={guideStatus === 'posting'}
-                  className="btn-secondary text-sm">
-                  {guideStatus === 'posting' ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
-                  Post / Refresh Guide
-                </button>
-                {guideStatus === 'ok' && (
-                  <span className="flex items-center gap-1.5 text-p-success text-xs">
-                    <CheckCircle2 size={13} /> Posted and pinned!
-                  </span>
-                )}
-                {guideStatus === 'fail' && (
-                  <span className="flex items-center gap-1.5 text-p-warning text-xs">
-                    <AlertCircle size={13} /> Failed — check bot permissions.
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Polly Status */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap size={15} className="text-p-accent" />
-              <h2 className="font-display font-semibold text-p-text">Polly Status Embed</h2>
-              <span className="text-p-muted text-xs ml-auto">Optional</span>
-            </div>
-            <p className="text-p-muted text-sm mb-4">
-              A live message listing all active polls with buttons to create polls and open the dashboard.
-            </p>
-
-            {/* Discord embed preview */}
-            <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-[#1e1f22] text-xs">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                <div className="w-6 h-6 rounded-full bg-[#5865f2] flex items-center justify-center shrink-0">
-                  <span className="text-white font-bold text-[9px]">P</span>
-                </div>
-                <span className="text-white font-semibold">Polly</span>
-                <span className="text-[10px] bg-[#5865f2] text-white rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide">APP</span>
-              </div>
-              <div className="flex gap-0">
-                <div className="w-1 bg-[#6366f1] shrink-0 mx-3 my-1 rounded" />
-                <div className="flex-1 py-1 pr-3">
-                  <div className="text-white font-bold mb-2">Your Server — Polls</div>
-                  <div className="text-[#b5bac1] mb-0.5"><span className="text-[#6366f1]">Raid Night: Friday or Saturday?</span> · closes in 2d</div>
-                  <div className="text-[#b5bac1] mb-0.5"><span className="text-[#6366f1]">Movie Night pick</span> · closes in 5d</div>
-                  <div className="text-[#72767d] mt-1.5">2 active polls · Polly</div>
+                <p className="text-p-muted text-xs mb-2 pl-5">
+                  Polly posts a pinned how-to guide here. Good for a <span className="font-mono text-p-text">#polls</span> or <span className="font-mono text-p-text">#bot-info</span> channel.
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={config.pollyChannelId ?? ''}
+                    onChange={e => updateConfig({ ...config, pollyChannelId: e.target.value || null })}
+                    className="input flex-1 min-w-0">
+                    <option value="">— None —</option>
+                    {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                  </select>
+                  {config.pollyChannelId && (
+                    <button type="button" onClick={postGuide} disabled={guideStatus === 'posting'}
+                      className="btn-secondary text-sm shrink-0">
+                      {guideStatus === 'posting' ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
+                      Post / Refresh
+                    </button>
+                  )}
+                  {guideStatus === 'ok' && (
+                    <span className="flex items-center gap-1.5 text-p-success text-xs w-full pl-5">
+                      <CheckCircle2 size={13} /> Posted and pinned!
+                    </span>
+                  )}
+                  {guideStatus === 'fail' && (
+                    <span className="flex items-center gap-1.5 text-p-warning text-xs w-full pl-5">
+                      <AlertCircle size={13} /> Failed — check bot permissions.
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex gap-2 px-3 pb-3">
-                <div className="rounded px-3 py-1 bg-[#5865f2] text-white">➕ Create Poll</div>
-                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">📋 View All</div>
-                <div className="rounded px-3 py-1 bg-[#4e5058] text-[#dbdee1]">⚙️ Dashboard</div>
+
+              {/* Polly Status Embed */}
+              <div className="py-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap size={13} className="text-p-accent shrink-0" />
+                  <span className="font-semibold text-sm text-p-text">Polly Status Embed</span>
+                  <span className="text-p-muted text-xs ml-auto">Optional</span>
+                </div>
+                <p className="text-p-muted text-xs mb-2 pl-5">
+                  A live message listing all active polls with buttons to create polls and open the dashboard.
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={config.dashboardChannelId ?? ''}
+                    onChange={e => updateConfig({ ...config, dashboardChannelId: e.target.value || null })}
+                    className="input flex-1 min-w-0">
+                    <option value="">— None —</option>
+                    {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                  </select>
+                  {config.dashboardChannelId && (
+                    <button type="button" onClick={setupDashboard} className="btn-accent text-sm shrink-0" disabled={saving}>
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                      Post / Refresh
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Audit Log */}
+              <div className="pt-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Hash size={13} className="text-p-muted shrink-0" />
+                  <span className="font-semibold text-sm text-p-text">Audit Log</span>
+                  <span className="text-p-muted text-xs ml-auto">Optional</span>
+                </div>
+                <p className="text-p-muted text-xs mb-2 pl-5">Poll creation, closing, and deletion are logged here. Leave empty to disable.</p>
+                <select
+                  value={config.auditLogChannelId ?? ''}
+                  onChange={e => updateConfig({ ...config, auditLogChannelId: e.target.value || null })}
+                  className="input">
+                  <option value="">— None (disabled) —</option>
+                  {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                </select>
+              </div>
+
             </div>
-
-            <select
-              value={config.dashboardChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, dashboardChannelId: e.target.value || null })}
-              className="input mb-4">
-              <option value="">— None —</option>
-              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
-            </select>
-
-            {config.dashboardChannelId && (
-              <button type="button" onClick={setupDashboard} className="btn-accent text-sm" disabled={saving}>
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                Post / Refresh Polly Status
-              </button>
-            )}
-          </div>
-
-          {/* Audit Log */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Hash size={15} className="text-p-muted" />
-              <h2 className="font-display font-semibold text-p-text">Audit Log Channel</h2>
-              <span className="text-p-muted text-xs ml-auto">Optional</span>
-            </div>
-            <p className="text-p-muted text-sm mb-4">
-              Polly logs poll creation, closing, and deletion here. Leave empty to disable.
-            </p>
-            <select
-              value={config.auditLogChannelId ?? ''}
-              onChange={e => updateConfig({ ...config, auditLogChannelId: e.target.value || null })}
-              className="input">
-              <option value="">— None (disabled) —</option>
-              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
-            </select>
           </div>
 
           {/* ── Bot ──────────────────────────────────────────────────────── */}
