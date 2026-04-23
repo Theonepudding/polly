@@ -3,11 +3,11 @@ import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getPollsAndVotes } from '@/lib/polls'
 import { getScheduledPolls } from '@/lib/scheduled-polls'
-import { getGuild, upsertGuild, userCanManage, userCanCreate } from '@/lib/guilds'
+import { getGuild, upsertGuild, userCanManage, userCanCreate, isMemberOf } from '@/lib/guilds'
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
-import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle } from 'lucide-react'
 import PollCard from '@/components/PollCard'
 import ActivePollsList from '@/components/ActivePollsList'
 import CreatePollModal from '@/components/CreatePollModal'
@@ -63,6 +63,9 @@ export default async function GuildDashboardPage({ params }: Props) {
   const { guildId } = await params
   const session = await getServerSession(authOptions)
   if (!session) redirect('/')
+
+  const isBotAdmin = !!session.user.isBotAdmin
+  if (!isBotAdmin && !await isMemberOf(guildId, session.user.id)) notFound()
 
   let guild = await getGuild(guildId)
 
@@ -138,11 +141,6 @@ export default async function GuildDashboardPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={`${BOT_INVITE_URL}`} target="_blank" rel="noopener noreferrer"
-            className="btn-ghost text-sm">
-            <ExternalLink size={14} />
-            Add server
-          </a>
           <Link href={`/dashboard/${guildId}/scheduled-polls`} className="btn-ghost text-sm">
             <Clock size={14} />
             Scheduled
