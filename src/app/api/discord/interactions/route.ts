@@ -299,7 +299,7 @@ export async function POST(req: NextRequest) {
     const member             = body.member   as Record<string, unknown> | undefined
     const user               = (member?.user ?? body.user) as Record<string, unknown> | undefined
     const userId             = user?.id as string
-    const username           = (member?.nick ?? user?.username ?? 'Unknown') as string
+    const username           = (member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown') as string
     // Present on component interactions — the message the button lives on
     const interactionMessage   = body.message as Record<string, unknown> | undefined
     const interactionMessageId = interactionMessage?.id as string | undefined
