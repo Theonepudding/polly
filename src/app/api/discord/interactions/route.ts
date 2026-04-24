@@ -118,9 +118,9 @@ function buildPollModal(guildId: string, draft?: PollDraft): object {
     custom_id: `poll:modal:${guildId}`,
     components: [
       { type: 1, components: [{ type: 4, custom_id: 't', label: 'Question', style: 1, required: true, max_length: 120, placeholder: 'e.g. Which day for the raid?', ...(draft?.title ? { value: draft.title } : {}) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options  (one per line — leave blank for Yes / No)', style: 2, required: false, max_length: 600, placeholder: 'Option A\nOption B\nOption C', ...(!isYN && draft?.options.length ? { value: draft.options.join('\n') } : {}) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots  (optional, comma-separated)', style: 1, required: false, max_length: 200, placeholder: '20:00, 21:00  or  Morning, Afternoon, Evening', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description  (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options (one per line, blank = Yes/No)', style: 2, required: false, max_length: 600, placeholder: 'Option A\nOption B\nOption C', ...(!isYN && draft?.options.length ? { value: draft.options.join('\n') } : {}) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots (optional, comma-separated)', style: 1, required: false, max_length: 200, placeholder: '20:00, 21:00  or  Morning, Afternoon, Evening', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] },
     ],
   }
 }
