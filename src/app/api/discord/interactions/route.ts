@@ -313,13 +313,7 @@ export async function POST(req: NextRequest) {
       log('slash command', { cmd, guildId })
 
       if (cmd === 'poll') {
-        if (guildId) {
-          const guild = await getGuild(guildId)
-          const userRoles = (member?.roles as string[]) ?? []
-          if (guild && !userCanCreate(guild, userId, userRoles)) {
-            return Response.json({ type: 4, data: { content: 'You don\'t have permission to create polls on this server.', flags: 64 } })
-          }
-        }
+        // Respond immediately — permission check happens at modal submit to stay within 3s timeout
         return Response.json({ type: 9, data: buildPollModal(guildId ?? '') })
       }
 
@@ -361,6 +355,14 @@ export async function POST(req: NextRequest) {
       // ── Poll modal: poll:modal:{guildId} ─────────────────────────────────
       if (customId.startsWith('poll:modal:')) {
         const pGuildId = customId.split(':')[2] || guildId || ''
+
+        if (pGuildId) {
+          const guild = await getGuild(pGuildId)
+          const userRoles = (member?.roles as string[]) ?? []
+          if (guild && !userCanCreate(guild, userId, userRoles)) {
+            return Response.json({ type: 4, data: { content: '❌ You don\'t have permission to create polls on this server.', flags: 64 } })
+          }
+        }
 
         const title = get('t').trim()
         if (!title) return Response.json({ type: 4, data: { content: '❌ A question is required.', flags: 64 } })
