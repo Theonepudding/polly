@@ -75,6 +75,7 @@ interface PollDraft {
   description:   string
   options:       string[]
   timeSlots:     string[]
+  utcOffset?:    string   // raw timezone input from modal, e.g. "+1", "EST"
   isAnonymous:   boolean
   allowMultiple: boolean
   daysOpen:      number
@@ -109,6 +110,49 @@ async function getTok(key: string): Promise<string | null> {
 
 function draftId(): string { return Math.random().toString(36).slice(2, 8) }
 
+// ─── Timezone helpers ─────────────────────────────────────────────────────────
+
+function parseUTCOffset(raw: string): number {
+  const s = raw.trim().toUpperCase()
+  const abbrevs: Record<string, number> = {
+    UTC: 0, GMT: 0,
+    EST: -300, EDT: -240, CST: -360, CDT: -300,
+    MST: -420, MDT: -360, PST: -480, PDT: -420,
+    CET: 60, CEST: 120, EET: 120, EEST: 180,
+    BST: 60, IST: 330, JST: 540, AEST: 600, AEDT: 660, NZST: 720,
+  }
+  if (abbrevs[s] !== undefined) return abbrevs[s]
+  const m = s.match(/^(?:UTC|GMT)?([+-]?\d{1,2})(?::(\d{2}))?$/)
+  if (m) {
+    const neg = m[1].startsWith('-')
+    const hrs = Math.abs(parseInt(m[1]))
+    const mins = m[2] ? parseInt(m[2]) : 0
+    return (neg ? -1 : 1) * (hrs * 60 + mins)
+  }
+  return 0
+}
+
+// Converts "20:00" / "8pm" / "8:30pm" + UTC offset to a Unix timestamp.
+// Uses today; bumps to tomorrow if the time is more than 1 hour in the past.
+function timeSlotToUnix(slot: string, offsetMinutes: number): number | null {
+  const s = slot.trim()
+  let h = -1, m = 0
+  const m24 = s.match(/^(\d{1,2}):(\d{2})$/)
+  const m12 = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i)
+  if (m24) { h = parseInt(m24[1]); m = parseInt(m24[2]) }
+  else if (m12) {
+    h = parseInt(m12[1]) % 12
+    m = m12[2] ? parseInt(m12[2]) : 0
+    if (m12[3].toLowerCase() === 'pm') h += 12
+  }
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null
+  const now = new Date()
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  let unixMs = todayUTC + (h * 60 + m - offsetMinutes) * 60_000
+  if (unixMs < Date.now() - 3_600_000) unixMs += 86_400_000 // bump to tomorrow if past
+  return Math.floor(unixMs / 1000)
+}
+
 // ─── Guided poll UI builders ──────────────────────────────────────────────────
 
 function buildPollModal(guildId: string, draft?: PollDraft): object {
@@ -119,7 +163,8 @@ function buildPollModal(guildId: string, draft?: PollDraft): object {
     components: [
       { type: 1, components: [{ type: 4, custom_id: 't', label: 'Question', style: 1, required: true, max_length: 120, placeholder: 'e.g. Which day for the raid?', ...(draft?.title ? { value: draft.title } : {}) }] },
       { type: 1, components: [{ type: 4, custom_id: 'o', label: 'Options (one per line, blank = Yes/No)', style: 2, required: false, max_length: 600, placeholder: 'Option A\nOption B\nOption C', ...(!isYN && draft?.options.length ? { value: draft.options.join('\n') } : {}) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots (optional, comma-separated)', style: 1, required: false, max_length: 200, placeholder: '20:00, 21:00  or  Morning, Afternoon, Evening', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join(', ') } : {}) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'ts', label: 'Time slots (one per line, your local time)', style: 2, required: false, max_length: 200, placeholder: '20:00\n21:00\n22:00', ...(draft?.timeSlots.length ? { value: draft.timeSlots.join('\n') } : {}) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'tz', label: 'Your timezone (for time slots only)', style: 1, required: false, max_length: 10, placeholder: 'e.g. UTC+1, +2, -5, EST, PST', ...(draft?.utcOffset ? { value: draft.utcOffset } : {}) }] },
       { type: 1, components: [{ type: 4, custom_id: 'd', label: 'Description (optional)', style: 2, required: false, max_length: 300, ...(draft?.description ? { value: draft.description } : {}) }] },
     ],
   }
@@ -164,7 +209,7 @@ function buildSettingsMessage(draft: PollDraft, id: string): object {
         draft.description ? `*${draft.description}*` : null,
         '',
         opts,
-        draft.timeSlots.length ? `\n⏰ Time slots: ${draft.timeSlots.join(' · ')}` : null,
+        draft.timeSlots.length ? `\n⏰ Time slots: ${draft.timeSlots.join(' · ')}${draft.utcOffset ? ` (${draft.utcOffset})` : ''}` : null,
       ].filter(l => l !== null).join('\n'),
       fields: [
         { name: 'Duration', value: durLabel, inline: true },
@@ -207,7 +252,19 @@ function buildSettingsMessage(draft: PollDraft, id: string): object {
 // ─── Create poll from draft ───────────────────────────────────────────────────
 
 async function createFromDraft(draft: PollDraft): Promise<{ poll: Poll; posted: boolean }> {
-  const options  = draft.options.map((text, i) => ({ id: `opt-${i}`, text }))
+  // For time slot polls, convert raw times → Discord timestamps so every voter
+  // sees the time in their own local timezone.
+  let resolvedOptions: string[]
+  if (draft.pollType === 'ts' && draft.timeSlots.length > 0) {
+    const offsetMins = draft.utcOffset ? parseUTCOffset(draft.utcOffset) : 0
+    resolvedOptions = draft.timeSlots.map(slot => {
+      const unix = timeSlotToUnix(slot, offsetMins)
+      return unix !== null ? `<t:${unix}:t>` : slot
+    })
+  } else {
+    resolvedOptions = draft.options
+  }
+  const options = resolvedOptions.map((text, i) => ({ id: `opt-${i}`, text }))
   const closesAt = new Date()
   if (draft.hoursOpen > 0) {
     closesAt.setTime(closesAt.getTime() + draft.hoursOpen * 60 * 60 * 1000)
@@ -369,13 +426,14 @@ export async function POST(req: NextRequest) {
 
         const rawOptions = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 6)
         const options    = rawOptions.length >= 2 ? rawOptions : ['Yes', 'No']
-        const timeSlots  = get('ts').split(',').map(t => t.trim()).filter(Boolean).slice(0, 5)
+        const timeSlots  = get('ts').split('\n').map(t => t.trim()).filter(Boolean).slice(0, 5)
+        const utcOffset  = get('tz').trim() || undefined
         const pollType: 's' | 'yn' | 'ts' = timeSlots.length > 0 ? 'ts' : rawOptions.length >= 2 ? 's' : 'yn'
 
         const id    = draftId()
         const draft: PollDraft = {
           guildId: pGuildId, userId, username, pollType,
-          title, description: get('d').trim(), options, timeSlots,
+          title, description: get('d').trim(), options, timeSlots, utcOffset,
           isAnonymous: false, allowMultiple: false, daysOpen: 7, hoursOpen: 0,
         }
         await saveDraft(id, draft)
@@ -394,12 +452,13 @@ export async function POST(req: NextRequest) {
         if (!title) return Response.json({ type: 4, data: { content: '❌ A question is required.', flags: 64 } })
 
         const rawOptions = get('o').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 6)
-        const timeSlots  = get('ts').split(',').map(t => t.trim()).filter(Boolean).slice(0, 5)
+        const timeSlots  = get('ts').split('\n').map(t => t.trim()).filter(Boolean).slice(0, 5)
 
         draft.title       = title
         draft.description = get('d').trim()
         draft.options     = rawOptions.length >= 2 ? rawOptions : ['Yes', 'No']
         draft.timeSlots   = timeSlots
+        draft.utcOffset   = get('tz').trim() || undefined
         draft.pollType    = timeSlots.length > 0 ? 'ts' : rawOptions.length >= 2 ? 's' : 'yn'
         await saveDraft(id, draft)
 
