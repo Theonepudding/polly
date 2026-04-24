@@ -729,7 +729,7 @@ export async function POST(req: NextRequest) {
         if (guild && !userCanCreate(guild, userId, userRoles)) {
           return Response.json({ type: 4, data: { content: '❌ You don\'t have permission to create polls on this server.', flags: 64 } })
         }
-        return Response.json({ type: 4, data: buildTypeSelectMessage(dgId) })
+        return Response.json({ type: 9, data: buildPollModal(dgId) })
       }
 
       // ── Dashboard: list polls ─────────────────────────────────────────────
