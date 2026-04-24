@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { getKV } from '@/lib/kv'
 
-export const runtime = 'edge'
 
 interface PollDraft {
   title: string
