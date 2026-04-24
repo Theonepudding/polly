@@ -117,7 +117,7 @@ function buildTypePicker(guildId: string): object {
     flags: 64,
     embeds: [{
       title: '🗳️  Create a Poll',
-      description: 'What kind of poll would you like to create?\n\n**✓ Yes / No** — simple for/against vote\n**📝 Multiple choice** — up to 6 custom options\n\nFor time-slot scheduling, use the [web dashboard](https://polly.pudding.vip).',
+      description: 'What kind of poll would you like to create?\n\n**✓ Yes / No** — simple for/against vote\n**📝 Multiple choice** — up to 6 custom options\n**📅 Schedule** — full scheduling poll on the website (no login needed)',
       color: 0x6366F1,
     }],
     components: [{
@@ -125,6 +125,7 @@ function buildTypePicker(guildId: string): object {
       components: [
         { type: 2, style: 1, label: '✓  Yes / No',       custom_id: `poll:yn:${guildId}`    },
         { type: 2, style: 2, label: '📝  Multiple choice', custom_id: `poll:multi:${guildId}` },
+        { type: 2, style: 2, label: '📅  Schedule',        custom_id: `poll:web:${guildId}`   },
       ],
     }],
   }
@@ -462,6 +463,20 @@ export async function POST(req: NextRequest) {
       if (customId.startsWith('poll:multi:')) {
         const gId = customId.slice('poll:multi:'.length)
         return Response.json({ type: 9, data: modalMulti(gId) })
+      }
+
+      // ── Schedule button → generate magic token, return one-click link ────
+      if (customId.startsWith('poll:web:')) {
+        const gId     = customId.slice('poll:web:'.length)
+        const token   = crypto.randomUUID()
+        const siteUrl = process.env.NEXTAUTH_URL ?? 'https://polly.pudding.vip'
+        const kv      = await getKV()
+        if (kv) await kv.put(`magic:${token}`, JSON.stringify({ userId, guildId: gId, username }), { expirationTtl: 600 })
+        return Response.json({ type: 4, data: {
+          flags: 64,
+          embeds: [{ description: '✨ Your link is ready — click below to create your poll.\nExpires in **10 minutes** and works once.', color: 0x6366F1 }],
+          components: [{ type: 1, components: [{ type: 2, style: 5, label: '📅  Create Schedule Poll', url: `${siteUrl}/create?token=${token}` }] }],
+        }})
       }
 
       // ── Poll: duration — select menu ─────────────────────────────────────
