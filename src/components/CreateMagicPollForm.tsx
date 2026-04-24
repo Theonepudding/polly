@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Clock, Lock, Users, Send } from 'lucide-react'
 
 interface Props {
-  token:     string
-  guildId:   string
-  guildName: string
-  username:  string
+  token:       string
+  guildId:     string
+  guildName:   string
+  username:    string
+  defaultType: 'yn' | 'multi' | 'ts'
 }
 
 const DURATION_OPTIONS = [
@@ -23,13 +24,13 @@ const DURATION_OPTIONS = [
   { label: '14 days',  hours: 336 },
 ]
 
-export default function CreateMagicPollForm({ token, guildId, guildName, username }: Props) {
+export default function CreateMagicPollForm({ token, guildId, guildName, username, defaultType }: Props) {
   const router   = useRouter()
   const [title,         setTitle]         = useState('')
   const [description,   setDescription]   = useState('')
   const [options,       setOptions]       = useState(['', '', ''])
   const [timeSlots,     setTimeSlots]     = useState(['', '', ''])
-  const [pollType,      setPollType]      = useState<'yn' | 'multi' | 'ts'>('multi')
+  const [pollType,      setPollType]      = useState<'yn' | 'multi' | 'ts'>(defaultType)
   const [durationHours, setDurationHours] = useState(168)
   const [isAnonymous,   setIsAnonymous]   = useState(false)
   const [allowMultiple, setAllowMultiple] = useState(false)

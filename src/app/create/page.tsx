@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props { searchParams: Promise<{ token?: string }> }
 
-interface MagicTokenData { userId: string; guildId: string; username: string }
+interface MagicTokenData { userId: string; guildId: string; username: string; pollType?: 'yn' | 'multi' | 'ts' }
 
 export default async function CreatePage({ searchParams }: Props) {
   const { token } = await searchParams
@@ -60,6 +60,7 @@ export default async function CreatePage({ searchParams }: Props) {
             guildId={data.guildId}
             guildName={guildName}
             username={data.username}
+            defaultType={data.pollType ?? 'multi'}
           />
         </div>
 
