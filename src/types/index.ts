@@ -13,6 +13,8 @@ export interface Guild {
   dashboardChannelId?: string
   dashboardMessageId?: string
   auditLogChannelId?: string
+  announceWinner?: boolean   // post winner line when poll closes (default true)
+  pollColor?: string         // hex color for poll embeds e.g. "#6366f1"
   createdAt: string
   updatedAt: string
 }
@@ -54,6 +56,7 @@ export interface Poll {
   overrideChannelId?: string
   reminderSent?: boolean
   lastReminderAt?: string  // ISO — manual reminder cooldown
+  embedColor?: number      // Discord integer color, baked in at creation from guild.pollColor
 }
 
 export interface Vote {

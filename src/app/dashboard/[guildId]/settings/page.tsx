@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import {
   Save, Loader2, Zap, Hash, Users, Shield, BookOpen, CheckCircle2,
-  AlertCircle, Terminal, Trash2, AlertTriangle, PenLine, RefreshCw,
+  AlertCircle, Terminal, Trash2, AlertTriangle, PenLine, RefreshCw, Trophy, Palette,
 } from 'lucide-react'
 
 interface Channel { id: string; name: string; type: number }
@@ -20,6 +20,8 @@ interface GuildConfig {
   adminRoleIds: string[]
   creatorRoleIds: string[]
   voterRoleIds: string[]
+  announceWinner?: boolean
+  pollColor?: string
 }
 
 // Sentinel stored in creatorRoleIds / voterRoleIds to mean "explicitly restricted — nobody can do this"
@@ -397,6 +399,75 @@ export default function SettingsPage() {
                   <AlertCircle size={13} /> Failed — check DISCORD_BOT_TOKEN.
                 </span>
               )}
+            </div>
+          </div>
+
+          {/* ── Behaviour ─────────────────────────────────────────────────── */}
+          <div className="flex items-center gap-3 mt-2">
+            <div className="h-px flex-1 bg-p-border" />
+            <span className="text-p-subtle text-xs font-semibold uppercase tracking-widest">Behaviour</span>
+            <div className="h-px flex-1 bg-p-border" />
+          </div>
+
+          <div className="card p-5">
+            <div className="flex flex-col divide-y divide-p-border/50">
+
+              {/* Announce winner */}
+              <div className="pb-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <Trophy size={13} className="text-p-warning shrink-0" />
+                      <span className="font-semibold text-sm text-p-text">Announce Winner</span>
+                    </div>
+                    <p className="text-p-muted text-xs pl-5">Show the winning option when a poll closes.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateConfig({ ...config, announceWinner: !(config.announceWinner ?? true) })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                      (config.announceWinner ?? true) ? 'bg-p-primary' : 'bg-p-surface-2'
+                    }`}
+                  >
+                    <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      (config.announceWinner ?? true) ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Poll embed color */}
+              <div className="pt-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Palette size={13} className="text-p-accent shrink-0" />
+                  <span className="font-semibold text-sm text-p-text">Poll Embed Color</span>
+                  <span className="text-p-muted text-xs ml-auto">Optional</span>
+                </div>
+                <p className="text-p-muted text-xs mb-3 pl-5">Accent color for poll embeds in Discord. Leave empty for the default indigo.</p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={config.pollColor ?? '#6366f1'}
+                    onChange={e => updateConfig({ ...config, pollColor: e.target.value })}
+                    className="w-10 h-9 rounded cursor-pointer border border-p-border bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={config.pollColor ?? ''}
+                    onChange={e => updateConfig({ ...config, pollColor: e.target.value || undefined })}
+                    placeholder="#6366f1"
+                    className="input w-32 text-sm font-mono"
+                    maxLength={7}
+                  />
+                  {config.pollColor && (
+                    <button type="button" onClick={() => updateConfig({ ...config, pollColor: undefined })}
+                      className="btn-ghost text-xs py-1 px-2.5 min-h-0 h-7 text-p-muted">
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
 

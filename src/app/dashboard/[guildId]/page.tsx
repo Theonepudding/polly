@@ -7,7 +7,7 @@ import { getGuild, upsertGuild, userCanManage, userCanCreate, isMemberOf } from 
 import { sendWelcomeMessage } from '@/lib/discord-bot'
 import type { Guild } from '@/types'
 import Link from 'next/link'
-import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle } from 'lucide-react'
+import { Settings, Clock, BarChart3, CheckCircle2, Circle, AlertTriangle, Users, ShieldCheck } from 'lucide-react'
 import PollCard from '@/components/PollCard'
 import ActivePollsList from '@/components/ActivePollsList'
 import CreatePollModal from '@/components/CreatePollModal'
@@ -18,10 +18,10 @@ export const dynamic = 'force-dynamic'
 
 interface Props { params: Promise<{ guildId: string }> }
 
-async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string; system_channel_id?: string } | null> {
+async function fetchDiscordGuild(guildId: string): Promise<{ name: string; icon?: string; system_channel_id?: string; approximate_member_count?: number } | null> {
   if (!process.env.DISCORD_BOT_TOKEN) return null
   try {
-    const res = await fetch(`https://discord.com/api/guilds/${guildId}`, {
+    const res = await fetch(`https://discord.com/api/guilds/${guildId}?with_counts=true`, {
       headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
       cache: 'no-store',
     })
@@ -152,6 +152,12 @@ export default async function GuildDashboardPage({ params }: Props) {
             Scheduled
           </Link>
           {canManage && (
+            <Link href={`/dashboard/${guildId}/audit-log`} className="btn-ghost text-sm">
+              <ShieldCheck size={14} />
+              Audit Log
+            </Link>
+          )}
+          {canManage && (
             <Link href={`/dashboard/${guildId}/settings`} className="btn-secondary text-sm">
               <Settings size={14} />
               Settings
@@ -183,8 +189,17 @@ export default async function GuildDashboardPage({ params }: Props) {
         {[
           { label: 'Active',    value: active.length,               icon: Circle,       color: 'text-p-success', bg: 'bg-p-success/10',  href: null },
           { label: 'Total',     value: allPolls.length,              icon: BarChart3,    color: 'text-p-primary', bg: 'bg-p-primary-b',    href: null },
-          { label: 'Closed',    value: allClosed.length,             icon: CheckCircle2, color: 'text-p-muted',   bg: 'bg-p-surface-2',   href: null },
           { label: 'Scheduled', value: activeScheduledPolls.length,  icon: Clock,        color: 'text-p-warning', bg: 'bg-p-warning/10',  href: `/dashboard/${guildId}/scheduled-polls` },
+          {
+            label: 'Members',
+            value: freshDiscordGuild?.approximate_member_count != null
+              ? freshDiscordGuild.approximate_member_count.toLocaleString()
+              : '—',
+            icon: Users,
+            color: 'text-p-primary',
+            bg: 'bg-p-primary-b',
+            href: null,
+          },
         ].map(({ label, value, icon: Icon, color, bg, href }) => (
           href ? (
             <Link key={label} href={href} className="card p-4 hover:border-p-border-2 transition-all group">

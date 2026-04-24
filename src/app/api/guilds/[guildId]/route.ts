@@ -53,9 +53,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     pollyChannelId:     ch(body.pollyChannelId,     guild!.pollyChannelId),
     dashboardChannelId: ch(body.dashboardChannelId, guild!.dashboardChannelId),
     auditLogChannelId:  ch(body.auditLogChannelId,  guild!.auditLogChannelId),
-    adminRoleIds:       body.adminRoleIds   ?? guild!.adminRoleIds,
-    creatorRoleIds:     body.creatorRoleIds ?? guild!.creatorRoleIds ?? [],
-    voterRoleIds:       body.voterRoleIds   ?? guild!.voterRoleIds,
+    adminRoleIds:    body.adminRoleIds   ?? guild!.adminRoleIds,
+    creatorRoleIds:  body.creatorRoleIds ?? guild!.creatorRoleIds ?? [],
+    voterRoleIds:    body.voterRoleIds   ?? guild!.voterRoleIds,
+    announceWinner:  body.announceWinner !== undefined ? !!body.announceWinner : guild!.announceWinner,
+    pollColor:       body.pollColor !== undefined ? (body.pollColor || undefined) : guild!.pollColor,
   }
   await upsertGuild(updated)
   return NextResponse.json(updated)

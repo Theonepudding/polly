@@ -1,6 +1,13 @@
 import { Poll, Vote, Guild } from '@/types'
-import { getGuild, upsertGuild } from './guilds'
+import { getGuild, upsertGuild, storeAuditEvent } from './guilds'
 import { getPolls, getVotes, updatePoll } from './polls'
+
+function hexToDiscordColor(hex?: string): number | undefined {
+  if (!hex) return undefined
+  const clean = hex.replace('#', '')
+  const n = parseInt(clean, 16)
+  return isNaN(n) ? undefined : n
+}
 
 const DISCORD_API  = 'https://discord.com/api/v10'
 const COLOR_ACTIVE = 0x6366F1
@@ -145,7 +152,7 @@ export function buildPollEmbed(poll: Poll, votes: Vote[], includeFooter = true, 
     description: poll.description
       ? `${poll.description}${poll.closesAt ? `\n\nCloses ${discordTimestamp(poll.closesAt)}` : ''}`
       : poll.closesAt ? `Closes ${discordTimestamp(poll.closesAt)}` : undefined,
-    color:       COLOR_ACTIVE,
+    color:       poll.embedColor ?? COLOR_ACTIVE,
     image:       { url: pollImageUrl(poll.id, 0, pollVersion(votes), maxH) },
     ...(includeFooter ? { footer: pollFooter(poll), timestamp: new Date().toISOString() } : {}),
   }
@@ -443,13 +450,13 @@ export async function postPollResults(poll: Poll, votes: Vote[], guild: Guild): 
   if (total === 0) {
     lines.push('*No votes were cast.*')
   } else {
-    if (winner) {
+    const showWinner = guild.announceWinner !== false
+    if (winner && showWinner) {
       const winCount = votes.filter(v => v.optionId === winner.id).length
       const winPct   = Math.round((winCount / total) * 100)
       lines.push(`🏆 **${winner.text}** won with **${winCount}** vote${winCount !== 1 ? 's' : ''} (${winPct}%)`)
     }
     if (slot) lines.push(`⏰ Preferred: ${formatSlotForDiscord(slot)}`)
-
   }
 
   // Results embed: winner-announcement image (single image, no pagination)
@@ -498,6 +505,15 @@ export async function postAuditLog(
   detail: string,
   actorName?: string,
 ): Promise<void> {
+  // Always store to KV for web dashboard
+  storeAuditEvent(guild.guildId, {
+    action,
+    detail: detail.replace(/\*\*/g, ''),
+    actorName: actorName ?? 'System',
+    timestamp: new Date().toISOString(),
+  }).catch(() => {})
+
+  // Also post to Discord channel if configured
   if (!guild.auditLogChannelId || !process.env.DISCORD_BOT_TOKEN) return
   try {
     await fetch(`${DISCORD_API}/channels/${guild.auditLogChannelId}/messages`, {

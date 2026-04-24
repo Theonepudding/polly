@@ -105,6 +105,36 @@ export async function fetchMemberNick(guildId: string, userId: string, fallback:
   return fallback
 }
 
+// ─── Audit log (KV-backed, last 100 events) ──────────────────────────────────
+
+export interface AuditEvent {
+  id: string
+  action: string
+  detail: string
+  actorName: string
+  timestamp: string
+}
+
+export async function storeAuditEvent(guildId: string, event: Omit<AuditEvent, 'id'>): Promise<void> {
+  try {
+    const kv = await getKV()
+    if (!kv) return
+    const raw = await kv.get(`audit:${guildId}`)
+    const events: AuditEvent[] = raw ? JSON.parse(raw) : []
+    events.unshift({ id: Math.random().toString(36).slice(2, 10), ...event })
+    await kv.put(`audit:${guildId}`, JSON.stringify(events.slice(0, 100)))
+  } catch { /* non-critical */ }
+}
+
+export async function getAuditEvents(guildId: string): Promise<AuditEvent[]> {
+  try {
+    const kv = await getKV()
+    if (!kv) return []
+    const raw = await kv.get(`audit:${guildId}`)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
 export function userCanVote(guild: Guild, userRoleIds: string[]): boolean {
   if (guild.voterRoleIds.length === 0) return true
   return guild.voterRoleIds.some(r => userRoleIds.includes(r))
