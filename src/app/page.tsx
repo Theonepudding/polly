@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { Vote, Zap, Shield, BarChart3, Clock, Users, ExternalLink, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { Vote, Zap, Shield, BarChart3, Clock, Users, ExternalLink, ChevronRight, CheckCircle2, Link2, ScrollText } from 'lucide-react'
 import AuthErrorBanner from '@/components/AuthErrorBanner'
 
 const BOT_INVITE_URL = process.env.DISCORD_CLIENT_ID
@@ -16,23 +16,23 @@ const FEATURES = [
     bg:    'bg-p-primary-b',
   },
   {
-    icon: BarChart3,
-    title: 'Live Results',
-    desc: 'Results update in real-time on both Discord and the web dashboard as votes come in.',
+    icon: Link2,
+    title: 'No-Login Quick Create',
+    desc: 'Use /poll in Discord, pick a type, and get a one-click link. Create your poll on the web — no account needed.',
     color: 'text-p-accent',
     bg:    'bg-p-accent-b',
   },
   {
-    icon: Clock,
-    title: 'Time Slot Voting',
-    desc: 'Add time preferences to any poll — voters pick their option then their preferred time, perfect for scheduling events.',
+    icon: BarChart3,
+    title: 'Live Results',
+    desc: 'Results update in real-time on both Discord and the web dashboard as votes come in.',
     color: 'text-p-primary',
     bg:    'bg-p-primary-b',
   },
   {
-    icon: Users,
-    title: 'Multi-Server',
-    desc: 'One bot, many servers. Each Discord gets its own dashboard, polls, and settings.',
+    icon: Clock,
+    title: 'Schedule Polls',
+    desc: 'Let voters pick their option and a preferred time. Polly collects both in one step — perfect for raids, meetings, and events.',
     color: 'text-p-accent',
     bg:    'bg-p-accent-b',
   },
@@ -40,6 +40,20 @@ const FEATURES = [
     icon: Shield,
     title: 'Role-Based Access',
     desc: 'Control who can create polls and who can vote — per server, using Discord roles.',
+    color: 'text-p-primary',
+    bg:    'bg-p-primary-b',
+  },
+  {
+    icon: ScrollText,
+    title: 'Audit Log',
+    desc: 'Full history of every poll created, closed, and voted on. Searchable from the dashboard.',
+    color: 'text-p-accent',
+    bg:    'bg-p-accent-b',
+  },
+  {
+    icon: Users,
+    title: 'Multi-Server',
+    desc: 'One bot, many servers. Each Discord gets its own dashboard, polls, and settings.',
     color: 'text-p-primary',
     bg:    'bg-p-primary-b',
   },
@@ -76,7 +90,7 @@ export default function LandingPage() {
             <span className="text-p-text">inside Discord</span>
           </h1>
           <p className="text-p-muted text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            Create polls, schedule events with time slot voting, and let your community decide — all without leaving Discord.
+            Create polls in seconds — straight from Discord, no account required. Voting, scheduling, and live results all in one bot.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a href={BOT_INVITE_URL} target="_blank" rel="noopener noreferrer"
@@ -92,13 +106,35 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Quick-create callout */}
+      <section className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="card p-6 sm:p-8 border border-p-primary/20 bg-p-primary/5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <div className="w-12 h-12 rounded-2xl bg-p-primary-b flex items-center justify-center shrink-0">
+              <Link2 size={22} className="text-p-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display font-bold text-xl text-p-text mb-1">Create polls from Discord — no login needed</h2>
+              <p className="text-p-muted text-sm leading-relaxed">
+                Type <code className="text-p-primary bg-p-primary/10 px-1.5 py-0.5 rounded text-xs">/poll</code> in your server, pick a poll type, and get a personal one-click link. It opens a full poll editor on the website — already tied to your server and account — so you can set options, duration, and settings without ever logging in.
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap shrink-0">
+              <span className="badge badge-primary text-xs px-2.5 py-1">No account</span>
+              <span className="badge badge-muted text-xs px-2.5 py-1">10 min link</span>
+              <span className="badge badge-muted text-xs px-2.5 py-1">Single use</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="max-w-6xl mx-auto px-4 pb-20">
         <div className="text-center mb-10">
           <h2 className="font-display font-bold text-3xl sm:text-4xl text-p-text mb-3">Everything you need</h2>
           <p className="text-p-muted text-lg">Packed with features, designed to stay out of your way.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURES.map(({ icon: Icon, title, desc, color, bg }) => (
             <div key={title} className="card-hover p-6 group">
               <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110`}>
@@ -111,13 +147,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Time Slot Voting showcase */}
+      {/* Schedule voting showcase */}
       <section className="max-w-6xl mx-auto px-4 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div>
             <div className="inline-flex items-center gap-2 badge badge-primary mb-5 text-sm px-3 py-1.5">
               <Clock size={13} />
-              Time Slot Voting
+              Schedule Polls
             </div>
             <h2 className="font-display font-bold text-3xl sm:text-4xl text-p-text mb-4">
               Stop the back-and-forth.<br />Find a time that works.
@@ -127,7 +163,7 @@ export default function LandingPage() {
             </p>
             <ul className="space-y-3">
               {[
-                'Voters see times converted to their own timezone',
+                'Set any time options you like — full timezone support on the web form',
                 'Works with any poll — events, raids, meetings, anything',
                 'Time results shown separately so you can find the overlap',
               ].map(item => (

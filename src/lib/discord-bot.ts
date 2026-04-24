@@ -590,7 +590,7 @@ export async function postPollyGuide(channelId: string, guildId: string): Promis
     },
     {
       title:       '✏️ Creating Polls',
-      description: `Use \`/poll\` in chat, tap the **➕ Create Poll** button on the Polly dashboard message, or open the [web dashboard](${dashboard}) for the full editor with all options.\nYou need the **Poll Creator** role — ask an admin if you can't.`,
+      description: `Use \`/poll\` in chat — pick a type (Yes/No, Multiple choice, or Schedule) and you'll get a private link. Click it to open the full poll editor on the website. **No login needed** — the link is tied to your account automatically.\n\nYou can also tap **➕ Create Poll** on the dashboard message, or go directly to the [web dashboard](${dashboard}).\n\nYou need the **Poll Creator** role — ask an admin if you can't create.`,
       color:       COLOR_ACTIVE,
       image:       { url: gi('create') },
       footer:      { text: 'Polly — polly.pudding.vip' },

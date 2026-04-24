@@ -134,6 +134,7 @@ export async function POST(req: NextRequest) {
 
       if (cmd === 'poll') {
         // Instant type-picker — no DB calls, well within the 3s Discord limit
+        bg((async () => { await sleep(60_000); await deleteMessage(appId, token) })())
         return Response.json({ type: 4, data: buildTypePicker(guildId ?? '') })
       }
 
@@ -184,6 +185,7 @@ export async function POST(req: NextRequest) {
         const kv      = await getKV()
         if (kv) await kv.put(`magic:${tok}`, JSON.stringify({ userId, guildId: gId, username, pollType }), { expirationTtl: 600 })
         const label = isYN ? '✓  Create Yes / No Poll' : isMulti ? '📝  Create Multiple Choice Poll' : '📅  Create Schedule Poll'
+        bg((async () => { await sleep(90_000); await deleteMessage(appId, token) })())
         return Response.json({ type: 4, data: {
           flags: 64,
           embeds: [{ description: '✨ Your link is ready — click below to create your poll.\nExpires in **10 minutes** and works once.', color: 0x6366F1 }],
@@ -412,6 +414,7 @@ export async function POST(req: NextRequest) {
         if (guild && !userCanCreate(guild, userId, userRoles)) {
           return Response.json({ type: 4, data: { content: '❌ You don\'t have permission to create polls on this server.', flags: 64 } })
         }
+        bg((async () => { await sleep(60_000); await deleteMessage(appId, token) })())
         return Response.json({ type: 4, data: buildTypePicker(dgId) })
       }
 
