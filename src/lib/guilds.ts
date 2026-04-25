@@ -68,14 +68,18 @@ export function userCanCreate(guild: Guild, userId: string, userRoleIds: string[
 }
 
 export async function isMemberOf(guildId: string, userId: string): Promise<boolean> {
-  if (!process.env.DISCORD_BOT_TOKEN) return true // can't verify without bot token — trust in prod
+  if (!process.env.DISCORD_BOT_TOKEN) return true
   try {
     const res = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
       headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
       cache: 'no-store',
     })
-    return res.ok
-  } catch { return false }
+    // Only deny on an explicit 404 (user genuinely not in guild).
+    // For 403 (missing permissions), 5xx, rate limits, etc. — fail open
+    // rather than locking out a legitimate member due to a transient error.
+    if (res.status === 404) return false
+    return true
+  } catch { return true }
 }
 
 export async function fetchMemberRoles(guildId: string, userId: string): Promise<string[]> {
