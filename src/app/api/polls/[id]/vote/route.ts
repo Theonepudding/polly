@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPoll, getVotes, castVote } from '@/lib/polls'
+import { getPoll, getVotes, castVote, clearUserVotes } from '@/lib/polls'
 import { updatePollInDiscord, refreshDashboard } from '@/lib/discord-bot'
 import { fetchMemberNick, isMemberOf } from '@/lib/guilds'
 import type { Poll, Vote } from '@/types'
@@ -51,6 +51,11 @@ export async function POST(req: Request, { params }: Params) {
 
   const now      = new Date().toISOString()
   const username = await fetchMemberNick(poll.guildId, session.user.id, session.user.name ?? 'Unknown')
+
+  // For multi-choice: clear previous votes first so deselected options are removed.
+  // Discord votes call castVote directly and get toggle behaviour instead.
+  if (poll.allowMultiple) await clearUserVotes(id, session.user.id)
+
   let votes: Vote[] = []
   for (const optionId of optionIds) {
     const vote: Vote = {

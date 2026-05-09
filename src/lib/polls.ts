@@ -228,14 +228,20 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
     let voteChanged = false
 
     if (allowMultiple) {
-      await d1.prepare(`
-        INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(poll_id, user_id, option_id) DO UPDATE SET
-          username  = excluded.username,
-          time_slot = excluded.time_slot,
-          voted_at  = excluded.voted_at
-      `).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
+      // Toggle: remove if already voted for this option, add if not.
+      // The website vote route calls clearUserVotes first so this always inserts;
+      // Discord button clicks hit this directly for true toggle behaviour.
+      const existing = await d1.prepare(
+        'SELECT option_id FROM votes WHERE poll_id = ? AND user_id = ? AND option_id = ?'
+      ).bind(vote.pollId, vote.userId, vote.optionId).first<{ option_id: string }>()
+      if (existing) {
+        await d1.prepare('DELETE FROM votes WHERE poll_id = ? AND user_id = ? AND option_id = ?')
+          .bind(vote.pollId, vote.userId, vote.optionId).run()
+      } else {
+        await d1.prepare(
+          'INSERT INTO votes (poll_id, user_id, option_id, username, time_slot, voted_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(vote.pollId, vote.userId, vote.optionId, vote.username, vote.timeSlot ?? null, vote.votedAt).run()
+      }
     } else {
       // Atomic DELETE + INSERT so concurrent double-votes can't create two rows.
       // D1 batch is serialised — the second request cleanly replaces the first.
@@ -263,8 +269,8 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
     const idx = votes.findIndex(
       v => v.pollId === vote.pollId && v.userId === vote.userId && v.optionId === vote.optionId
     )
-    if (idx !== -1) votes[idx] = vote
-    else votes.push(vote)
+    if (idx !== -1) votes.splice(idx, 1)  // toggle off
+    else votes.push(vote)                  // toggle on
   } else {
     const idx = votes.findIndex(v => v.pollId === vote.pollId && v.userId === vote.userId)
     if (idx !== -1) {
@@ -277,6 +283,21 @@ export async function castVote(vote: Vote, allowMultiple: boolean): Promise<{ vo
 
   await writePollVotesKV(vote.pollId, votes)
   return { voteChanged, votes }
+}
+
+export async function clearUserVotes(pollId: string, userId: string): Promise<void> {
+  const d1 = await getD1()
+  if (d1) {
+    await d1.prepare('DELETE FROM votes WHERE poll_id = ? AND user_id = ?')
+      .bind(pollId, userId).run()
+    return
+  }
+  const kv = await getKV()
+  if (!kv) return
+  const raw = await kv.get(POLL_VOTES_KEY(pollId))
+  if (!raw) return
+  const { votes } = JSON.parse(raw) as { votes: Vote[] }
+  await writePollVotesKV(pollId, votes.filter(v => !(v.pollId === pollId && v.userId === userId)))
 }
 
 // ── Compat exports ────────────────────────────────────────────────────────────
