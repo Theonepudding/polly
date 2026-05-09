@@ -103,7 +103,10 @@ async function renderResultsImage(poll: Poll, votes: Vote[]): Promise<Response> 
   function winnerSlotCounts(optionId: string) {
     if (!poll.includeTimeSlots || !poll.timeSlots.length) return []
     return poll.timeSlots
-      .map(ts => ({ ts, count: votes.filter(v => v.optionId === optionId && v.timeSlot === ts).length }))
+      .map(ts => ({
+        ts,
+        count: new Set(votes.filter(v => v.optionId === optionId && (v.timeSlot === ts || (v.timeSlot?.split(',').includes(ts) ?? false))).map(v => v.userId)).size,
+      }))
       .filter(x => x.count > 0)
   }
 
@@ -369,13 +372,17 @@ export async function GET(
 
   const isAnon  = poll.isAnonymous
   const BADGE_H = 30
-  const HEADER_H = 88
+  const HEADER_H = 130
   const FOOTER_H = 50
   const MIN_H    = 460
 
-  function optRowH(opt: { id: string }): number {
+  function optRowH(opt: { id: string; text: string }): number {
     const voterCount = isAnon || ghostMode ? 0 : votes.filter(v => v.optionId === opt.id).length
-    const lineH = Math.max(optFSize + 4, BADGE_H)
+    const textAvailW = W - 2 * PAD_H - 54 - 90  // space after badge and before pct
+    const charsPerLine = Math.max(10, Math.floor(textAvailW / (optFSize * 0.58)))
+    const cleanLen = opt.text.replace(/<a?:\w+:\d+>/g, 'XX').length
+    const estimatedLines = Math.max(1, Math.ceil(cleanLen / charsPerLine))
+    const lineH = Math.max(optFSize * 1.25 * estimatedLines + 4, BADGE_H)
     return lineH + 7 + (ghostMode ? 0 : barH_px) + (voterCount > 0 ? nameFSz + 5 : 0) + optGap
   }
 
@@ -416,9 +423,12 @@ export async function GET(
     ? new Date(poll.closesAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : ''
 
-  const noPrefCount      = hasTimeSlots && !ghostMode ? votes.filter(v => !v.timeSlot).length : 0
+  function slotCount(ts: string) {
+    return new Set(votes.filter(v => v.timeSlot === ts || (v.timeSlot?.split(',').includes(ts) ?? false)).map(v => v.userId)).size
+  }
+  const noPrefCount      = hasTimeSlots && !ghostMode ? new Set(votes.filter(v => !v.timeSlot).map(v => v.userId)).size : 0
   const maxSlotVoteCount = hasTimeSlots
-    ? Math.max(0, noPrefCount, ...shownSlots.map(ts => votes.filter(v => v.timeSlot === ts).length))
+    ? Math.max(0, noPrefCount, ...shownSlots.map(ts => slotCount(ts)))
     : 0
   const hasClockSlots = hasTimeSlots && shownSlots.some(isClockSlot)
 
@@ -458,36 +468,39 @@ export async function GET(
         padding: `${PAD_V}px ${PAD_H}px`,
       }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-              <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
-              <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
-              <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
+        {/* Header — only on page 0; continuation pages start directly with options */}
+        {page === 0 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                  <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
+                  <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
+                  <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
+                </div>
+                <SegText text={poll.title} fontSize={28} />
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                background: closed ? 'rgba(34,211,238,0.18)' : 'rgba(99,102,241,0.22)',
+                border: `1.5px solid ${accent}`,
+                borderRadius: 30, padding: '5px 14px', marginLeft: 12,
+              }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
+                <span style={{ color: accent, fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>
+                  {statusLabel}
+                </span>
+              </div>
             </div>
-            <SegText text={poll.title} fontSize={28} />
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-            background: closed ? 'rgba(34,211,238,0.18)' : 'rgba(99,102,241,0.22)',
-            border: `1.5px solid ${accent}`,
-            borderRadius: 30, padding: '5px 14px', marginLeft: 12,
-          }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
-            <span style={{ color: accent, fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>
-              {statusLabel}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ height: 1.5, background: `${accent}55`, marginBottom: 14 }} />
+            <div style={{ height: 1.5, background: `${accent}55`, marginBottom: 14 }} />
+          </>
+        )}
 
         {/* Options */}
         {pageOpts.map((opt, optIdx) => {
           const count  = votes.filter(v => v.optionId === opt.id).length
           const pct    = totalForPct > 0 ? Math.round((count / totalForPct) * 100) : 0
-          const voters = poll.isAnonymous || ghostMode ? [] : votes.filter(v => v.optionId === opt.id).map(v => v.username)
+          const voters = poll.isAnonymous || ghostMode ? [] : [...new Map(votes.filter(v => v.optionId === opt.id).map(v => [v.userId, v.username])).values()]
           const names  = voters.slice(0, 4).join(' · ') + (voters.length > 4 ? ` +${voters.length - 4}` : '')
 
           // Button badge: custom emoji > custom number > default 1-based index
@@ -561,7 +574,7 @@ export async function GET(
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {shownSlots.map(ts => {
-                const tsCount  = votes.filter(v => v.timeSlot === ts).length
+                const tsCount  = slotCount(ts)
                 const hasVotes = !ghostMode && tsCount > 0
                 const isTop    = !ghostMode && maxSlotVoteCount > 0 && tsCount === maxSlotVoteCount
                 return (
@@ -635,7 +648,7 @@ export async function GET(
       'Content-Type': 'image/png',
       // URL includes ?v=TIMESTAMP so it changes on every vote action.
       // Short CDN TTL ensures Discord re-fetches the correct version quickly.
-      'Cache-Control': 'public, s-maxage=10, max-age=5, stale-while-revalidate=15',
+      'Cache-Control': 'public, s-maxage=30, max-age=20, stale-while-revalidate=90',
     },
   })
 }

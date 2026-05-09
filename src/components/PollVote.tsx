@@ -249,8 +249,9 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
               <Clock size={11} /> Availability
             </p>
             {(() => {
-              const noPrefCount  = votes.filter(v => !v.timeSlot).length
-              const slotCounts   = poll.timeSlots.map(ts => votes.filter(v => v.timeSlot === ts).length)
+              const hasSlot = (v: Vote, ts: string) => v.timeSlot === ts || (v.timeSlot?.split(',').includes(ts) ?? false)
+              const noPrefCount  = new Set(votes.filter(v => !v.timeSlot).map(v => v.userId)).size
+              const slotCounts   = poll.timeSlots.map(ts => new Set(votes.filter(v => hasSlot(v, ts)).map(v => v.userId)).size)
               const maxSlotCount = Math.max(0, noPrefCount, ...slotCounts)
               return (
             <div className="flex flex-wrap gap-2 mb-2">
@@ -292,9 +293,11 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
               )
             })()}
             {expandedSlot && !poll.isAnonymous && (() => {
-              const slotVoters = expandedSlot === '__none__'
+              const hasSlotLocal = (v: Vote, ts: string) => v.timeSlot === ts || (v.timeSlot?.split(',').includes(ts) ?? false)
+              const slotVoters = [...new Map((expandedSlot === '__none__'
                 ? votes.filter(v => !v.timeSlot)
-                : votes.filter(v => v.timeSlot === expandedSlot)
+                : votes.filter(v => hasSlotLocal(v, expandedSlot))
+              ).map(v => [v.userId, v])).values()]
               return slotVoters.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {slotVoters.slice(0, 20).map((v, i) => (

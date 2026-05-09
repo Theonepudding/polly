@@ -306,6 +306,35 @@ export async function POST(req: NextRequest) {
         return Response.json({ type: 6 })
       }
 
+      // ── Time slot select menu: ts:{pollId}:{optionId} ────────────────────
+      if (customId.startsWith('ts:')) {
+        const parts    = customId.split(':')
+        const pollId   = parts[1]
+        const optionId = parts[2]
+        const selected = ((idata.values as string[]) ?? []).filter(Boolean)
+        if (!userId || !selected.length) return Response.json({ type: 6 })
+        const timeSlot = selected.join(',')
+
+        let savedPoll: Poll | null = null; let savedVotes: Vote[] | null = null
+        try {
+          const poll = await getPoll(pollId)
+          if (!poll || poll.isClosed || (poll.closesAt && new Date(poll.closesAt) <= new Date())) return Response.json({ type: 6 })
+          const vote: Vote = { pollId, userId, username, optionId, timeSlot, votedAt: new Date().toISOString() }
+          const result = await castVote(vote, poll.allowMultiple)
+          savedPoll = poll; savedVotes = result.votes
+        } catch (e) { console.error('Time slot select error:', e) }
+
+        if (savedPoll && savedVotes) {
+          const p = savedPoll; const v = savedVotes
+          bg((async () => {
+            await updatePollInDiscord(p, v).catch(() => {})
+            await patchMessage(appId, token, { content: '✅ Availability saved!', components: [] })
+            await sleep(5_000); await deleteMessage(appId, token)
+          })())
+        }
+        return Response.json({ type: 6 })
+      }
+
       // ── Time slot: t:{pollId}:{optionId}:{ts} ────────────────────────────
       if (customId.startsWith('t:')) {
         const [, pollId, optionId, ...tparts] = customId.split(':')

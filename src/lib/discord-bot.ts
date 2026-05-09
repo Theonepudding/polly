@@ -47,8 +47,8 @@ function needsTwoImages(poll: Poll): boolean {
 // Mirror of the height formula in poll-image/[id]/route.tsx (vote-independent baseline).
 // Both page URLs must carry the same ?h= so Discord renders them at the same display size.
 function computePollImageH(poll: Poll): number {
-  const PAD_V = 26, HEADER_H = 88, FOOTER_H = 50, MIN_H = 460
-  const OPT_ROW = 54 // lineH(30) + gap(7) + bar(9) + optGap(8)
+  const PAD_V = 26, HEADER_H = 130, FOOTER_H = 50, MIN_H = 460
+  const OPT_ROW = 75
   const hasSlots = poll.includeTimeSlots && poll.timeSlots.length > 0
   const slotRows = hasSlots ? Math.ceil(poll.timeSlots.length / 5) : 0
   const tsH = hasSlots ? 26 + slotRows * 30 - 8 : 0
@@ -193,28 +193,37 @@ export function buildPollComponents(poll: Poll) {
 }
 
 export function buildTimeSlotComponents(poll: Poll, optionId: string) {
-  const timeButtons = poll.timeSlots.slice(0, 5).map((ts, i) => ({
-    type:      2,
-    style:     2,
-    // Clock slots get numbered labels; the follow-up message shows the local-time mapping.
-    // Button labels don't support Discord timestamp formatting so numbers are the cleanest option.
-    label:     /^\d{2}:\d{2}$/.test(ts) ? String(i + 1) : ts.slice(0, 80),
-    custom_id: `t:${poll.id}:${optionId}:${ts}`,
+  const options = poll.timeSlots.slice(0, 25).map(ts => ({
+    label: ts.length > 100 ? ts.slice(0, 97) + '…' : ts,
+    value: ts,
   }))
-
   return [
-    { type: 1, components: timeButtons },
+    {
+      type: 1,
+      components: [{
+        type:       3,
+        custom_id:  `ts:${poll.id}:${optionId}`,
+        placeholder: 'Select your available times…',
+        min_values: 1,
+        max_values: options.length,
+        options,
+      }],
+    },
     { type: 1, components: [{ type: 2, style: 2, label: 'No preference', custom_id: `skip:${poll.id}:${optionId}` }] },
   ]
 }
 
 export function buildTimeSlotFollowupContent(poll: Poll): string {
-  const lines = poll.timeSlots.slice(0, 5).map((ts, i) =>
+  const hasClockSlots = poll.timeSlots.some(ts => /^\d{2}:\d{2}$/.test(ts))
+  const lines = poll.timeSlots.slice(0, 25).map(ts =>
     /^\d{2}:\d{2}$/.test(ts)
-      ? `**${i + 1}** — ${utcHHMMtoDiscordTimestamp(ts)}`
-      : `**${ts}**`
+      ? `• ${ts} UTC → ${utcHHMMtoDiscordTimestamp(ts)}`
+      : `• ${ts}`
   )
-  return `🕐 Pick a time preference:\n${lines.join('\n')}`
+  const intro = hasClockSlots
+    ? '🕐 **When are you available?** Times shown in your local timezone — select all that work:'
+    : '🕐 **When are you available?** Select all that work:'
+  return `${intro}\n${lines.join('\n')}`
 }
 
 export function buildClosedEmbed(poll: Poll, votes: Vote[], includeFooter = true, maxH?: number) {
@@ -770,13 +779,18 @@ function winnerOf(poll: Poll, votes: Vote[]) {
   }, poll.options[0])
 }
 
+function voteHasSlot(vote: Vote, ts: string): boolean {
+  if (!vote.timeSlot) return false
+  return vote.timeSlot === ts || vote.timeSlot.split(',').includes(ts)
+}
+
 function topTimeSlot(poll: Poll, votes: Vote[], winnerOptionId?: string): string | null {
   if (!poll.includeTimeSlots || !poll.timeSlots.length) return null
   const relevant = winnerOptionId ? votes.filter(v => v.optionId === winnerOptionId) : votes
   let best: string | null = null
   let bestCount = 0
   for (const ts of poll.timeSlots) {
-    const count = relevant.filter(v => v.timeSlot === ts).length
+    const count = new Set(relevant.filter(v => voteHasSlot(v, ts)).map(v => v.userId)).size
     if (count > bestCount) { best = ts; bestCount = count }
   }
   return best
