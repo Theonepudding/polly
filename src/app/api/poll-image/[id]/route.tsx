@@ -410,7 +410,7 @@ export async function GET(
         calcH(poll.options.slice(6),    pollHasTimeSlots),
       )
     : calcH(pageOpts, hasTimeSlots)
-  const H = forcedH > 0 ? Math.max(forcedH, MIN_H) : computedH
+  const H = Math.max(forcedH > 0 ? forcedH : 0, computedH, MIN_H)
 
   const optsAreaH = pageOpts.reduce((sum, opt) => sum + optRowH(opt), 0)
   // Estimate chips per row: clock slots (~60px each) fit ~5/row; custom text can be wider so assume ~3/row
@@ -470,30 +470,30 @@ export async function GET(
 
         {/* Header — only on page 0; continuation pages start directly with options */}
         {page === 0 && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-                  <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
-                  <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
-                  <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
-                </div>
-                <SegText text={poll.title} fontSize={28} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
+                <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
+                <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
               </div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                background: closed ? 'rgba(34,211,238,0.18)' : 'rgba(99,102,241,0.22)',
-                border: `1.5px solid ${accent}`,
-                borderRadius: 30, padding: '5px 14px', marginLeft: 12,
-              }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
-                <span style={{ color: accent, fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>
-                  {statusLabel}
-                </span>
-              </div>
+              <SegText text={poll.title} fontSize={28} />
             </div>
-            <div style={{ height: 1.5, background: `${accent}55`, marginBottom: 14 }} />
-          </>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+              background: closed ? 'rgba(34,211,238,0.18)' : 'rgba(99,102,241,0.22)',
+              border: `1.5px solid ${accent}`,
+              borderRadius: 30, padding: '5px 14px', marginLeft: 12,
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
+              <span style={{ color: accent, fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>
+                {statusLabel}
+              </span>
+            </div>
+          </div>
+        )}
+        {page === 0 && (
+          <div style={{ height: 1.5, background: `${accent}55`, marginBottom: 14 }} />
         )}
 
         {/* Options */}

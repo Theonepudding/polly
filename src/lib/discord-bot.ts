@@ -48,7 +48,9 @@ function needsTwoImages(poll: Poll): boolean {
 // Both page URLs must carry the same ?h= so Discord renders them at the same display size.
 function computePollImageH(poll: Poll): number {
   const PAD_V = 26, HEADER_H = 130, FOOTER_H = 50, MIN_H = 460
-  const OPT_ROW = 75
+  // 75 base row + 18 voter-name line (always reserve it so canvas stays large
+  // enough after votes are cast, avoiding content overflow in Satori)
+  const OPT_ROW = 93
   const hasSlots = poll.includeTimeSlots && poll.timeSlots.length > 0
   const slotRows = hasSlots ? Math.ceil(poll.timeSlots.length / 5) : 0
   const tsH = hasSlots ? 26 + slotRows * 30 - 8 : 0

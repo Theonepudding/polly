@@ -50,7 +50,9 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   const [myVotes,   setMyVotes]   = useState<Vote[]>(initMyVotes)
   const [step,      setStep]      = useState<'vote' | 'time' | 'done'>(initMyVotes.length > 0 ? 'done' : 'vote')
   const [selected,  setSelected]  = useState<string[]>(initMyVotes.map(v => v.optionId))
-  const [timeSlot,  setTimeSlot]  = useState(initMyVotes[0]?.timeSlot ?? '')
+  const [selectedSlots, setSelectedSlots] = useState<string[]>(
+    initMyVotes[0]?.timeSlot ? initMyVotes[0].timeSlot.split(',').filter(Boolean) : []
+  )
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
   const [expanded,     setExpanded]     = useState<string | null>(null)
@@ -399,16 +401,21 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
     return (
       <div className="card p-6">
         <PollHeader />
-        <div className="flex items-center gap-2 mb-5 text-sm text-p-success bg-p-success/10 border border-p-success/25 rounded-lg px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 mb-5 text-sm text-p-success bg-p-success/10 border border-p-success/25 rounded-lg px-3 py-2.5">
           <Check size={14} /> Your vote is recorded.
-          {myVotes[0]?.timeSlot && (
-            <span className="text-p-muted ml-1">
-              ({mounted && isTimeSlot(myVotes[0].timeSlot) ? utcToLocal(myVotes[0].timeSlot) : myVotes[0].timeSlot})
-            </span>
-          )}
+          {myVotes[0]?.timeSlot && (() => {
+            const slots = myVotes[0].timeSlot.split(',').filter(Boolean)
+            return (
+              <span className="text-p-muted ml-1">
+                ({slots.map((ts, i) => (
+                  <span key={ts}>{i > 0 ? ', ' : ''}{mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}</span>
+                ))})
+              </span>
+            )
+          })()}
         </div>
         <Results />
-        <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setTimeSlot('') }}
+        <button onClick={() => { setStep('vote'); setSelected(myVotes.map(v => v.optionId)); setSelectedSlots([]) }}
           className="btn-ghost text-xs mt-4">
           Change my vote
         </button>
@@ -461,36 +468,53 @@ export default function PollVote({ poll, votes: initialVotes, myVotes: initMyVot
   }
 
   // Time slot step
+  function toggleSlot(ts: string) {
+    setSelectedSlots(prev =>
+      prev.includes(ts) ? prev.filter(s => s !== ts) : [...prev, ts]
+    )
+  }
+
   return (
     <div className="card p-6">
       <PollHeader />
       <button onClick={() => setStep('vote')} className="text-xs text-p-muted hover:text-p-text mb-4 flex items-center gap-1">
         ← Back
       </button>
-      <p className="text-sm text-p-muted mb-4">Pick your availability:</p>
+      <p className="text-sm text-p-muted mb-1">Pick your availability:</p>
+      <p className="text-xs text-p-subtle mb-4">Select all times that work for you</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-        {poll.timeSlots.map(ts => (
-          <button
-            key={ts}
-            disabled={loading}
-            onClick={() => { setTimeSlot(ts); submitVote(ts) }}
-            className={clsx(
-              'px-3 py-3 rounded-xl border text-sm font-display font-semibold transition-all',
-              timeSlot === ts
-                ? 'border-p-accent/60 bg-p-accent-b text-p-accent'
-                : 'border-p-border bg-p-surface text-p-text hover:border-p-border-2 hover:bg-p-surface-2'
-            )}>
-            {mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}
-          </button>
-        ))}
+        {poll.timeSlots.map(ts => {
+          const isSelected = selectedSlots.includes(ts)
+          return (
+            <button
+              key={ts}
+              disabled={loading}
+              onClick={() => toggleSlot(ts)}
+              className={clsx(
+                'px-3 py-3 rounded-xl border text-sm font-display font-semibold transition-all flex items-center justify-center gap-1.5',
+                isSelected
+                  ? 'border-p-accent/60 bg-p-accent-b text-p-accent'
+                  : 'border-p-border bg-p-surface text-p-text hover:border-p-border-2 hover:bg-p-surface-2'
+              )}>
+              {isSelected && <Check size={12} className="shrink-0" />}
+              {mounted && isTimeSlot(ts) ? utcToLocal(ts) : ts}
+            </button>
+          )
+        })}
       </div>
+      {error && <p className="text-p-danger text-xs mb-3">{error}</p>}
+      <button
+        onClick={() => submitVote(selectedSlots.length > 0 ? selectedSlots.join(',') : undefined)}
+        disabled={loading || selectedSlots.length === 0}
+        className="btn-primary w-full justify-center mb-2">
+        {loading ? 'Submitting…' : selectedSlots.length > 0 ? `Confirm (${selectedSlots.length} selected)` : 'Select times above'}
+      </button>
       <button
         onClick={() => submitVote(undefined)}
         disabled={loading}
         className="btn-ghost text-sm w-full justify-center">
         No preference
       </button>
-      {error && <p className="text-p-danger text-xs mt-3">{error}</p>}
     </div>
   )
 }
