@@ -372,7 +372,7 @@ export async function GET(
 
   const isAnon  = poll.isAnonymous
   const BADGE_H = 30
-  const HEADER_H = 130
+  const HEADER_H = 160
   const FOOTER_H = 50
   const MIN_H    = 460
 
@@ -432,14 +432,27 @@ export async function GET(
     : 0
   const hasClockSlots = hasTimeSlots && shownSlots.some(isClockSlot)
 
-  // Render mixed text/emoji as a Satori-compatible flex row
+  // Render mixed text/emoji as a Satori-compatible flex element.
+  // Pure text: flexDirection column so the span stretches to the parent width and
+  // word-wraps naturally (Satori collapses flex-row items to min-content otherwise).
+  // With emoji: flex row with wrap so images and text sit inline.
   function SegText({ text, fontSize, fontWeight = 800, color = '#ffffff' }: {
     text: string; fontSize: number; fontWeight?: number; color?: string
   }) {
     const cleaned  = stripLeadingEmoji(text)
-    const segments = cleaned.split(/(<a?:\w+:\d+>)/g)
+    const segments = cleaned.split(/(<a?:\w+:\d+>)/g).filter(Boolean)
+    const hasEmoji = segments.some(s => /^<a?:\w+:\d+>$/.test(s))
+
+    if (!hasEmoji) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          <span style={{ color, fontSize, fontWeight, lineHeight: 1.3 }}>{cleaned}</span>
+        </div>
+      )
+    }
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3, flex: 1, minWidth: 0 }}>
         {segments.map((seg, i) => {
           const m = seg.match(/^<(a?):(\w+):(\d+)>$/)
           if (m) {
@@ -449,7 +462,7 @@ export async function GET(
               : <span key={i} style={{ color: '#8888bb', fontSize: Math.round(fontSize * 0.75), fontWeight }}>:{m[2]}:</span>
           }
           return seg
-            ? <span key={i} style={{ color, fontSize, fontWeight, lineHeight: 1.2 }}>{seg}</span>
+            ? <span key={i} style={{ color, fontSize, fontWeight, lineHeight: 1.3 }}>{seg}</span>
             : null
         })}
       </div>
@@ -477,7 +490,7 @@ export async function GET(
                 <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
                 <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
               </div>
-              <SegText text={poll.title} fontSize={28} />
+              <SegText text={poll.title} fontSize={26} />
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
