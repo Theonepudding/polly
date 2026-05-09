@@ -372,7 +372,7 @@ export async function GET(
 
   const isAnon  = poll.isAnonymous
   const BADGE_H = 30
-  const HEADER_H = 160
+  const HEADER_H = 58  // bar icon + status badge row (30) + marginBottom (12) + divider (1.5) + divider margin (14)
   const FOOTER_H = 50
   const MIN_H    = 460
 
@@ -476,29 +476,16 @@ export async function GET(
         {/* Header — only on page 0; continuation pages start directly with options */}
         {page === 0 && (
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-                <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
-                <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
-                <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
-              </div>
-              <div style={{
-                display: 'flex', flexDirection: 'row', flexWrap: 'wrap',
-                width: W - 2 * PAD_H - 18 - 10 - 90 - 12 - 3,
-                gap: 7, alignItems: 'flex-end',
-              }}>
-                {(stripLeadingEmoji(poll.title).replace(/<a?:\w+:\d+>/g, '').trim() || poll.title)
-                  .split(' ').filter(Boolean)
-                  .map((word, i) => (
-                    <span key={i} style={{ color: '#ffffff', fontSize: 26, fontWeight: 800, lineHeight: 1.3 }}>{word}</span>
-                  ))}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 3 }}>
+              <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
+              <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
+              <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
               background: closed ? 'rgba(34,211,238,0.18)' : 'rgba(99,102,241,0.22)',
               border: `1.5px solid ${accent}`,
-              borderRadius: 30, padding: '5px 14px', marginLeft: 12,
+              borderRadius: 30, padding: '5px 14px',
             }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
               <span style={{ color: accent, fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>
