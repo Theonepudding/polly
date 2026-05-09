@@ -5,6 +5,8 @@ import { getKV } from '@/lib/kv'
 import {
   buildTimeSlotComponents,
   buildTimeSlotFollowupContent,
+  buildPollEmbeds,
+  buildPollComponents,
   updatePollInDiscord,
   postPollResults,
   postAuditLog,
@@ -286,22 +288,29 @@ export async function POST(req: NextRequest) {
         }
 
         if (savedPoll && savedVotes) {
-          const p = savedPoll; const votes = savedVotes; const changed = voteChanged
-          bg((async () => {
-            await updatePollInDiscord(p, votes).catch(() => {})
-            if (changed) {
+          if (voteChanged) {
+            // Vote changed: notify user ephemerally + update embed in background
+            const p = savedPoll; const v = savedVotes
+            bg((async () => {
+              await updatePollInDiscord(p, v).catch(() => {})
               await sleep(5_000)
               await deleteMessage(appId, token)
-            }
-          })())
-        }
-
-        // Only show a message when the vote actually changed; first votes are silent
-        if (voteChanged) {
-          const optIdx = savedPoll?.options.findIndex(o => o.id === optionId) ?? 0
-          const btnNum = savedPoll?.options[optIdx]?.buttonNum ?? (optIdx + 1)
-          const optTxt = savedPoll?.options[optIdx]?.text ?? optionId
-          return Response.json({ type: 4, data: { content: `🔄 Vote changed to **#${btnNum}** — ${optTxt}!`, flags: 64 } })
+            })())
+            const optIdx = p.options.findIndex(o => o.id === optionId)
+            const opt    = p.options[optIdx]
+            const btnNum = opt?.buttonNum ?? (optIdx + 1)
+            const optTxt = opt?.text ?? optionId
+            return Response.json({ type: 4, data: { content: `🔄 Vote changed to **#${btnNum}** — ${optTxt}!`, flags: 64 } })
+          }
+          // New vote: update the message directly in the interaction response (type 7).
+          // This is more reliable than a background bot-patch, which can fail silently.
+          return Response.json({
+            type: 7,
+            data: {
+              embeds:     buildPollEmbeds(savedPoll, savedVotes),
+              components: buildPollComponents(savedPoll),
+            },
+          })
         }
         return Response.json({ type: 6 })
       }
@@ -327,7 +336,16 @@ export async function POST(req: NextRequest) {
         if (savedPoll && savedVotes) {
           const p = savedPoll; const v = savedVotes
           bg((async () => {
-            await updatePollInDiscord(p, v).catch(() => {})
+            // Retry poll fetch if discordMessageId wasn't in KV yet (KV propagation lag from v: handler)
+            let poll = p
+            if (!poll.discordMessageId) {
+              for (const delay of [400, 600, 800]) {
+                await sleep(delay)
+                const fresh = await getPoll(poll.id)
+                if (fresh?.discordMessageId) { poll = fresh; break }
+              }
+            }
+            await updatePollInDiscord(poll, v).catch(() => {})
             await patchMessage(appId, token, { content: '✅ Availability saved!', components: [] })
             await sleep(5_000); await deleteMessage(appId, token)
           })())
