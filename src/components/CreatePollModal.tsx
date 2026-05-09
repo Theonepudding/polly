@@ -426,20 +426,20 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
             <label className="label mb-2">Settings</label>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setIsAnonymous(v => !v)}
-                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isAnonymous ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-all ${isAnonymous ? 'bg-p-primary/20 border-p-primary/50 text-p-primary' : 'bg-p-surface-2 border-p-border-2 text-p-text hover:bg-p-primary/10 hover:border-p-primary/40 hover:text-p-primary'}`}>
                 Anonymous
               </button>
               <button type="button" onClick={() => setAllowMultiple(v => !v)}
-                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${allowMultiple ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-all ${allowMultiple ? 'bg-p-primary/20 border-p-primary/50 text-p-primary' : 'bg-p-surface-2 border-p-border-2 text-p-text hover:bg-p-primary/10 hover:border-p-primary/40 hover:text-p-primary'}`}>
                 Multi-choice
               </button>
               <button type="button" onClick={() => setIsGhost(v => !v)}
-                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${isGhost ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-all ${isGhost ? 'bg-p-primary/20 border-p-primary/50 text-p-primary' : 'bg-p-surface-2 border-p-border-2 text-p-text hover:bg-p-primary/10 hover:border-p-primary/40 hover:text-p-primary'}`}
                 title="Hide vote counts and results until the poll closes">
                 Ghost
               </button>
               <button type="button" onClick={() => setUseTimes(v => !v)}
-                className={`badge px-3 py-1.5 text-xs cursor-pointer transition-all ${useTimes ? 'badge-primary' : 'badge-muted hover:border-p-border-2'}`}>
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-all ${useTimes ? 'bg-p-primary/20 border-p-primary/50 text-p-primary' : 'bg-p-surface-2 border-p-border-2 text-p-text hover:bg-p-primary/10 hover:border-p-primary/40 hover:text-p-primary'}`}>
                 Availability slots
               </button>
             </div>
