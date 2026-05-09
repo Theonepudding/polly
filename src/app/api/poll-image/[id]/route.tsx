@@ -432,10 +432,6 @@ export async function GET(
     : 0
   const hasClockSlots = hasTimeSlots && shownSlots.some(isClockSlot)
 
-  // Render mixed text/emoji as a Satori-compatible flex element.
-  // Pure text: flexDirection column so the span stretches to the parent width and
-  // word-wraps naturally (Satori collapses flex-row items to min-content otherwise).
-  // With emoji: flex row with wrap so images and text sit inline.
   function SegText({ text, fontSize, fontWeight = 800, color = '#ffffff' }: {
     text: string; fontSize: number; fontWeight?: number; color?: string
   }) {
@@ -444,15 +440,11 @@ export async function GET(
     const hasEmoji = segments.some(s => /^<a?:\w+:\d+>$/.test(s))
 
     if (!hasEmoji) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <span style={{ color, fontSize, fontWeight, lineHeight: 1.3 }}>{cleaned}</span>
-        </div>
-      )
+      return <span style={{ color, fontSize, fontWeight, lineHeight: 1.3 }}>{cleaned}</span>
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3, flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
         {segments.map((seg, i) => {
           const m = seg.match(/^<(a?):(\w+):(\d+)>$/)
           if (m) {
@@ -490,7 +482,11 @@ export async function GET(
                 <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
                 <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
               </div>
-              <SegText text={poll.title} fontSize={26} />
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#ffffff', fontSize: 26, fontWeight: 800, lineHeight: 1.3 }}>
+                  {stripLeadingEmoji(poll.title).replace(/<a?:\w+:\d+>/g, '').trim() || poll.title}
+                </div>
+              </div>
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
