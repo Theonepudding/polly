@@ -414,6 +414,11 @@ export default function CreatePollModal({ guildId, userId, userName, canManage =
                 </button>
               )}
             </div>
+            {options.filter(o => o.trim()).length > 6 && (
+              <p className="mt-2 text-xs text-p-accent/80 bg-p-accent/10 border border-p-accent/25 rounded-lg px-3 py-2">
+                Polls with more than 6 options are split into 2 images in Discord.
+              </p>
+            )}
           </div>
 
           {/* Poll settings */}
