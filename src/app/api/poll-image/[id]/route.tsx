@@ -475,19 +475,24 @@ export async function GET(
 
         {/* Header — only on page 0; continuation pages start directly with options */}
         {page === 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
                 <div style={{ width: 4, height: 8,  background: accent, borderRadius: 2, opacity: 0.8 }} />
                 <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
                 <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
               </div>
-              <span style={{
+              <div style={{
+                display: 'flex', flexDirection: 'row', flexWrap: 'wrap',
                 width: W - 2 * PAD_H - 18 - 10 - 90 - 12 - 3,
-                color: '#ffffff', fontSize: 26, fontWeight: 800, lineHeight: 1.3,
+                gap: 7, alignItems: 'flex-end',
               }}>
-                {stripLeadingEmoji(poll.title).replace(/<a?:\w+:\d+>/g, '').trim() || poll.title}
-              </span>
+                {(stripLeadingEmoji(poll.title).replace(/<a?:\w+:\d+>/g, '').trim() || poll.title)
+                  .split(' ').filter(Boolean)
+                  .map((word, i) => (
+                    <span key={i} style={{ color: '#ffffff', fontSize: 26, fontWeight: 800, lineHeight: 1.3 }}>{word}</span>
+                  ))}
+              </div>
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
