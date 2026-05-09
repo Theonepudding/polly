@@ -47,7 +47,7 @@ function needsTwoImages(poll: Poll): boolean {
 // Mirror of the height formula in poll-image/[id]/route.tsx (vote-independent baseline).
 // Both page URLs must carry the same ?h= so Discord renders them at the same display size.
 function computePollImageH(poll: Poll): number {
-  const PAD_V = 26, HEADER_H = 160, FOOTER_H = 50, MIN_H = 460
+  const PAD_V = 26, HEADER_H = 58, FOOTER_H = 50, MIN_H = 460
   // 75 base row + 18 voter-name line (always reserve it so canvas stays large
   // enough after votes are cast, avoiding content overflow in Satori)
   const OPT_ROW = 93
