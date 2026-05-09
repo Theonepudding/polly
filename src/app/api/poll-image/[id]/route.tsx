@@ -482,7 +482,7 @@ export async function GET(
                 <div style={{ width: 4, height: 16, background: accent, borderRadius: 2 }} />
                 <div style={{ width: 4, height: 11, background: accent, borderRadius: 2, opacity: 0.9 }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', width: W - 2 * PAD_H - 18 - 10 - 90 - 12 - 3 }}>
                 <div style={{ color: '#ffffff', fontSize: 26, fontWeight: 800, lineHeight: 1.3 }}>
                   {stripLeadingEmoji(poll.title).replace(/<a?:\w+:\d+>/g, '').trim() || poll.title}
                 </div>
